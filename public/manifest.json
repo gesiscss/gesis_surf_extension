@@ -1,7 +1,7 @@
 {
   "name": "GESIS Surf",
   "description": "Nehmen Sie mit GESIS Surf an wissenschaftlichen Studien von GESIS – Leibniz-Institut für Sozialwissenschaften teil",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "manifest_version": 3,
   "browser_specific_settings": {
     "gecko": {

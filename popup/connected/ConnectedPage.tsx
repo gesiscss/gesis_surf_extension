@@ -26,7 +26,7 @@ function ConnectedPage() {
   return (
     <div className='centered-content'>
       <img className='logoG' src='logoGesis.png' style={{width:'70%'}}></img>
-      <h2>Erfolgreich verbunden</h2>
+      <h2>Erfolgreich verbunden!</h2>
 
       <div className='private'>
       <h2>Privaten Modus einschalten</h2>
