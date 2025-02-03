@@ -1,6 +1,7 @@
 import { storage } from "webextension-polyfill";
 import { getHostAll, getHostHostId, getTabById, setHost } from "../db/dblocal";
 const API_URL:any = 'https://surfcollect.gesis.org/api/'
+// const API_URL:any = 'http://localhost:8000/api/'
 
 async function delay(ms) {console.log(ms);
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -58,7 +59,7 @@ export async function getTask(taskId:any){
          'Content-Type': 'application/json',
        },
       }
-     const response = await fetch(API_URL+'host/task-result/'+taskId, requestOptions);
+     const response = await fetch(API_URL+'host/task-result/'+taskId+'/', requestOptions);
 
      return await response.json();
    

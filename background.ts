@@ -1,7 +1,7 @@
 import { alarms, runtime, storage} from 'webextension-polyfill'
 import {getCurrentTab, startListeners} from './helpers/tabs'
 import { syncData } from './controllers/core'
-import { demoDB, getDomainIdByTabWindowNum } from './db/dblocal'
+import { demoDB, clearAllRecords } from './db/dblocal'
 import { setCick, setScroll } from './services/syncService'
 import { startAlarmAll, startHeartbeat } from './services/heartbeat'
 import { initPrivateMode, setPrivateMode } from './services/privateMode'
@@ -22,6 +22,7 @@ export async function init() {
   runtime.onMessage.addListener(async (message: Message, sender) => {
     if (message.action === 'pageLoaded'){
        syncData(message.info,sender,message.meta);
+      // console.log('Disabling syncData');
     }
 
     if (message.action === 'setToken'){
@@ -71,6 +72,7 @@ runtime.onStartup.addListener(()=>{
 runtime.onInstalled.addListener(() => {
   init().then(async () => {
     console.log('[background] loaded ');
+    clearAllRecords().catch((e)=>console.log(e));
     startHeartbeat();
     demoDB();
     installedVersion();
@@ -81,6 +83,7 @@ runtime.onInstalled.addListener(() => {
 runtime.onUpdateAvailable.addListener(()=>{
   init().then(async () => {
     console.log('[background] loaded ');
+    clearAllRecords().catch((e)=>console.log(e));
     startHeartbeat();
     getCurrentTab();
     checkVersions();

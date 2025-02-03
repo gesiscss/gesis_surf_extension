@@ -5,6 +5,7 @@ import { getCurrentTab } from "../helpers/tabs";
 //import qs from "qs";
 
 const API_URL:any = 'https://surfcollect.gesis.org/api/'
+// const API_URL:any = 'http://localhost:8000/api/'
 
 export async function login(username: string, password: string){
         try {

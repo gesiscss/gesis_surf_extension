@@ -28,6 +28,20 @@ interface DBGesis extends DBSchema {
   };
 }
 
+export async function clearAllRecords() {
+  const db = await openDB<DBGesis>('gesisdb', 1);
+
+  const tx = db.transaction(['winlives', 'tabslives', 'domainslives'], 'readwrite');
+  await Promise.all([
+    tx.objectStore('winlives').clear(),
+    tx.objectStore('tabslives').clear(),
+    tx.objectStore('domainslives').clear()
+  ]);
+
+  await tx.done;
+  console.log('All records cleared;');
+}
+
 export async function demoDB() {
 
 const db = await openDB<DBGesis>('gesisdb', 1, {

@@ -7,6 +7,7 @@ import { checkHost, setPayloadByHost } from '../middleware/hosts';
 import { checkHostClick, checkHostScroll, getDomainIdFromTab, getDomainsByTabLocal } from '../helpers/scrollingTab';
 import { getPrivateMode } from './privateMode';
 const API_URL:any = 'https://surfcollect.gesis.org/api/'
+// const API_URL:any = 'http://localhost:8000/api/'
 
 type Window = {
   id: string
@@ -84,7 +85,7 @@ async function updateTab(payload:any,tab:any){
       body: JSON.stringify(_data)
      }
      
-     const response = await fetch(API_URL+'tab/tabs/'+tab.id, requestOptions);
+     const response = await fetch(`${API_URL}tab/tabs/${tab.id}/`, requestOptions);
      const _tab = await response.json();
      await setDomain(_tab,_tab.id)
     return response;
@@ -115,7 +116,7 @@ export async function updateDomain(domain:any,offline) {
       body:JSON.stringify(_data)
      }
 
-     const response = await fetch(API_URL+'domain/domains/'+domain.id, requestOptions);
+     const response = await fetch(`${API_URL}domain/domains/${domain.id}/`, requestOptions);
      const _domain = await response.json();
      return _domain;
     
@@ -209,7 +210,7 @@ export async function windowsClosed(window){
       body:JSON.stringify(_data)
      }
      
-     const response = await fetch(API_URL+'window/windows/'+_win[0].id, requestOptions);
+     const response = await fetch(`${API_URL}window/windows/${_win[0].id}/`, requestOptions);
      const _domain = await response.json();
      
   } catch (error) {
@@ -236,7 +237,7 @@ export async function tabClosed(tab,offline){
       body:JSON.stringify(_data)
      }
      
-     const response = await fetch(API_URL+'tab/tabs/'+_tab[0].id, requestOptions);
+     const response = await fetch(`${API_URL}tab/tabs/${_tab[0].id}/`, requestOptions);
      const _tabs = await response.json();
      console.log(tab);
      console.log(_tab);
@@ -292,7 +293,7 @@ export async function setScroll(tab,scroll,info){
           },
           body:JSON.stringify(_data)
          }
-         const response = await fetch(API_URL+'domain/domains/'+_domain.id, requestOptions);
+         const response = await fetch(`${API_URL}domain/domains/${_domain.id}/`, requestOptions);
          const _domainresp = await response.json();
          return _domainresp;
         
@@ -342,7 +343,7 @@ export async function setCick(tab,click,info){
           },
           body:JSON.stringify(_data)
          }
-         const response = await fetch(API_URL+'domain/domains/'+_domain.id, requestOptions);
+         const response = await fetch(`${API_URL}domain/domains/${_domain.id}/`, requestOptions);
          const _domainresp = await response.json();
          return _domainresp;
         
