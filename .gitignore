@@ -25,3 +25,10 @@ dist-ssr
 
 # Untrack zip files
 *.zip
+
+# Environment files
+.env
+.env.local
+
+# etc
+**/*.turbo
