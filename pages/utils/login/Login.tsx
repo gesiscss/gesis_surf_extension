@@ -1,7 +1,7 @@
 // import React, { useState } from 'react';
 // import { useNavigate, useLocation, Navigate, Route } from 'react-router-dom';
-// import ConnectedPage from './ConnectedPage'
-// import { login } from '../../services/authService';
+// import ConnectedPage from '../connected/ConnectedPage'
+// import { login } from '../../../services/authService';
 
 // function Login() {
 

@@ -3,7 +3,7 @@
 // import { runtime, storage } from 'webextension-polyfill';
 // import ReactSwitch from 'react-switch';
 // import '../Popup.css'
-// import { getPrivateMode, setPrivateMode } from '../../services/privateMode';
+// import { getPrivateMode, setPrivateMode } from '../../../services/privateMode';
 
 // function ConnectedPage() {
 
