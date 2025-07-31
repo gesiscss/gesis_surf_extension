@@ -1,0 +1,9 @@
+packages:
+  - "chrome-extension"
+  - "packages/*"
+  - "pages/content"
+  - "pages/devtools"
+  - "pages/newtab"
+  - "pages/options"
+  - "pages/popup"
+  - "pages/sidepanel"

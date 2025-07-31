@@ -1,0 +1,31 @@
+{
+  "name": "@chrome-extension-boilerplate/popup",
+  "version": "0.0.1",
+  "description": "chrome extension popup",
+  "private": true,
+  "sideEffects": true,
+  "files": [
+    "dist/**"
+  ],
+  "scripts": {
+    "clean": "rimraf ./dist && rimraf .turbo",
+    "build": "pnpm run clean && tsc --noEmit && vite build",
+    "build:watch": "cross-env __DEV__=true vite build -w --mode development",
+    "dev": "pnpm build:watch",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "pnpm lint --fix",
+    "prettier": "prettier . --write",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@chrome-extension-boilerplate/shared": "workspace:*",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/material": "^6.1.10"
+  },
+  "devDependencies": {
+    "@chrome-extension-boilerplate/hmr": "workspace:*",
+    "@chrome-extension-boilerplate/tailwindcss-config": "workspace:*",
+    "@chrome-extension-boilerplate/tsconfig": "workspace:*"
+  }
+}
