@@ -1,8 +1,18 @@
-// import React, { useState } from 'react';
-// import { useNavigate, useLocation, Navigate, Route } from 'react-router-dom';
-// import ConnectedPage from './ConnectedPage'
-// import { login } from '../../services/authService';
+import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Box, Card, CardContent, TextField, Button, Typography } from '@mui/material';
 
+interface LoginProps {}
+
+const Login: React.FC<LoginProps> = () => {
+    const [usename, setUsername] = useState<string>('');
+    const [password, setPassword] = useState<string>('');
+    const [errorMessage, setErrorMessage] = useState<string>('');
+    const [loading, setLoading] = useState<boolean>(false);
+    // const {setIsAuthenticated} = useAuth();
+    const navigate = useNavigate();
+
+    
 // function Login() {
 
 //   const [formData, setFormData] = useState({
