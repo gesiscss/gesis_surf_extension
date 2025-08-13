@@ -1,6 +1,8 @@
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Card, CardContent, TextField, Button, Typography } from '@mui/material';
+import { useAuth } from './AuthContext';
+import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 
 interface LoginProps {}
 
@@ -9,11 +11,36 @@ const Login: React.FC<LoginProps> = () => {
     const [password, setPassword] = useState<string>('');
     const [errorMessage, setErrorMessage] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
-    // const {setIsAuthenticated} = useAuth();
+    const {setIsAuthenticated} = useAuth();
     const navigate = useNavigate();
 
-    
-// function Login() {
+    useEffect(() =>{
+        const checkAuthentication = async () => {
+            setLoading(true);
+            try {
+                const data = await readToken();
+                const storedToken = data || null;
+
+                console.log('Stored Token:', storedToken);
+            } catch (error) {
+                console.error('Error reading token:', error);
+            }
+        };
+
+        checkAuthentication();
+    }, []);
+
+    return (
+        <Box>
+            <Card>
+                <CardContent>
+                    <Typography variant="h5">Login</Typography>
+                </CardContent>
+            </Card>
+        </Box>
+    );
+
+}
 
 //   const [formData, setFormData] = useState({
 //     username: "",
@@ -108,4 +135,4 @@ const Login: React.FC<LoginProps> = () => {
 //   )
 // }
 
-// export default Login
+export default Login
