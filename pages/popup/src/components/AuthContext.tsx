@@ -17,6 +17,7 @@
 
 import React, {createContext, useContext, useState, useEffect } from 'react';
 import { AuthContextType, AuthProviderProps } from '@src/features/auth/auth.types';
+import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 
 // Create the AuthContext
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -28,9 +29,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
 
     useEffect(() => {
-        chrome.storage.local.get('token', (data) => {
-            setIsAuthenticated(!!data.token);
-        });
+        let mounted = true;
+        
+        (async () => {
+            try {
+                const token = readToken();
+                if (mounted) {
+                    setIsAuthenticated(Boolean(token));
+                }
+            } catch {
+                    if (mounted) setIsAuthenticated(false);
+                }
+            })();
+
+            return () => {
+                mounted = false;
+            };
     }, []);
 
     return (
