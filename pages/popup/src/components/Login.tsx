@@ -6,41 +6,53 @@ import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tok
 
 interface LoginProps {}
 
+// simple render
 const Login: React.FC<LoginProps> = () => {
-    const [usename, setUsername] = useState<string>('');
+    const [username, setUsername] = useState<string>('');
     const [password, setPassword] = useState<string>('');
     const [errorMessage, setErrorMessage] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
-    const {setIsAuthenticated} = useAuth();
-    const navigate = useNavigate();
-
-    useEffect(() =>{
-        const checkAuthentication = async () => {
-            setLoading(true);
-            try {
-                const data = await readToken();
-                const storedToken = data || null;
-
-                console.log('Stored Token:', storedToken);
-            } catch (error) {
-                console.error('Error reading token:', error);
-            }
-        };
-
-        checkAuthentication();
-    }, []);
+    const { setIsAuthenticated } = useAuth();
+    // const navigate = useNavigate();
 
     return (
-        <Box>
-            <Card>
-                <CardContent>
-                    <Typography variant="h5">Login</Typography>
-                </CardContent>
-            </Card>
-        </Box>
+        <div>
+            <h1>Login Test</h1>
+        </div>
     );
-
 }
+
+// const Login: React.FC<LoginProps> = () => {
+//     const [usename, setUsername] = useState<string>('');
+//     const [password, setPassword] = useState<string>('');
+//     const [errorMessage, setErrorMessage] = useState<string>('');
+//     const [loading, setLoading] = useState<boolean>(false);
+//     const {setIsAuthenticated} = useAuth();
+//     const navigate = useNavigate();
+
+//     // useEffect(() =>{
+//     //     const checkAuthentication = async () => {
+//     //         setLoading(true);
+//     //         try {
+//     //             const data = await readToken();
+//     //             const storedToken = data || null;
+
+//     //             console.log('Stored Token:', storedToken);
+//     //         } catch (error) {
+//     //             console.error('Error reading token:', error);
+//     //         }
+//     //     };
+
+//     //     checkAuthentication();
+//     // }, []);
+
+//     return (
+//         <div>
+//             <h1>Login</h1>
+//         </div>
+//     );
+
+// }
 
 //   const [formData, setFormData] = useState({
 //     username: "",
