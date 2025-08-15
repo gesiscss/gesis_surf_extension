@@ -44,28 +44,3 @@ export const readToken = (): Promise<AuthToken> => tokenStorage.get();
  */
 export const writeToken = (token?: string | null ): Promise<void> =>
     token ? tokenStorage.setToken(token) : tokenStorage.clearToken();
-
-
-// Validate the auth token.
-export const validateToken = async (token: string, url: string): Promise<boolean> => {
-    try {
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Token ${token}`
-            },
-            body: JSON.stringify({ token })
-        });
-
-        if (!response.ok) {
-            throw new Error('Token validation failed');
-        }
-
-        const data = await response.json();
-        return data.valid;
-    } catch (error) {
-        console.error('Error validating token:', error);
-        return false;
-    }
-};
