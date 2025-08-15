@@ -4,16 +4,16 @@ export const LOCAL_RELOAD_SOCKET_URL = `ws://localhost:${LOCAL_RELOAD_SOCKET_POR
 
 // API Configuration & environment switching
 export const API_CONFIG = {
-    BASE_URL: 'https://api-stg.brain-community.com/api',
+    BASE_URL: 'https://surfcollect.gesis.org/api',
+    STG_URL: 'https://staging.surfcollect.gesis.org/api',
     LOCAL_URL: 'http://localhost:8000/api',
     ENDPOINTS: {
-        AUTH: '/user/token/',
-        ME: '/user/me/',
-        USER: '/user/user/',
+        USER_TOKEN: '/user/token/',
+        USER_ME: '/user/me/',
+        GLOBAL_SESSION: '/session/',
         CLICK: '/click/click/',
         SCROLL: '/scroll/scroll/',
         TAB: '/tab/tab/',
         DOMAIN: '/domain/domain/',
-        SESSION: '/session/',
     }
 } as const;
