@@ -2,4 +2,4 @@ import { createStorage, StorageType, type BaseStorage, SessionAccessLevel } from
 import { exampleThemeStorage } from './exampleThemeStorage';
 
 export { exampleThemeStorage, createStorage, StorageType, SessionAccessLevel, BaseStorage };
- export { readToken, writeToken } from './tokenStorage';
+ export { readToken, writeToken, validateToken } from './tokenStorage';

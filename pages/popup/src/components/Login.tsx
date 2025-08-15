@@ -2,7 +2,7 @@ import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Card, CardContent, TextField, Button, Typography } from '@mui/material';
 import { useAuth } from './AuthContext';
-import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
+import { readToken, validateToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 
 interface LoginProps {}
 
@@ -14,6 +14,27 @@ const Login: React.FC<LoginProps> = () => {
     const [loading, setLoading] = useState<boolean>(false);
     const { setIsAuthenticated } = useAuth();
     // const navigate = useNavigate();
+
+    useEffect(() => {
+        const checkAuthentication = async () => {
+            setLoading(true);
+            try {
+                const data = await readToken();
+                const storedToken = data || null;
+
+                console.log('Stored Token:', storedToken);
+
+                if (storedToken) {
+                    console.log('Validating token ...')
+                    const isValid = await validateToken(storedToken, )
+                }
+            } catch (error) {
+                console.error('Error reading token:', error);
+            }
+        };
+
+        checkAuthentication();
+    }, []);
 
     return (
         <div>
