@@ -1,10 +1,10 @@
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Card, CardContent, TextField, Button, Typography, CardMedia, Alert } from '@mui/material';
+import { Box, Card, CardContent, TextField, Button, Typography, CardMedia, Alert, FormLabel } from '@mui/material';
 import { useAuth } from './AuthContext';
 import { readToken, writeToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
-import { validateToken, apiRequest } from '../../../../packages/shared/lib/services/authServices';
+import { validateToken, apiRequest } from '@chrome-extension-boilerplate/shared/lib/services/authServices';
 
 interface LoginProps {}
 
@@ -60,6 +60,12 @@ const Login: React.FC<LoginProps> = () => {
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+
+        // To German Language
+        if (!username || !password) {
+            setErrorMessage('Bitte geben Sie Ihre GESIS Surf-ID und Passwort ein.');
+            return;
+        }
         setLoading(true);
 
         try {
@@ -122,8 +128,10 @@ const Login: React.FC<LoginProps> = () => {
     }
 
     return (
+        
         <Box
             sx={{
+                position: 'relative',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
@@ -134,10 +142,12 @@ const Login: React.FC<LoginProps> = () => {
                 padding: 1,
                 boxSizing: 'border-box',
                 borderRadius: 1,
+                overflow: 'hidden',
             }}
         >
             <Card
                 sx={{
+                    position: 'relative',
                     width: '100%',
                     maxWidth: 400,
                     boxShadow: 3,
@@ -145,44 +155,92 @@ const Login: React.FC<LoginProps> = () => {
                     textAlign: 'center',
                 }}
             >
-                <CardMedia
+                <Typography
+                    variant='h5'
+                    component='div'
+                    gutterBottom
+                    sx = {{
+                        fontFamily: 'Cabin, sans-serif',
+                        fontSize: '1.2rem',
+                        color: 'text.primary'
+                    }}
+                >
+                    GESIS Surf
+                </Typography>
+                <CardMedia 
                     component="img"
-                    height="140"
                     image="https://www.gesis.org/fileadmin/admin/Dateikatalog/Logos/gesis_surf.svg"
                     alt="GESIS Surf"
-                    sx = {{
-                        padding: 2,
+                    sx={{
+                        position: 'relative',
+                        zIndex: 1,
+                        padding: 1,
                         objectFit: 'contain',
-                        width: '50%',
-                        height: '50%',
+                        width: '40%',
+                        height: '80%',
                         margin: '0 auto',
-                        backgroundColor: '#fff',
+                        backgroundColor: 'transparent',
                     }}
                 />
                 <CardContent>
-                    <Typography variant="h5" component="div" gutterBottom>
-                        GESIS Surf
-                    </Typography>
-                    <form onSubmit={handleSubmit}>
+                    <form onSubmit={handleSubmit} noValidate>
+                        <FormLabel 
+                            sx={{ 
+                                textAlign: 'center', 
+                                display: 'block',
+                                marginBottom: 0.5,
+                                marginTop: 1,
+                                fontFamily: 'Cabin, sans-serif',
+                                fontSize: '0.8rem',
+                                color: 'text.primary'
+                            }}
+                        >
+                            GESIS Surf-ID:
+                        </FormLabel>
                         <TextField
-                            label="GESIS Surf-ID:"
+                            label="GESIS Surf-ID"
                             type="text"
                             value={username}
                             onChange={handleUserIdChange}
                             fullWidth
-                            margin="normal"
+                            size="small"
+                            margin="dense"
                             variant="outlined"
                             required
+                            error={!username && errorMessage !== ''}
+                            helperText={!username && errorMessage !== '' ? 'GESIS Surf-ID ist erforderlich.' : ''}
+                            InputLabelProps={{
+                                sx: { fontFamily: 'Cabin, sans-serif', fontSize: '0.7rem' }
+                            }}
                         />
+                        <FormLabel 
+                            sx={{ 
+                                textAlign: 'center', 
+                                display: 'block',
+                                marginBottom: 0.5,
+                                marginTop: 1,
+                                fontFamily: 'Cabin, sans-serif',
+                                fontSize: '0.8rem',
+                                color: 'text.primary'
+                            }}
+                        >
+                            GESIS Surf-Passwort:
+                        </FormLabel>
                         <TextField
-                            label="GESIS Surf-Passwort:"
+                            label="GESIS Surf-Passwort"
                             type="password"
                             value={password}
                             onChange={handlePasswordChange}
                             fullWidth
+                            size="small"
                             margin="normal"
                             variant="outlined"
                             required
+                            error={!password && errorMessage !== ''}
+                            helperText={!password && errorMessage !== '' ? 'GESIS Surf-Passwort ist erforderlich.' : ''}
+                            InputLabelProps={{
+                                sx: { fontFamily: 'Cabin, sans-serif', fontSize: '0.7rem' }
+                            }}
                         />
                         {errorMessage && (
                             <Alert severity="error" sx={{ mt: 2 }}>
