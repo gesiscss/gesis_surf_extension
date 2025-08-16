@@ -119,7 +119,7 @@ const Login: React.FC<LoginProps> = () => {
                     justifyContent: 'center',
                     alignItems: 'center',
                     height: '100vh',
-                    backgroundColor: '#000',
+                    backgroundColor: '#1E8CC8',
                 }}
             >
                 <Typography variant="h5">Loading...</Typography>
@@ -138,7 +138,7 @@ const Login: React.FC<LoginProps> = () => {
                 alignItems: 'center',
                 height: '100%',
                 width: '100%',
-                backgroundColor: 'black',
+                backgroundColor: '#003C78',
                 padding: 1,
                 boxSizing: 'border-box',
                 borderRadius: 1,
@@ -156,13 +156,15 @@ const Login: React.FC<LoginProps> = () => {
                 }}
             >
                 <Typography
-                    variant='h5'
+                    variant='h1'
                     component='div'
                     gutterBottom
                     sx = {{
                         fontFamily: 'Cabin, sans-serif',
-                        fontSize: '1.2rem',
-                        color: 'text.primary'
+                        fontSize: '1.7rem',
+                        fontWeight: 'bold',
+                        marginTop: 1,
+                        color: '#003C78'
                     }}
                 >
                     GESIS Surf
@@ -188,11 +190,11 @@ const Login: React.FC<LoginProps> = () => {
                             sx={{ 
                                 textAlign: 'center', 
                                 display: 'block',
-                                marginBottom: 0.5,
+                                marginBottom: 0.2,
                                 marginTop: 1,
                                 fontFamily: 'Cabin, sans-serif',
-                                fontSize: '0.8rem',
-                                color: 'text.primary'
+                                fontSize: '0.9rem',
+                                color: '#1E8CC8'
                             }}
                         >
                             GESIS Surf-ID:
@@ -217,11 +219,11 @@ const Login: React.FC<LoginProps> = () => {
                             sx={{ 
                                 textAlign: 'center', 
                                 display: 'block',
-                                marginBottom: 0.5,
+                                marginBottom: 0.2,
                                 marginTop: 1,
                                 fontFamily: 'Cabin, sans-serif',
-                                fontSize: '0.8rem',
-                                color: 'text.primary'
+                                fontSize: '0.9rem',
+                                color: '#D20064'
                             }}
                         >
                             GESIS Surf-Passwort:
@@ -233,7 +235,7 @@ const Login: React.FC<LoginProps> = () => {
                             onChange={handlePasswordChange}
                             fullWidth
                             size="small"
-                            margin="normal"
+                            margin="dense"
                             variant="outlined"
                             required
                             error={!password && errorMessage !== ''}
@@ -251,7 +253,12 @@ const Login: React.FC<LoginProps> = () => {
                             type="submit"
                             variant="contained"
                             fullWidth
-                            sx = {{backgroundColor: '#080074ff', color: '#fff'}}
+                            sx = {{
+                                backgroundColor: '#1E8CC8', color: '#fff',
+                                fontFamily: 'Cabin, sans-serif',
+                                fontWeight: 'bold',
+                                mt: 1,
+                            }}
                         >
                             Anmelden
                         </Button>
