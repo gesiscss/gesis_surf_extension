@@ -81,7 +81,6 @@ const Login: React.FC<LoginProps> = () => {
                 'POST',
                 true
             );
-            console.log('Response:', response);
 
             const data = await response.json();
             if (response.ok) {
