@@ -29,19 +29,25 @@ export class ApiError extends Error {
 export const apiRequest =async(
     endpoint: string,
     options: RequestInit = {},
-    method: string = 'GET'
+    method: string = 'GET',
+    skipAuth: boolean = false
 ): Promise<Response> => {
-    const token = await readToken();
 
-    if(!token){
-        throw new ApiError(401, 'Unauthorized', 'User is not authenticated. Please log in.');
-    }
-
-    const headers = {
+    let headers: HeadersInit = {
         ...options.headers,
         'Accept': 'application/json',
-        'Authorization': `Token ${token}`
     };
+
+    if (!skipAuth) {
+        const token = await readToken();
+        if (!token) {
+            throw new ApiError(401, 'Unauthorized', 'User is not authenticated. Please log in.');
+        }
+        headers = {
+            ...headers,
+            'Authorization': `Token ${token}`
+        };
+    }
 
     try {
         const response = await fetch(endpoint, {
