@@ -23,6 +23,7 @@
   "type": "module",
   "dependencies": {
     "@types/react-router-dom": "^5.3.3",
+    "idb": "^8.0.0",
     "pre-commit": "^1.2.2",
     "react": "18.2.0",
     "react-dom": "18.2.0",
@@ -73,4 +74,3 @@
     }
   }
 }
-
