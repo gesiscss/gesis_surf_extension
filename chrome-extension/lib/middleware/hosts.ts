@@ -1,5 +1,5 @@
 import { storage } from "webextension-polyfill";
-import { getHostAll, getHostHostId, getTabById, setHost } from "../db/dblocal";
+import { getHostAll, getHostHostId, getTabById, setHost } from "../db/services/DatabaseService";
 const API_URL:any = 'https://surfcollect.gesis.org/api/'
 
 async function delay(ms) {console.log(ms);
