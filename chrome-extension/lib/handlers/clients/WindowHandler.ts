@@ -1,5 +1,5 @@
 import { DatabaseService } from "@root/lib/db";
-import GlobalSessionService from "@root/lib/services/GlobalSessionService";
+import GlobalSessionService from "@root/lib/services/globalSession/GlobalSessionService";
 import { WindowDataTypes, PayloadTypes, InfoType } from "../types/windowTypes";
 
 const apiUrl = import.meta.env.VITE_API_BASE_ENDPOINT;
