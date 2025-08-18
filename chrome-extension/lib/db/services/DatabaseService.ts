@@ -1,5 +1,6 @@
 import { openDB, IDBPDatabase } from 'idb';
-import { DBGesisTypes, ItemTypes } from './types';
+import { DBGesisTypes, ItemTypes } from '../interfaces/types';
+import { DB_CONFIG } from '../constants/dbConfig';
 
 
 type StoreNames = 'winlives' | 'tabslives' | 'domainslives' | 'config' | 'winclose' ;
@@ -11,7 +12,11 @@ class DatabaseService {
   private db: Promise<IDBPDatabase<DBGesisTypes>>;
 
   constructor() {
-    this.db = openDB<DBGesisTypes>('braindb', 2, {
+    this.db = this.initializeDB();
+  }
+
+  private initializeDB() : Promise<IDBPDatabase<DBGesisTypes>> {
+    return openDB<DBGesisTypes>(DB_CONFIG.name, DB_CONFIG.version, {
       upgrade(db, oldVersion) {
         if (!db.objectStoreNames.contains('winlives')) {
           db.createObjectStore('winlives', { keyPath: 'window_session_id' });
