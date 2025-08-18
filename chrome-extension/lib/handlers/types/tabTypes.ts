@@ -1,6 +1,9 @@
-export interface DomainData {
+
+export type InfoType = 'onCreated' | 'onFocused' | 'onRemoved';
+
+export interface DomainDataTypes {
     id: number;
-    close_time: string;
+    closing_time: string;
     domain_fav_icon: string;
     domain_lastAccessed: string;
     domain_session_id: string;
@@ -9,19 +12,7 @@ export interface DomainData {
     start_time: string;
 }
 
-export interface Payload {
-    id?: number;
-    start_time: string;
-    close_time: string;
-    window_num: string | number | TabData;
-    tab_num: string | number | TabData;
-    window: number;
-    domains: DomainData[];
-    tab_session_id?: string;
-    user?: string;
-}
-
-export interface TabData {
+export interface TabDataTypes {
     id: number;
     windowId: number;
     active: boolean;
@@ -32,4 +23,15 @@ export interface TabData {
     lastAccessed: number;
     incognito: boolean;
     pinned: boolean;
+}
+export interface PayloadTypes {
+    id?: number;
+    start_time: string;
+    closing_time: string;
+    window_num: string | number | TabDataTypes;
+    tab_num: string | number | TabDataTypes;
+    window: number;
+    domains: DomainDataTypes[];
+    tab_session_id?: string;
+    user?: string;
 }

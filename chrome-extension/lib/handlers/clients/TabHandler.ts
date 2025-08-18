@@ -1,16 +1,12 @@
 import { Tabs} from "webextension-polyfill";
 import { DatabaseService } from "@root/lib/db";
-import GlobalSessionService from "@root/lib/services/GlobalSessionService";
-// import DomainManager from "./domain";
+import { GlobalSessionService } from "@root/lib/services";
+import DomainManager from "./domain";
+import { readToken } from "@chrome-extension-boilerplate/shared/lib/storages/tokenStorage";
+import { DomainDataTypes, InfoType, TabDataTypes, PayloadTypes } from "../types/tabTypes";
 
 
 const apiUrl = import.meta.env.VITE_API_BASE_ENDPOINT;
-
-
-
-type InfoType = 'onCreated' | 'onFocused' | 'onRemoved';
-
-
 
 /**
  * Manages browser tabs requests.
@@ -32,7 +28,7 @@ class TabManager {
      * @param tabId The tab data to be hashed.
      * @returns the unique global session id with the tab id.
     */
-   async generateTabSession(tab: TabData | number | Tabs.Tab, windowId: number): Promise<string> {
+   async generateTabSession(tab: TabDataTypes | number | Tabs.Tab, windowId: number): Promise<string> {
         const windowSessionId = await this.globalSessionService.getGlobalSessionId(windowId, 'window');
         const tabId = typeof tab === 'number' ? tab : tab.id;
         return `${windowSessionId}-tabId-${tabId}`;
@@ -44,13 +40,13 @@ class TabManager {
      * @param info The type of event that triggered the payload.
      * @returns The payload to be sent to the server.
      */
-    async buildPayload(tab_data: TabData, info: InfoType, windowId: number): Promise<Payload> {
+    async buildPayload(tab_data: TabDataTypes, info: InfoType, windowId: number): Promise<PayloadTypes> {
 
         const tabId = typeof tab_data === 'number' ? tab_data : tab_data.id;
 
-        const payload: Payload = {
+        const payload: PayloadTypes = {
             start_time: new Date().toISOString(),
-            close_time: new Date().toISOString(),
+            closing_time: new Date().toISOString(),
             window_num: tab_data.windowId,
             tab_num: tabId,
             window: windowId,
@@ -66,9 +62,9 @@ class TabManager {
      * @param method The method to be used in the fetch request.
      * @returns The request options for the fetch request.
      */
-    async requestOptions(payload: Payload, method: string): Promise<RequestInit | undefined> {
+    async requestOptions(payload: PayloadTypes, method: string): Promise<RequestInit | undefined> {
         try {
-            const token = await this.dbService.getToken();
+            const token = await readToken();
             if (token) {
                 const headers = new Headers();
                 headers.append('Content-Type', 'application/json');
@@ -126,7 +122,7 @@ class TabManager {
                 throw new Error('Tab URL is not a string');
             }
 
-            const tabData: TabData = {
+            const tabData: TabDataTypes = {
                 id: tab.id,
                 windowId: tab.windowId,
                 active: tab.active,
@@ -171,7 +167,7 @@ class TabManager {
      * @param tab The tab data to be updated.
      * @param info The type of event that triggered the payload.
      */
-    async updateTab(tabId: number, mapping: Payload , method: string, url: string): Promise<Response> {
+    async updateTab(tabId: number, mapping: PayloadTypes , method: string, url: string): Promise<Response> {
         console.log('Mapping Tab:', mapping);
         try{
             const domainSessionId = url;
@@ -209,9 +205,9 @@ class TabManager {
                     throw new Error(`Error: ${itemOrError.message}`);
                 }
 
-                const domainItem = itemOrError as Partial<DomainData>;
+                const domainItem = itemOrError as Partial<DomainDataTypes>;
 
-                const payloadDomain: DomainData = {
+                const payloadDomain: DomainDataTypes = {
                     id: domainItem.id || 0,
                     domain_fav_icon: domainItem.domain_fav_icon || '',
                     domain_lastAccessed: domainItem.domain_lastAccessed || '',
@@ -219,7 +215,7 @@ class TabManager {
                     domain_title: domainItem.domain_title || '',
                     domain_url: domainItem.domain_url || '',
                     start_time: domainItem.start_time || '',
-                    close_time: new Date().toISOString()
+                    closing_time: new Date().toISOString()
                 };
 
                 this.domainService.requestOptions(payloadDomain, method).then(async (requestOptionsDomain) => {
