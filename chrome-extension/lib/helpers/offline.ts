@@ -1,5 +1,5 @@
 
-import { deleteDomainIdByTabId, deleteWinClosed, getAllWinClosed, getDomainIdByTabWindowNum } from "../db/dblocal";
+import { deleteDomainIdByTabId, deleteWinClosed, getAllWinClosed, getDomainIdByTabWindowNum } from "../db/services/DatabaseService";
 
 import { tabClosed, updateDomain } from "../services/syncService";
 

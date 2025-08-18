@@ -1,4 +1,4 @@
-import { getDomainIdByTabId, getTabIdByTabId } from "../db/dblocal";
+import { getDomainIdByTabId, getTabIdByTabId } from "../db/services/DatabaseService";
 
 export async function getDomainIdFromTab(tab:any){
     let _last:any=null;

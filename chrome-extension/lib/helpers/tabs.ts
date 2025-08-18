@@ -1,7 +1,7 @@
 import {runtime, storage, tabs,windows } from 'webextension-polyfill'
 import { runDB } from '../db/config'
 import { sendNewTab, sendNewWindow, tabClosed, windowsClosed } from '../services/syncService'
-import { setWin, setWinClose } from '../db/dblocal';
+import { setWin, setWinClose } from '../db/services/DatabaseService';
 
 export async function getCurrentTab() {
   const w = await windows.getCurrent() 
