@@ -2,10 +2,10 @@ import { storage } from 'webextension-polyfill';
 import { findIdInStore, openDatabases, runDB } from '../db/config';
 import { getCurrentUser } from './authService';
 import { log } from 'console';
-import { deleteDomainIdByTabId, deleteTabById, getDomainIdByTabId, getHostHostId, getTabById, getTabIdByTabId, getWinIdByWinId, setDomain, setTab, setWin } from '../db/dblocal';
+import { deleteDomainIdByTabId, deleteTabById, getDomainIdByTabId, getHostHostId, getTabById, getTabIdByTabId, getWinIdByWinId, setDomain, setTab, setWin } from '../db/services/DatabaseService';
 import { checkHost, setPayloadByHost } from '../middleware/hosts';
 import { checkHostClick, checkHostScroll, getDomainIdFromTab, getDomainsByTabLocal } from '../helpers/scrollingTab';
-import { getPrivateMode } from './privateMode';
+import { getPrivateMode } from './privateMode/privateMode';
 const API_URL:any = 'https://surfcollect.gesis.org/api/'
 
 type Window = {
