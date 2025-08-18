@@ -1,6 +1,6 @@
 import { DatabaseService } from '../../db';
 import { v4 as uuidv4 } from 'uuid';
-import { GlobalSessionTypes, SessionType } from './GlobalServiceTypes';
+import { GlobalSessionTypes, SessionType } from './types';
 import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 
 
