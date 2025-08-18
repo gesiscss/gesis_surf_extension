@@ -5,3 +5,6 @@ export interface GlobalSessionTypes {
     start_time: string;
     closing_time?: string;
 }
+
+// Session types.
+export type SessionType = 'window' | 'tab' | 'domain';
