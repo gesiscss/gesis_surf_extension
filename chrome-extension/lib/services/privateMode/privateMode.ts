@@ -1,5 +1,5 @@
 import { alarms, storage } from "webextension-polyfill";
-import { updatePrivateMode } from "./syncService";
+import { updatePrivateMode } from "../syncService";
 
 const PRIVATE_MODE = "user-private-mode";
 
