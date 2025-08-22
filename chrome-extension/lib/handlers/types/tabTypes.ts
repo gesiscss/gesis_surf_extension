@@ -1,7 +1,6 @@
+import { BasePayloadTypes } from "../shared";
 
-export type InfoType = 'onCreated' | 'onFocused' | 'onRemoved';
-
-export interface DomainDataTypes {
+export interface DomainObjectDataTypes {
     id: number;
     closing_time: string;
     domain_fav_icon: string;
@@ -24,14 +23,11 @@ export interface TabDataTypes {
     incognito: boolean;
     pinned: boolean;
 }
-export interface PayloadTypes {
-    id?: number;
-    start_time: string;
-    closing_time: string;
-    window_num: string | number | TabDataTypes;
-    tab_num: string | number | TabDataTypes;
-    window: number;
-    domains: DomainDataTypes[];
-    tab_session_id?: string;
+export interface TabPayloadTypes extends BasePayloadTypes {
     user?: string;
+    window_num?: string | number | TabDataTypes;
+    tab_num?: string | number | TabDataTypes;
+    window: number;
+    domains: DomainObjectDataTypes[];
+    tab_session_id?: string;
 }

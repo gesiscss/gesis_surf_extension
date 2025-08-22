@@ -1,12 +1,10 @@
 import { Tabs} from "webextension-polyfill";
 import { DatabaseService } from "@root/lib/db";
 import { GlobalSessionService } from "@root/lib/services";
-import DomainManager from "./domain";
+import DomainManager from "./DomainHandler";
 import { readToken } from "@chrome-extension-boilerplate/shared/lib/storages/tokenStorage";
-import { DomainDataTypes, InfoType, TabDataTypes, PayloadTypes } from "../types/tabTypes";
-
-
-const apiUrl = import.meta.env.VITE_API_BASE_ENDPOINT;
+import { DomainObjectDataTypes, TabDataTypes, TabPayloadTypes } from "../types/tabTypes";
+import { apiUrl, InfoType } from "../shared";
 
 /**
  * Manages browser tabs requests.
@@ -28,7 +26,7 @@ class TabManager {
      * @param tabId The tab data to be hashed.
      * @returns the unique global session id with the tab id.
     */
-   async generateTabSession(tab: TabDataTypes | number | Tabs.Tab, windowId: number): Promise<string> {
+    async generateTabSession(tab: TabDataTypes | number | Tabs.Tab, windowId: number): Promise<string> {
         const windowSessionId = await this.globalSessionService.getGlobalSessionId(windowId, 'window');
         const tabId = typeof tab === 'number' ? tab : tab.id;
         return `${windowSessionId}-tabId-${tabId}`;
@@ -40,11 +38,11 @@ class TabManager {
      * @param info The type of event that triggered the payload.
      * @returns The payload to be sent to the server.
      */
-    async buildPayload(tab_data: TabDataTypes, info: InfoType, windowId: number): Promise<PayloadTypes> {
+    async buildPayload(tab_data: TabDataTypes, info: InfoType, windowId: number): Promise<TabPayloadTypes> {
 
         const tabId = typeof tab_data === 'number' ? tab_data : tab_data.id;
 
-        const payload: PayloadTypes = {
+        const payload: TabPayloadTypes = {
             start_time: new Date().toISOString(),
             closing_time: new Date().toISOString(),
             window_num: tab_data.windowId,
@@ -62,7 +60,7 @@ class TabManager {
      * @param method The method to be used in the fetch request.
      * @returns The request options for the fetch request.
      */
-    async requestOptions(payload: PayloadTypes, method: string): Promise<RequestInit | undefined> {
+    async requestOptions(payload: TabPayloadTypes, method: string): Promise<RequestInit | undefined> {
         try {
             const token = await readToken();
             if (token) {
@@ -167,7 +165,7 @@ class TabManager {
      * @param tab The tab data to be updated.
      * @param info The type of event that triggered the payload.
      */
-    async updateTab(tabId: number, mapping: PayloadTypes , method: string, url: string): Promise<Response> {
+    async updateTab(tabId: number, mapping: TabPayloadTypes, method: string, url: string): Promise<Response> {
         console.log('Mapping Tab:', mapping);
         try{
             const domainSessionId = url;
@@ -205,9 +203,8 @@ class TabManager {
                     throw new Error(`Error: ${itemOrError.message}`);
                 }
 
-                const domainItem = itemOrError as Partial<DomainDataTypes>;
-
-                const payloadDomain: DomainDataTypes = {
+                const domainItem = itemOrError as Partial<DomainObjectDataTypes>;
+                const payloadDomain: DomainObjectDataTypes = {
                     id: domainItem.id || 0,
                     domain_fav_icon: domainItem.domain_fav_icon || '',
                     domain_lastAccessed: domainItem.domain_lastAccessed || '',
