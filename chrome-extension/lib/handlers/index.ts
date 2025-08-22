@@ -1,12 +1,6 @@
-// Window API Handler
-export { default as WindowHandler } from './clients/WindowHandler';
+// Root index for Handlers
 
-// Tab API Handler
-export { default as TabHandler } from './clients/TabHandler';
+// Export Handlers
+export * from "./clients";
 
-// Types
-// Window Types
-export * from './types/windowTypes';
-
-// Tab Types
-export * from './types/tabTypes';
+export * from "./types";
