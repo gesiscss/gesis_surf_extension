@@ -1,4 +1,8 @@
-// Types for window data and payload
+// Types for Window data and Payload extension.
+
+import { BasePayloadTypes } from '../shared';
+
+// Window Data Types
 
 export interface WindowDataTypes {
     alwaysOnTop: boolean;
@@ -12,18 +16,9 @@ export interface WindowDataTypes {
     type: string | undefined;
     width: number | undefined;
 }
-export interface PayloadTypes {
-    id?: number;
-    start_time: string;
-    closing_time: string;
-    window_num: string | number |WindowDataTypes | undefined;
+
+export interface WindowPayloadTypes extends BasePayloadTypes {
+    window_num: string | number | WindowDataTypes | undefined;
     window_session_id: string | number | WindowDataTypes;
     global_session?: string | number | undefined;
-}
-
-
-export enum InfoType {
-    OnCreated = 'onCreated',
-    OnFocuseChanged = 'onFocusChanged',
-    OnRemoved = 'onRemoved'
 }

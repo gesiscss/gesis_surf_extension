@@ -1,13 +1,11 @@
 import { DatabaseService } from "@root/lib/db";
 import GlobalSessionService from "@root/lib/services/globalSession/GlobalSessionService";
-import { WindowDataTypes, PayloadTypes, InfoType } from "../types/windowTypes";
-
-const apiUrl = import.meta.env.VITE_API_BASE_ENDPOINT;
+import { WindowDataTypes, WindowPayloadTypes } from "../types/windowTypes";
+import { apiUrl, InfoType } from "../shared";
 
 /**
  * Manages browser window events.
  * Automatically registers event listeners for window events.
- * 
  */
 class WindowManager {
     dbService: DatabaseService;
@@ -42,7 +40,7 @@ class WindowManager {
      * @param startTime The start time of the event.
      * @returns The payload to be sent to the server.
      */
-    async buildPayload(windowData: WindowDataTypes | number, info: InfoType, startTime: string): Promise<PayloadTypes> {
+    async buildPayload(windowData: WindowDataTypes | number, info: InfoType, startTime: string): Promise<WindowPayloadTypes> {
 
         const globalSession = await this.globalSessionService.getFromLocalStorage();
 
@@ -58,7 +56,7 @@ class WindowManager {
         
         const windowSessionId = WindowManager.generateWindowSession(windowId, globalSession.global_session_id);
 
-        const payload: PayloadTypes = {
+        const payload: WindowPayloadTypes = {
             start_time: startTime,
             closing_time: new Date().toISOString(),
             window_num: windowId,
@@ -75,7 +73,7 @@ class WindowManager {
      * @param method The method to be used in the fetch request.
      * @returns The request options for the fetch request.
      */
-    async buildRequestOptions(payload: PayloadTypes, method: 'POST' | 'PUT' | 'PATCH'): Promise<RequestInit | undefined> {
+    async buildRequestOptions(payload: WindowPayloadTypes, method: 'POST' | 'PUT' | 'PATCH'): Promise<RequestInit | undefined> {
 
         try {
             const token = await this.getToken();
@@ -158,7 +156,7 @@ class WindowManager {
             throw new Error(`Error: ${itemOrError.message}`);
         }
 
-        const payload: PayloadTypes = {
+        const payload: WindowPayloadTypes = {
             ...itemOrError,
             closing_time: new Date().toISOString()
         };
