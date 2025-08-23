@@ -1,8 +1,8 @@
-import { HeartbeatService } from "./heartBeat";
-import EventManager from "../events/event";
-import GlobalSessionService from "./globalSession/GlobalSessionService";
+// import { HeartbeatService } from "./heartBeat";
+import { EventManager } from "@root/lib/events";
+import { GlobalSessionService } from "../globalSession";
 import { API_CONFIG } from "@chrome-extension-boilerplate/hmr/lib/constant";
-
+import { HeartbeatService } from "../heartBeatService";
 
 /**
  * Class to manage the authentication service.
