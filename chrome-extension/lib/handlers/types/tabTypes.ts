@@ -31,3 +31,15 @@ export interface TabPayloadTypes extends BasePayloadTypes {
     domains: DomainObjectDataTypes[];
     tab_session_id?: string;
 }
+
+export interface TabMapping {
+    id: string | number | undefined;
+    url: string;
+    windowId: number;
+    domainSessionId: string;
+    index: number;
+    highlighted: boolean;
+    active: boolean;
+    pinned: boolean;
+    incognito: boolean;
+}

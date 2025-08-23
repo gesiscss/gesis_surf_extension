@@ -8,7 +8,7 @@ import { apiUrl } from "../shared";
 /**	
  * Manages browser domain requests.
  * Sends requests to the server to manage domains.
- * */
+ */
 class DomainManager {
     dbService: DatabaseService;
     globalSessionService: GlobalSessionService;
