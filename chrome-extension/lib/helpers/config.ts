@@ -4,7 +4,7 @@ import { updateConfig } from "../services/syncService";
 export async function checkVersions(){
 
     const _vextension = await runtime.getManifest();
-    let _vbrowser =  await navigator.userAgent;
+    const _vbrowser =  await navigator.userAgent;
 
     await updateConfig({"extension":{
         "extension_version":_vextension.version,
@@ -23,7 +23,7 @@ export async function installedVersion(){
       }
 
     const _vextension = await runtime.getManifest();
-    let _vbrowser =  await navigator.userAgent;
+    const _vbrowser =  await navigator.userAgent;
 
     await updateConfig({"extension":{
         "extension_version":_vextension.version,
@@ -38,7 +38,7 @@ export async function installedVersion(){
 export async function updatedVersion(){
 
     const _vextension = await runtime.getManifest();
-    let _vbrowser =  await navigator.userAgent;
+    const _vbrowser =  await navigator.userAgent;
 
     await updateConfig({"extension":{
         "extension_version":_vextension.version,

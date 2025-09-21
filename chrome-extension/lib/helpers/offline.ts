@@ -19,7 +19,7 @@ export async function getDomainsByWinnumLocal(){
             }else{
                // console.log('Has domain',_d);
 
-                for (let t of _d) {
+                for (const t of _d) {
 
                    t.domains.sort(function(a,b) {
                     if (a.start_time < b.start_time) {
