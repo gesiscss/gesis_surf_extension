@@ -80,7 +80,7 @@ export async function checkHost(host:string) {
 
 export async function setPayloadByHost(host:any,tab,data,mode){
     
-  let domain:any = {};
+  const domain:any = {};
   console.log(host);
   
   if(mode)
