@@ -2,6 +2,7 @@ import { DatabaseService } from '../../db';
 import { v4 as uuidv4 } from 'uuid';
 import { GlobalSessionTypes, SessionType } from './types';
 import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
+// import { apiUrl } from '@root/lib/handlers/shared';
 
 
 class GlobalSessionService {
@@ -147,6 +148,7 @@ class GlobalSessionService {
         try {
 
             const newSessionId = GlobalSessionService.generateGlobalSessionId();
+            console.log('New global session ID generated:', newSessionId);
             this.lastCreatedSessionId = newSessionId;
 
             // Close existing global session
@@ -165,6 +167,10 @@ class GlobalSessionService {
 
             // Create Token
             const token = await readToken();
+            console.log('Creating new global session with ID:', newSessionId);
+            console.log('Using API URL:', this.apiUrl);
+            console.log('Using Token:', token);
+
             const response = await fetch(`${this.apiUrl}/globalsession/global-session/`, {
                 method: 'POST',
                 headers: {
@@ -173,6 +179,9 @@ class GlobalSessionService {
                 },
                 body: JSON.stringify(payload),
             });
+
+            console.log('Response status:', response.status);
+            // console.log('Response body:', await response.json());
 
             if (!response.ok) {
                 throw new Error(`Failed to create global session: ${response.statusText}`);

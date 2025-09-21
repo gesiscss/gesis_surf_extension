@@ -19,7 +19,7 @@ export async function getPrivateMode() {
 export async function setPrivateMode(val:boolean) {
     
     if(val){
-        let _date = new Date();
+        const _date = new Date();
         _date.setMinutes(_date.getMinutes() + 15); 
         await storage.local.set({"private":{"mode":val,"alarm":_date}})
         await alarms.create('privatemode',{ periodInMinutes: 15 });

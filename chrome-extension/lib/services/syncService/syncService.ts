@@ -45,7 +45,7 @@ export async function sendData(data:any,tab:any,info){
 
   if(_tab.length>0){
 
-    let _domain:any = await getDomainIdByTabId(_tab[0].id);
+    const _domain:any = await getDomainIdByTabId(_tab[0].id);
     
   if (_domain?.length>0) {
     const dlength = _domain[0].domains.length -1;
@@ -262,7 +262,7 @@ export async function setScroll(tab,scroll,info){
    
     const _checkHost = await checkHost(info.host);
 
-    let _scrollCriteria = await checkHostScroll(_checkHost)
+    const _scrollCriteria = await checkHostScroll(_checkHost)
 
     if(!_scrollCriteria){
       return false;
@@ -314,7 +314,7 @@ export async function setCick(tab,click,info){
     
     const _checkHost = await checkHost(info.host);
 
-    let _clickCriteria = await checkHostClick(_checkHost)
+    const _clickCriteria = await checkHostClick(_checkHost)
 
     if(!_clickCriteria){
       return false;
@@ -361,12 +361,12 @@ export async function updatePrivateMode(mode,start){
   try {
 
     
-    let _data:any = {
+    const _data:any = {
       "privacy":{
         "privacy_mode": mode
       }
     }
-    let _date = new Date();
+    const _date = new Date();
     _date.setMinutes(_date.getMinutes() + 15); 
 
     start ? (_data.privacy.privacy_start_time = new Date(), _data.privacy.privacy_end_time = _date ) : (_data.privacy.privacy_start_time = new Date() , _data.privacy.privacy_end_time = new Date())

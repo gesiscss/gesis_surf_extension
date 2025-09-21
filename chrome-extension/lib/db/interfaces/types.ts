@@ -31,7 +31,7 @@ export interface DomainItemTypes {
     start_time: string;
     closing_time: string;
     domain_url: string;
-    domain_lastAccessed: string;
+    domain_last_accessed: string;
     category_number: number;
     criteria_classification: string;
 
