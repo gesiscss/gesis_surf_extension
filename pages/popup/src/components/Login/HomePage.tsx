@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Card, CardContent, Typography, CardMedia, Button} from '@mui/material';
 import { CustomSwitch, handlePrivateModeToggle } from '../styles/privacy/PrivateModeToggle.styles';
+import PrivacyTimer from './PrivacyTimer';
 
 
 const Home: React.FC = () => {
@@ -76,6 +77,12 @@ const Home: React.FC = () => {
           />
           <Typography variant="body2" sx={{ ml: 1 }} color="text.secondary">{privateMode ? 'An' : 'Aus'}</Typography>
         </Box>
+
+        {/* Privacy Timer Component */}
+        <PrivacyTimer 
+          isActive={privateMode} 
+          onTimerEnd={() => setPrivateMode(false)} 
+        />
 
         {/* Button to redirect to GESIS Surf */}
         <Box sx={{ p: 2 }}>
