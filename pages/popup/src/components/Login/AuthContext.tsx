@@ -27,13 +27,14 @@ export const useAuth = () => useContext(AuthContext) as AuthContextType;
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+    console.log('Checking Authentication ...')
 
     useEffect(() => {
         let mounted = true;
         
         (async () => {
             try {
-                const token = readToken();
+                const token = await readToken();
                 if (mounted) {
                     setIsAuthenticated(Boolean(token));
                 }

@@ -4,7 +4,7 @@ import { AuthProvider } from './components/Login/AuthContext';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 // import Login from './login/Login';
 // import PrivateRoutes from  '../../utils/PriveteRoutes';
-// import ConnectedPage from "./login/ConnectedPage";
+import Home  from './components/Login/HomePage';
 
 
 const Popup = () => {
@@ -15,6 +15,7 @@ const Popup = () => {
         <Router>
           <Routes>
             <Route path="/" element={<Login />} />
+            <Route path="/home" element={<Home />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Router>
