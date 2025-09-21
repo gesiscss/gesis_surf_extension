@@ -4,7 +4,7 @@ export interface DomainObjectDataTypes {
     id: number;
     closing_time: string;
     domain_fav_icon: string;
-    domain_lastAccessed: string;
+    domain_last_accessed: string;
     domain_session_id: string;
     domain_title: string;
     domain_url: string;

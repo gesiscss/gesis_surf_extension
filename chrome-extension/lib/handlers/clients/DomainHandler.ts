@@ -46,20 +46,23 @@ class DomainManager {
      * @returns The payload to be sent to the server.
      */
     async buildPayload(domain_data: DomainDataTypes): Promise<DomainPayloadTypes | null> {
+        console.log('Building payload for domain data:', domain_data);
         if (domain_data.status === 'complete') {
+            console.log('Domain data status is complete, building payload.');
             const payload: DomainPayloadTypes = {
                 start_time: new Date().toISOString(),
                 closing_time: new Date().toISOString(),
                 domain_url: domain_data.url,
                 domain_title: domain_data.title,
                 domain_fav_icon: domain_data.favIconUrl,
-                domain_lastAccessed: await this.formatLastAccessed(domain_data.lastAccessed),
+                domain_last_accessed: await this.formatLastAccessed(domain_data.lastAccessed),
                 domain_session_id: await this.generateDomainSession(
                     domain_data.windowId,
                     domain_data.id,
                     domain_data.url
                 ),
             };
+            console.log('Built payload:', payload);
             return payload;
         }
 
@@ -102,6 +105,9 @@ class DomainManager {
 
         // Build single domain payload
         const payloadDomain = await this.buildPayload(domainData);
+        console.log('Payload Domain to be sent:', payloadDomain);
+        console.log('Tab Session ID to be used:', tabSessionId);
+
         if (!payloadDomain) {
             console.error('Error building domain payload');
             return undefined;
@@ -128,7 +134,7 @@ class DomainManager {
         console.log('Tab Session ID:', tabSessionId);
 
         try {
-            const response = await fetch(`${apiUrl}/tab/tab/${windowId}/`, requestOptions);
+            const response = await fetch(`${apiUrl}/tab/tabs/${windowId}/`, requestOptions);
             const data = await response.json();
             console.log('Response Domain:', data);
 
@@ -181,13 +187,13 @@ class DomainManager {
             domain_url: stored.domain_url || '',
             domain_title: stored.domain_title || '',
             domain_fav_icon: stored.domain_fav_icon || '',
-            domain_lastAccessed: stored.domain_lastAccessed || '',
+            domain_last_accessed: stored.domain_last_accessed || '',
             domain_session_id: stored.domain_session_id || '',
             id: stored.id,
         };
 
         const requestOptions = await this.requestOptions(payload, method);
-        const response = await fetch(`${apiUrl}/domain/domain/${payload.id}/`, requestOptions);
+        const response = await fetch(`${apiUrl}/domain/domains/${payload.id}/`, requestOptions);
         
         if (!response.ok) {
             const errorText = await response.text();

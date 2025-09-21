@@ -55,6 +55,7 @@ class WindowManager {
         }
         
         const windowSessionId = WindowManager.generateWindowSession(windowId, globalSession.global_session_id);
+        console.log('Window Session ID:', windowSessionId);
 
         const payload: WindowPayloadTypes = {
             start_time: startTime,
@@ -118,7 +119,7 @@ class WindowManager {
             const payload = await this.buildPayload(window, info, startTime);
             const requestOptions = await this.buildRequestOptions(payload, method);
 
-            const response = await fetch(`${this.apiUrl}/window/window/`, requestOptions)
+            const response = await fetch(`${this.apiUrl}/window/windows/`, requestOptions)
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -166,7 +167,7 @@ class WindowManager {
         }
 
         const requestOptions = await this.buildRequestOptions(payload, method);
-        const response = await fetch(`${this.apiUrl}/window/window/${payload.id}/`, requestOptions);
+        const response = await fetch(`${this.apiUrl}/window/windows/${payload.id}/`, requestOptions);
 
         if (!response.ok) {
             const errorText = await response.text();

@@ -144,7 +144,7 @@ class TabManager {
             }
         
             // Send the Tab data to the server
-            const tabResponse = await fetch(`${apiUrl}/tab/tab/`, requestOptionsTab);
+            const tabResponse = await fetch(`${apiUrl}/tab/tabs/`, requestOptionsTab);
             if (!tabResponse.ok) {
                 throw new Error('Failed to send tab');
             }
@@ -187,12 +187,13 @@ class TabManager {
             
             console.log('Payload UPDATE:', payload);	
             // Send the updated tab data to the server
-            const responseTab = await fetch(`${apiUrl}/tab/tab/${tabId}/`, requestOptions);
+            const responseTab = await fetch(`${apiUrl}/tab/tabs/${tabId}/`, requestOptions);
             
             if (!responseTab.ok) {
                 throw new Error('Failed to update tab');
             }
             console.log('Domain Session ID:', domainSessionId);
+            console.log('Control point after updating tab, before updating domain');
             // Update the domain data in the server
             this.dbService.getItem('domainslives', domainSessionId).then((itemOrError) => {
                 if (!itemOrError) {
@@ -207,7 +208,7 @@ class TabManager {
                 const payloadDomain: DomainObjectDataTypes = {
                     id: domainItem.id || 0,
                     domain_fav_icon: domainItem.domain_fav_icon || '',
-                    domain_lastAccessed: domainItem.domain_lastAccessed || '',
+                    domain_last_accessed: domainItem.domain_last_accessed || '',
                     domain_session_id: domainItem.domain_session_id || '',
                     domain_title: domainItem.domain_title || '',
                     domain_url: domainItem.domain_url || '',
@@ -216,7 +217,7 @@ class TabManager {
                 };
 
                 this.domainService.requestOptions(payloadDomain, method).then(async (requestOptionsDomain) => {
-                    const responseDomain = await fetch(`${apiUrl}/domain/domain/${payloadDomain.id}/`, requestOptionsDomain);
+                    const responseDomain = await fetch(`${apiUrl}/domain/domains/${payloadDomain.id}/`, requestOptionsDomain);
                     if (!responseDomain.ok) {
                         throw new Error('Failed to update domain');
                     }
