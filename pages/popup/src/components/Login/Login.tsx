@@ -28,7 +28,7 @@ const Login: React.FC<LoginProps> = () => {
 
                 if (storedToken) {
                     console.log('Validating token ...')
-                    const isValid = await validateToken(storedToken, `${API_CONFIG.LOCAL_URL}${API_CONFIG.ENDPOINTS.USER_TOKEN}`);
+                    const isValid = await validateToken(storedToken, `${API_CONFIG.LOCAL_URL}${API_CONFIG.ENDPOINTS.USER_ME}`);
                     console.log('Token is valid:', isValid);
                     if (isValid) {
                         setIsAuthenticated(true);
@@ -73,7 +73,10 @@ const Login: React.FC<LoginProps> = () => {
                 `${API_CONFIG.LOCAL_URL}${API_CONFIG.ENDPOINTS.USER_TOKEN}`,
                 {
                     method: 'POST',
-                    body: JSON.stringify({ username, password }),
+                    body: JSON.stringify({
+                        user_id: username,
+                        password
+                    }),
                     headers: {
                         'Content-Type': 'application/json',
                     }
@@ -83,6 +86,7 @@ const Login: React.FC<LoginProps> = () => {
             );
 
             const data = await response.json();
+            console.log('Login response data:', data);
             if (response.ok) {
                 await writeToken(data.token);
                 setIsAuthenticated(true);
