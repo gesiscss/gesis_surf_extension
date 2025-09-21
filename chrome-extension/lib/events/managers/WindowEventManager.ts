@@ -37,6 +37,7 @@ export default class WindowEventManager {
 
     // Check for existing global session
     const initialSession = await this.windowManager.globalSessionService.getLatestActiveSession();
+    console.log('Initial Global session check:', initialSession);
 
     //  Close session if it exists
     if (initialSession) {
@@ -49,6 +50,7 @@ export default class WindowEventManager {
       attempts++;
     
       const session = await this.windowManager.globalSessionService.getLatestActiveSession();
+      console.log('Checked for global session:', session);
 
       if (session && (!this.lastKnownSessionId || session.global_session_id !== this.lastKnownSessionId)) {
         console.log('New Global session found:', session.global_session_id);

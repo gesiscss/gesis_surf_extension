@@ -117,18 +117,23 @@ class DomainEventManager {
    */
   private async initializeNewDomainSession(newDomain: string, tab: DomainDataTypes, mapping: TabMapping) {
     console.log(`New Active Domain ${newDomain}`);
+    console.log('Mapping in DomainEventManager:', mapping);
+    console.log('Type if mapping.id:', typeof mapping.id);
+
     this.currentActiveDomainSessionId = newDomain;
 
     if(mapping.id === undefined){
       throw new Error('Tab ID is undefined');
     }
 
-    const convertedMapping = {
-      ...mapping,
-      id: typeof mapping.id === 'string' ? Number(mapping.id) : mapping.id
-    };
+    // const convertedMapping = {
+    //   ...mapping,
+    //   id: typeof mapping.id === 'string' ? Number(mapping.id) : mapping.id
+    // };
 
-    await this.domainManager.sendDomain(tab, convertedMapping, "PATCH");
+    // console.log('Mapping in DomainEventManager:', convertedMapping);
+
+    await this.domainManager.sendDomain(tab, mapping, "PATCH");
   }
 
   /**

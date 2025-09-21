@@ -172,7 +172,7 @@ class TabEventManager {
             status: tab.status || '',
         };
 
-        console.log('Domain Session ID:', domainSessionId);
+        console.log('Domain Session ID in TabEventManager:', domainSessionId);
         if (tab.url) {
             await this.domainEventManager.handleDomainChange(
                 domainSessionId,
@@ -221,7 +221,7 @@ class TabEventManager {
                 tab.id,
                 tab.url
             );
-            console.log('Domain Session ID:', domainSessionId);
+            console.log('Domain Session ID in second Tab:', domainSessionId);
 
             const tabMapping = {
                 ...mapping,
@@ -245,6 +245,7 @@ class TabEventManager {
                 windowId: tab.windowId,
                 status: tab.status || '',
             };
+            console.log('domainData:', domainData);
 
             if (tab.url) {
                 // Create domain session for new tab
