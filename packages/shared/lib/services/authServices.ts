@@ -1,22 +1,5 @@
 import { readToken } from "../storages/tokenStorage";
-
-export interface AuthResponse {
-    valid: boolean;
-    user?: {
-        user_id: string;
-    };
-}
-
-export class ApiError extends Error {
-    constructor(
-        public status: number,
-        public statusText: string,
-        message: string = 'API Error'
-    ) {
-        super(message);
-        this.name = 'ApiError';
-    }
-}
+import { AuthResponse, ApiError } from "./interfaces/types"; 
 
 /**
  *  Makes an authenticated API request
@@ -35,8 +18,10 @@ export const apiRequest =async(
 
     let headers: HeadersInit = {
         ...options.headers,
-        'Accept': 'application/json',
+        'Content-Type': 'application/json',
     };
+
+    console.log('API Request to:', endpoint);
 
     if (!skipAuth) {
         const token = await readToken();
@@ -48,7 +33,7 @@ export const apiRequest =async(
             'Authorization': `Token ${token}`
         };
     }
-
+    
     try {
         const response = await fetch(endpoint, {
             ...options,
@@ -92,7 +77,8 @@ export const validateToken = async (token: string, url: string): Promise<boolean
         }
 
         const data = await response.json() as AuthResponse;
-        return Boolean(data.valid);
+        const isValid = Boolean(data && data.user_id);
+        return isValid;
     } catch (error) {
         console.error('Error validating token:', error);
         return false;

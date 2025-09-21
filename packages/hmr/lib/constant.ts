@@ -11,9 +11,9 @@ export const API_CONFIG = {
         USER_TOKEN: '/user/token/',
         USER_ME: '/user/me/',
         GLOBAL_SESSION: '/session/',
-        CLICK: '/click/click/',
+        CLICK: '/clicks/',
         SCROLL: '/scroll/scroll/',
-        TAB: '/tab/tab/',
-        DOMAIN: '/domain/domain/',
+        TAB: '/tab/tabs/',
+        DOMAIN: '/domain/domains/',
     }
 } as const;
