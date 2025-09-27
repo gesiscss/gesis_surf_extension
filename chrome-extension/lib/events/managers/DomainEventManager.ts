@@ -108,6 +108,21 @@ class DomainEventManager {
   }
 
   /**
+   * Validates if domain is ready to be sent to the server when completed
+   * @param tab The domain URL.
+   * @returns A boolean indicating if the domain is valid.
+   * @throws Error if an error occurs during the validation.
+   */
+  private isDomainReadyToSend(tab: DomainDataTypes): boolean {
+    // Check the status of the tab to determine if it's complete
+    if (tab.status === 'complete') {
+      return true;
+    }
+    return false;
+  }
+
+
+  /**
    * Initializes a new domain session.
    * @param newDomain The new domain URL.
    * @param tab The tab data.
@@ -126,14 +141,25 @@ class DomainEventManager {
       throw new Error('Tab ID is undefined');
     }
 
-    // const convertedMapping = {
-    //   ...mapping,
-    //   id: typeof mapping.id === 'string' ? Number(mapping.id) : mapping.id
-    // };
+    const convertedMapping = {
+      ...mapping,
+      id: typeof mapping.id === 'string' ? Number(mapping.id) : mapping.id
+    };
 
-    // console.log('Mapping in DomainEventManager:', convertedMapping);
+    console.log('Converted Mapping in DomainEventManager:', convertedMapping);
 
-    await this.domainManager.sendDomain(tab, mapping, "PATCH");
+    // // console.log('Mapping in DomainEventManager:', convertedMapping);  ///MODIFING THE UUID TO NUMBER
+    // console.log('Mapping in DomainEventManager:', mapping);
+    // console.log('TAB in DomainEventManager:', tab);
+    
+    if (this.isDomainReadyToSend(tab)) {
+      console.warn(`Domain is ready to be sent for ${newDomain}`);
+      await this.domainManager.sendDomain(tab, mapping, "PATCH");
+    } else {
+      console.log(`Domain is not ready to be sent for ${newDomain}`);
+    }
+
+    // await this.domainManager.sendDomain(tab, mapping, "PATCH");
   }
 
   /**

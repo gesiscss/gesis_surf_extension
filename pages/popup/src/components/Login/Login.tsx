@@ -28,7 +28,7 @@ const Login: React.FC<LoginProps> = () => {
 
                 if (storedToken) {
                     console.log('Validating token ...')
-                    const isValid = await validateToken(storedToken, `${API_CONFIG.LOCAL_URL}${API_CONFIG.ENDPOINTS.USER_ME}`);
+                    const isValid = await validateToken(storedToken, `${API_CONFIG.STG_URL}${API_CONFIG.ENDPOINTS.USER_ME}`);
                     console.log('Token is valid:', isValid);
                     if (isValid) {
                         setIsAuthenticated(true);
@@ -70,7 +70,7 @@ const Login: React.FC<LoginProps> = () => {
 
         try {
             const response = await apiRequest(
-                `${API_CONFIG.LOCAL_URL}${API_CONFIG.ENDPOINTS.USER_TOKEN}`,
+                `${API_CONFIG.STG_URL}${API_CONFIG.ENDPOINTS.USER_TOKEN}`,
                 {
                     method: 'POST',
                     body: JSON.stringify({

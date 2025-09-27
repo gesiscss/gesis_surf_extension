@@ -4,7 +4,7 @@ import { InfoType } from "./sharedTypes";
 import { API_CONFIG } from "@chrome-extension-boilerplate/hmr/lib/constant";
 
 // API base endpoint
-export const apiUrl = API_CONFIG.LOCAL_URL;
+export const apiUrl = API_CONFIG.STG_URL;
 
 // InfoType values
 export const InfoTypeValues = {

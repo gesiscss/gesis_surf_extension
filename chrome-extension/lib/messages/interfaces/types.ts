@@ -18,3 +18,7 @@ export interface AuthFailureMessage extends BaseMessage {
     type: 'AUTH_FAILURE';
     error: string;
 }
+
+export type ExtensionMessage = AuthSuccessMessage | AuthFailureMessage;
+// | ClickEventMessage
+// | ScrollEventMessage;

@@ -8,7 +8,7 @@ console.log('[background] Background script loaded');
 
 
 //  Starting Services
-const authService = new AuthService(API_CONFIG.LOCAL_URL);
+const authService = new AuthService(API_CONFIG.STG_URL);
 const messageHandler = new MessageHandler(authService);
 
 //  Listen for startup events

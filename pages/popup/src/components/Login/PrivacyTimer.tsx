@@ -15,7 +15,7 @@ export const PrivacyTimer: React.FC<PrivacyTimerProps> = ({
   duration = PRIVATE_MODE_DURATION 
 }) => {
   const [timeLeft, setTimeLeft] = useState(duration);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Format seconds to MM:SS display
   const formatTimeLeft = () => {
@@ -40,7 +40,7 @@ export const PrivacyTimer: React.FC<PrivacyTimerProps> = ({
         setTimeLeft(prevTime => {
           if (prevTime <= 1) {
             // Time's up - turn off private mode
-            clearInterval(timerRef.current as NodeJS.Timeout);
+            clearInterval(timerRef.current!);
             timerRef.current = null;
             onTimerEnd();
             return duration;

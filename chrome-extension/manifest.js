@@ -21,9 +21,9 @@ const manifest = Object.assign({
      * if you want to support multiple languages, you can use the following reference
      * https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Internationalization
      */
-    name: 'BrainTrack',
-    version: '2.2.1',
-    description: 'BrainTrack extension that helps you track your browsing activity', 
+    name: 'GESIS Surf',
+    version: '2.0.0',
+    description: 'Nehmen Sie mit GESIS Surf an wissenschaftlichen Studien von GESIS – Leibniz-Institut für Sozialwissenschaften teil', 
     permissions: ['storage', 'tabs', 'alarms'], // .concat(sidePanelConfig.permissions),
     // options_page: 'options/index.html',
     background: {

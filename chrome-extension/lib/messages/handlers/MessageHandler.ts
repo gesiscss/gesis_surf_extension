@@ -1,11 +1,12 @@
-import { Runtime } from 'webextension-polyfill';
+// import { Runtime } from 'webextension-polyfill';
 import { AuthService} from '../../services/authService';
 import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 // import ClickEventManager from './click';
 // import ScrollEventManager from './scrolls';
 import { 
     MessageResponse,
-    AuthSuccessMessage,
+    // AuthSuccessMessage,
+    // ExtensionMessage,
     // AuthFailureMessage
 } from '../interfaces/types';
 
@@ -16,8 +17,8 @@ export class MessageHandler {
         // private scrollEventManager: ScrollEventManager
     ) {}
 
-    protected async handleAuthSuccess(
-        message: AuthSuccessMessage,
+    public async handleAuthSuccess(
+        message: unknown,
         sendResponse: (response: MessageResponse) => void
     ): Promise<boolean> {
         try {
@@ -70,41 +71,41 @@ export class MessageHandler {
     //     return true;
     // }
 
-    public async handleMessage(
-        message: unknown,
-        sender: Runtime.MessageSender,
-        sendResponse: (response: MessageResponse) => void
-    ): Promise<boolean> {
-        console.log('[background] Received message:', message);
+    // public async handleMessage(
+    //     message: unknown,
+    //     sender: Runtime.MessageSender,
+    //     sendResponse: (response: MessageResponse) => void
+    // ): Promise<boolean> {
+    //     console.log('[background] Received message:', message);
 
-        if (!this.isValidMessage(message)) {
-            console.warn('[background] Received invalid message format');
-            sendResponse({ status: 'error', message: 'Invalid message format' });
-            return false;
-        }
+    //     if (!this.isValidMessage(message)) {
+    //         console.warn('[background] Received invalid message format');
+    //         sendResponse({ status: 'error', message: 'Invalid message format' });
+    //         return false;
+    //     }
 
-        const typedMessage = message as ExtensionMessage;
+    //     const typedMessage = message as ExtensionMessage;
 
-        switch (typedMessage.type) {
-            case 'AUTH_SUCCESS':
-                return this.handleAuthSuccess(typedMessage, sendResponse);
-            case 'CLICK_EVENT':
-                return this.handleClickEvent(typedMessage, sender, sendResponse);
-            case 'SCROLL_EVENT':
-                return this.handleScrollEvent(typedMessage, sender, sendResponse);
-            default:
-                console.warn('[background] Unknown message type:', typedMessage.type);
-                sendResponse({ status: 'error', message: 'Unknown message type' });
-                return false;
-        }
-    }
+    //     switch (typedMessage.type) {
+    //         case 'AUTH_SUCCESS':
+    //             return this.handleAuthSuccess(typedMessage, sendResponse);
+    //         case 'CLICK_EVENT':
+    //             return this.handleClickEvent(typedMessage, sender, sendResponse);
+    //         case 'SCROLL_EVENT':
+    //             return this.handleScrollEvent(typedMessage, sender, sendResponse);
+    //         default:
+    //             console.warn('[background] Unknown message type:', typedMessage.type);
+    //             sendResponse({ status: 'error', message: 'Unknown message type' });
+    //             return false;
+    //     }
+    // }
 
-    private isValidMessage(message: unknown): message is ExtensionMessage {
-        return (
-            typeof message === 'object' &&
-            message !== null &&
-            'type' in message &&
-            typeof (message as ExtensionMessage).type === 'string'
-        );
-    }
+    // private isValidMessage(message: unknown): message is ExtensionMessage {
+    //     return (
+    //         typeof message === 'object' &&
+    //         message !== null &&
+    //         'type' in message &&
+    //         typeof (message as ExtensionMessage).type === 'string'
+    //     );
+    // }
 }

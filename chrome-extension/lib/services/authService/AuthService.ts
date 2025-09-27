@@ -43,7 +43,7 @@ export class AuthService {
      */
     async validateToken(token: string): Promise<boolean> {
         try {
-            const response = await fetch(`${API_CONFIG.LOCAL_URL}${API_CONFIG.ENDPOINTS.USER_ME}`, {
+            const response = await fetch(`${API_CONFIG.STG_URL}${API_CONFIG.ENDPOINTS.USER_ME}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',

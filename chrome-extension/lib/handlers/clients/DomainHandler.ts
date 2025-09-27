@@ -4,6 +4,7 @@ import { Tabs} from "webextension-polyfill";
 import { readToken } from "@chrome-extension-boilerplate/shared/lib/storages/tokenStorage";
 import { DomainDataTypes, DomainResponseTypes, DomainPayloadTypes } from "../types/domainTypes";
 import { apiUrl } from "../shared";
+import { TabMapping } from "../types";
 
 /**	
  * Manages browser domain requests.
@@ -54,7 +55,7 @@ class DomainManager {
                 closing_time: new Date().toISOString(),
                 domain_url: domain_data.url,
                 domain_title: domain_data.title,
-                domain_fav_icon: domain_data.favIconUrl,
+                domain_fav_icon: domain_data.favIconUrl || '',
                 domain_last_accessed: await this.formatLastAccessed(domain_data.lastAccessed),
                 domain_session_id: await this.generateDomainSession(
                     domain_data.windowId,
@@ -101,7 +102,7 @@ class DomainManager {
      * @param tabSessionId The tab session ID to be used.
      * @param method The method to be used in the fetch request.
      */
-    async sendDomain(domainData: DomainDataTypes, tabSessionId: Tabs.Tab, method: string): Promise<Response | undefined> {
+    async sendDomain(domainData: DomainDataTypes, tabSessionId: TabMapping, method: string): Promise<Response | undefined> {
 
         // Build single domain payload
         const payloadDomain = await this.buildPayload(domainData);
@@ -136,6 +137,7 @@ class DomainManager {
         try {
             const response = await fetch(`${apiUrl}/tab/tabs/${windowId}/`, requestOptions);
             const data = await response.json();
+            console.log('Fetch Response:', response);
             console.log('Response Domain:', data);
 
             // Extract the domain session ID from the response
