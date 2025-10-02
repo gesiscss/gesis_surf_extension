@@ -10,5 +10,6 @@ export const apiUrl = API_CONFIG.STG_URL;
 export const InfoTypeValues = {
     OnCreated: 'onCreated' as InfoType,
     OnFocusChanged: 'onFocusChanged' as InfoType,
+    OnBlurred: 'onBlurred' as InfoType,
     OnRemoved: 'onRemoved' as InfoType
 } as const;

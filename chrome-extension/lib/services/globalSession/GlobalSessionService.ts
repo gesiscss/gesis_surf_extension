@@ -180,7 +180,7 @@ class GlobalSessionService {
                 body: JSON.stringify(payload),
             });
 
-            console.log('Response status:', response.status);
+            console.log('Global Session Response status creation:', response.status);
             // console.log('Response body:', await response.json());
 
             if (!response.ok) {

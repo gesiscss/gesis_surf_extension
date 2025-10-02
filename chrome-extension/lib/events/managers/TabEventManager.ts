@@ -29,9 +29,9 @@ class TabEventManager {
      */
     public registerTabListeners() {
         // Register tab event listeners
-        tabs.onUpdated.addListener(this.handleTabUpdate);
-        tabs.onRemoved.addListener(this.handleTabRemoval);
-        tabs.onActivated.addListener(this.handleTabActivation);
+        // tabs.onUpdated.addListener(this.handleTabUpdate);
+        // tabs.onRemoved.addListener(this.handleTabRemoval);
+        // tabs.onActivated.addListener(this.handleTabActivation);
     }
 
     // ----------------- Event Handlers -----------------

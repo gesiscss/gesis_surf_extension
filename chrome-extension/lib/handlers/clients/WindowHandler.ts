@@ -128,7 +128,7 @@ class WindowManager {
 
             // Save the window data response to the local database
             const responseBody = await response.json();
-            console.log('Response:', responseBody);
+            console.log('Window Response Creation:', responseBody);
             await this.dbService.setItem('winlives', responseBody);
         
             return response;
@@ -162,6 +162,8 @@ class WindowManager {
             closing_time: new Date().toISOString()
         };
 
+        console.log('Window Payload to be updated:', payload);
+
         if (payload.id === undefined) {
             throw new Error('Window ID is undefined');
         }
@@ -175,7 +177,7 @@ class WindowManager {
         }
 
         const responseBody = await response.json();
-        console.log('Response Updated:', responseBody);
+        console.log('Window Response Updated :', responseBody);
 
         await this.dbService.deleteItem('winlives', window_session_id);
     }

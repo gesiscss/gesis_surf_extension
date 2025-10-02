@@ -141,12 +141,12 @@ class DomainEventManager {
       throw new Error('Tab ID is undefined');
     }
 
-    const convertedMapping = {
-      ...mapping,
-      id: typeof mapping.id === 'string' ? Number(mapping.id) : mapping.id
-    };
+    // const convertedMapping = {
+    //   ...mapping,
+    //   id: typeof mapping.id === 'string' ? Number(mapping.id) : mapping.id
+    // };
 
-    console.log('Converted Mapping in DomainEventManager:', convertedMapping);
+    // console.log('Converted Mapping in DomainEventManager:', convertedMapping);
 
     // // console.log('Mapping in DomainEventManager:', convertedMapping);  ///MODIFING THE UUID TO NUMBER
     // console.log('Mapping in DomainEventManager:', mapping);
@@ -158,8 +158,6 @@ class DomainEventManager {
     } else {
       console.log(`Domain is not ready to be sent for ${newDomain}`);
     }
-
-    // await this.domainManager.sendDomain(tab, mapping, "PATCH");
   }
 
   /**
