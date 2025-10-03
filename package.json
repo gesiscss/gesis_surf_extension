@@ -14,7 +14,7 @@
     "build:chrome": "cross-env NODE_ENV=production run-s build:js build:background:chrome build:web build:manifest:chrome"
   },
   "dependencies": {
-    "@types/chrome": "^0.0.263",
+    "@types/chrome": "^0.1.21",
     "@types/qs": "^6.9.14",
     "axios": "^1.6.8",
     "env": "^0.0.2",
