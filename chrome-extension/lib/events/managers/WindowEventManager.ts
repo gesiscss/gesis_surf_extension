@@ -19,19 +19,24 @@
  */
 
 import { windows, Windows } from 'webextension-polyfill';
-import { WindowHandler, WindowDataTypes } from '@root/lib/handlers';
+import { WindowHandler, WindowDataTypes} from '@root/lib/handlers';
 import { InfoTypeValues } from '@root/lib/handlers/shared';
+import TabManager from '@root/lib/handlers/clients/TabHandler';
+import { DatabaseService } from '@root/lib/db';
 
 export default class WindowEventManager {
   private isInitializing = true;
   private recentWindowCreation = new Set<number>();
   private currentActiveWindowId: number | null = null;
-  private readonly windowDebounceTime = 1000;
+  private readonly windowDebounceTime = 3000;
   private lastKnownSessionId: string | null = null;
+  private focusLossTimer: ReturnType<typeof setTimeout> | null = null;
 
 
   constructor(
-    private windowManager: WindowHandler
+    private windowManager: WindowHandler,
+    private tabManager: TabManager = new TabManager(),
+    private dbService: DatabaseService = new DatabaseService()
   ) {}
 
   /** Registers event listeners for window events.
@@ -45,7 +50,6 @@ export default class WindowEventManager {
       windows.onCreated.addListener((win: Windows.Window) => void this.handleWindowCreation(win));
       windows.onRemoved.addListener((winId: number) => void this.handleWindowRemoval(winId));
       windows.onFocusChanged.addListener((newWindowId: number) => void this.handleWindowFocusChange(newWindowId));
-    
     });
   }
 
@@ -66,13 +70,73 @@ export default class WindowEventManager {
   }
 
   /**
+   * Create Tab Session ID from chrome query
+   * Cleans up any live tab entries associated with the session.
+   * @returns Promise<void>
+   */
+  private async createAndCleanupTabSession(): Promise<string|null> {
+    try {
+      const window = await new Promise<chrome.windows.Window>((resolve) => {
+        chrome.windows.getCurrent(resolve);
+      });
+
+      if (!window.id) {
+        console.error('Window ID is undefined in createAndCleanupTabSession');
+        return null;
+      }
+
+      const tabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
+        chrome.tabs.query({ active: true, windowId: window.id! }, resolve);
+      });
+
+      if (tabs.length === 0) {
+        console.warn('No active tabs found in the current window');
+        return null;
+      }
+
+      const tabSessionId = await this.tabManager.generateTabSession(tabs[0], window.id!);
+      await this.dbService.deleteItem('tabslives', tabSessionId);
+      return tabSessionId;
+
+    } catch (error) {
+      console.error('Error creating tab session ID', error);
+      return null;
+    }
+  }
+
+  /**
+   * Closes tab tracking when the browser loses focus.
+   * This involves creating a tab session and cleaning up any live tab entries.
+   * @returns Promise<void>
+   */
+  private async closeTabTrackingOnFocusLoss(): Promise<void> {
+    try {
+      const currentSession = await this.windowManager.globalSessionService.getLatestActiveSession();
+      if (currentSession) {
+        await this.createAndCleanupTabSession();
+      }
+    } catch (error) {
+      console.error('Error closing tab tracking on focus loss', error);
+    }
+  }
+
+  /**
    * Handles the case when browser loses focus (Window ID = -1).
    */
   private async handleBrowserFocusLost(): Promise<void> {
     try {
-      await this.processWindowTransition(this.currentActiveWindowId, -1);
-      this.currentActiveWindowId = null;
-      console.warn('Browser focus lost, current active window set to null');
+
+      if (this.focusLossTimer) {
+        clearTimeout(this.focusLossTimer);
+      }
+
+      this.focusLossTimer = setTimeout(async () => {
+        await this.processWindowTransition(this.currentActiveWindowId, -1);
+        this.currentActiveWindowId = null;
+        this.closeTabTrackingOnFocusLoss();
+        console.warn('Browser focus lost, current active window set to null');
+      }, this.windowDebounceTime);
+
     } catch (error) {
       console.error('Error handling browser focus lost', error);
     }
@@ -108,6 +172,10 @@ export default class WindowEventManager {
    */
   private async handleBrowserFocusGained(newWindowId: number): Promise<void> {
     try {
+      if (this.focusLossTimer) {
+        clearTimeout(this.focusLossTimer);
+        this.focusLossTimer = null;
+      }
 
       this.validateWindow({ id: newWindowId } as Windows.Window);
       await this.handleWindowTransition(newWindowId);
