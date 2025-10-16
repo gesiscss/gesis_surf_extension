@@ -103,6 +103,7 @@ class GlobalSessionService {
     ): Promise<GlobalSessionTypes> {
         try {
             // Follow the session being closed
+            console.log('Closing global session:', global_session);
             this.sessionBeingClosed = global_session.global_session_id;
 
             const token = await readToken();
@@ -112,7 +113,7 @@ class GlobalSessionService {
                     'Content-Type': 'application/json',
                     'Authorization': `Token ${token}`
                 },
-                body: JSON.stringify({ close_time: new Date().toISOString() }),
+                body: JSON.stringify({ closing_time: new Date().toISOString() }),
             });
 
             if (response.status === 404) {

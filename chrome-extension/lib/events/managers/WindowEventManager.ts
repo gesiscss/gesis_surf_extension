@@ -29,6 +29,7 @@ export default class WindowEventManager {
   private recentWindowCreation = new Set<number>();
   private currentActiveWindowId: number | null = null;
   private readonly windowDebounceTime = 3000;
+  private briefUnfocusTimeout: number = 500; 
   private lastKnownSessionId: string | null = null;
   private focusLossTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -93,8 +94,9 @@ export default class WindowEventManager {
         console.warn('No active tabs found in the current window');
         return null;
       }
-
-      const tabSessionId = await this.tabManager.generateTabSession(tabs[0], window.id!);
+      const tabId = tabs[0].id!;
+      const tabSessionId = await this.tabManager.generateTabSession(tabId, window.id!);
+      // const tabSessionId = await this.tabManager.generateTabSession(tabs[0], window.id!);
       await this.dbService.deleteItem('tabslives', tabSessionId);
       return tabSessionId;
 
@@ -120,23 +122,32 @@ export default class WindowEventManager {
     }
   }
 
-  /**
-   * Handles the case when browser loses focus (Window ID = -1).
-   */
   private async handleBrowserFocusLost(): Promise<void> {
     try {
-
+      
       if (this.focusLossTimer) {
         clearTimeout(this.focusLossTimer);
       }
 
-      this.focusLossTimer = setTimeout(async () => {
-        await this.processWindowTransition(this.currentActiveWindowId, -1);
-        this.currentActiveWindowId = null;
-        this.closeTabTrackingOnFocusLoss();
-        console.warn('Browser focus lost, current active window set to null');
-      }, this.windowDebounceTime);
-
+      // Use the briefUnfocusTimeout for an initial quick check
+      this.focusLossTimer = setTimeout(() => {
+        // Check if focus is still lost after brief timeout
+        chrome.windows.getLastFocused(window => {
+          if (!window.focused) {
+            // Still unfocused, now set the longer timer
+            this.focusLossTimer = setTimeout(async () => {
+              await this.processWindowTransition(this.currentActiveWindowId, -1);
+              this.currentActiveWindowId = null;
+              await this.closeTabTrackingOnFocusLoss();
+              console.warn('Browser focus lost, current active window set to null');
+              this.focusLossTimer = null;
+            }, this.windowDebounceTime - this.briefUnfocusTimeout);
+          } else {
+            console.log('Focus returned during brief check - cancelling focus loss');
+            this.focusLossTimer = null;
+          }
+        });
+      }, this.briefUnfocusTimeout);
     } catch (error) {
       console.error('Error handling browser focus lost', error);
     }
@@ -175,6 +186,7 @@ export default class WindowEventManager {
       if (this.focusLossTimer) {
         clearTimeout(this.focusLossTimer);
         this.focusLossTimer = null;
+        console.warn('Focus regained before debounce timeout, ignoring focus gain event.');
       }
 
       this.validateWindow({ id: newWindowId } as Windows.Window);
@@ -242,7 +254,7 @@ export default class WindowEventManager {
     console.log('Handling startup windows...');
 
     try {
-      await this.waitForGlobalSession();
+      // await this.waitForGlobalSession();
 
       const windowsList = await windows.getAll();
       console.log('Startup windows detected:', windowsList.length);

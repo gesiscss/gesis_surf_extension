@@ -30,7 +30,7 @@ export class AuthService {
      */
     async initializeServices() {
         console.log('[background] Initializing services');
-        this.globalSessionService.createGlobalSession();
+        await this.globalSessionService.createGlobalSession();
         this.eventManager.startListeners();
         await this.heartbeatService.startHeartbeat();
         await this.heartbeatService.startAlarmAll();
