@@ -1,4 +1,3 @@
-// import { HeartbeatService } from "./heartBeat";
 import { EventManager } from "@root/lib/events";
 import { GlobalSessionService } from "../globalSession";
 import { API_CONFIG } from "@chrome-extension-boilerplate/hmr/lib/constant";
@@ -31,7 +30,7 @@ export class AuthService {
     async initializeServices() {
         console.log('[background] Initializing services');
         await this.globalSessionService.createGlobalSession();
-        this.eventManager.startListeners();
+        await this.eventManager.startListeners();
         await this.heartbeatService.startHeartbeat();
         await this.heartbeatService.startAlarmAll();
     }
