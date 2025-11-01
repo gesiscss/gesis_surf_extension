@@ -12,6 +12,8 @@ class EventManager {
   private dbService: DatabaseService;
   private tabEventManager: TabEventManager;
   private windowEventManager: WindowEventManager;
+  private focusLostUnsubscribe: (() => void) | null = null;
+  private focusGainedUnsubscribe: (() => void) | null = null;
   
   constructor() {
     // Core Services
@@ -29,16 +31,38 @@ class EventManager {
       this.tabManager,
       this.dbService,
       this.domainManager,
-      this.windowEventManager
     );
     
     console.log('[EventManager] Services initilized successfully (listeners inactive)');
   }
 
   public async startListeners(){
+    await this.windowEventManager.registerWindowListeners();
+
+    this.focusLostUnsubscribe = this.windowEventManager.onFocusLost((windowId) => {
+      this.tabEventManager.handleActiveTabBlur(windowId);
+    });
+
+    this.focusGainedUnsubscribe = this.windowEventManager.onFocusGained((windowId) => {
+      this.tabEventManager.handleActiveTabFocus(windowId);
+    });
+
     this.tabEventManager.registerTabListeners();
-    this.windowEventManager.registerWindowListeners();
     console.log('[EventManager] Starting listeners');
+  }
+
+  public cleanup(): void {
+
+    if (this.focusLostUnsubscribe) {
+      this.focusLostUnsubscribe();
+      this.focusLostUnsubscribe = null;
+    }
+
+    if (this.focusGainedUnsubscribe) {
+      this.focusGainedUnsubscribe();
+      this.focusGainedUnsubscribe = null;
+    }
+    console.log('[EventManager] Cleaned up listeners');
   }
 }
 

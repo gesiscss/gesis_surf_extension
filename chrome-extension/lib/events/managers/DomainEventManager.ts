@@ -5,8 +5,6 @@
  */
 
 import { DomainHandler, DomainDataTypes, TabMapping } from '@root/lib/handlers';
-import { DatabaseService} from '@root/lib/db';
-
 
 /**
  * Manages domain-related events in the Chrome extension.
@@ -14,11 +12,10 @@ import { DatabaseService} from '@root/lib/db';
  * Integrates with TabEventManager to track active domains across tabs.
  */
 class DomainEventManager {
-  private currentActiveDomainSessionId: string | null = null;
+  public currentActiveDomainSessionId: string | null = null;
 
   constructor(
-    private domainManager: DomainHandler,
-    private dbService: DatabaseService
+    private domainManager: DomainHandler
   ) {}
 
   /**
@@ -48,6 +45,24 @@ class DomainEventManager {
     }
   }
 
+  public resetDomainSession(): void {
+    console.log('Resetting current active domain session ID');
+    this.currentActiveDomainSessionId = null;
+  }
+
+  public async handleDomainCleanup(): Promise<void> {
+    try{
+      if (this.currentActiveDomainSessionId) {
+        console.log(`Cleaning up domain session for ${this.currentActiveDomainSessionId}`);
+        await this.closePreviousDomainSession();
+      }
+      this.resetDomainSession();
+    } catch (error) {
+      this.resetDomainSession();
+      this.handleDomainError(error, this.currentActiveDomainSessionId);
+    }
+  }
+
   // private updateMappingForNewTab(tab: Tab, mapping: TabMapping) {
 
 
@@ -57,6 +72,10 @@ class DomainEventManager {
    * @returns A boolean indicating if the domain should be updated.
    */
   private shouldUpdateDomain(newDomain: string | null) {
+
+    if (!this.currentActiveDomainSessionId && newDomain) {
+      return true;
+    }
 
     // New domain detected (not null) and different from the current active domain
     const isNewDomain = newDomain !== null &&

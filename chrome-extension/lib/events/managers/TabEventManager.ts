@@ -4,23 +4,20 @@ import {tabs, Tabs} from "webextension-polyfill";
 import { TabHandler, DomainHandler, DomainDataTypes, TabPayloadTypes } from "@root/lib/handlers";
 import DomainEventManager from "./DomainEventManager";
 import { DatabaseService, ItemTypes} from "@root/lib/db";
-import WindowEventManager from "./WindowEventManager";
 
 class TabEventManager {
-    // private currentActiveDomainSessionId: string | null = null;
     private domainEventManager: DomainEventManager
 
     constructor(
         private tabManager: TabHandler,
         private dbService: DatabaseService,
         private domainManager: DomainHandler,
-        private windowEventManager: WindowEventManager
     ) {
         this.domainEventManager = new DomainEventManager(
-            this.domainManager,
-            this.dbService
+            this.domainManager
         );
     }
+
 
     // ----------------- Core Listener -----------------
     /**
@@ -29,9 +26,101 @@ class TabEventManager {
      */
     public registerTabListeners() {
         // Register tab event listeners
-        // tabs.onUpdated.addListener(this.handleTabUpdate);
-        // tabs.onRemoved.addListener(this.handleTabRemoval);
-        // tabs.onActivated.addListener(this.handleTabActivation);
+        tabs.onUpdated.addListener(this.handleTabUpdate);
+        tabs.onActivated.addListener(this.handleTabActivation);
+        tabs.onRemoved.addListener(this.handleTabRemoval);
+    }
+
+    // ----------------- Helper Methods for message processing -----------------
+    // ----------------- Event Processing Helpers for unfocused tabs & windows -----------------
+
+    public async handleActiveTabFocus(windowId: number | null) : Promise<void> {
+        try {
+            if (!this.isValidWindowId(windowId)) {
+                return;
+            }
+            
+            await this.processActiveTabFocus(windowId!);
+
+        } catch (error) {
+            console.error('Error handling active tab focus:', error);
+        }
+    }
+
+    private async processActiveTabFocus(windowId: number): Promise<void> {
+        
+        const [activeTab] = await tabs.query({ windowId, active: true });
+        
+        if (!activeTab?.id) {
+            console.warn('No active tab found for window:', windowId);
+            return;
+        }
+        await this.handleTabActivation({tabId: activeTab.id, windowId: windowId});
+    }
+
+    /**
+     * Validates the window ID before processing tab blur.
+     * @param windowId The ID of the window.
+     * @returns A boolean indicating if the window ID is valid.
+     */
+    private isValidWindowId(windowId: number | null): boolean {
+        if (typeof windowId !== 'number') {
+            console.warn('Invalid window ID:', windowId);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Processes the removal of the active tab in the specified window.
+     * @param windowId The ID of the window.
+     * @returns void
+     */
+    private async processActiveTabRemoval(windowId: number): Promise<void> {
+        
+        const [activeTab] = await tabs.query({ windowId, active: true });
+        
+        if (!activeTab?.id) {
+            console.warn('No active tab found for window:', windowId);
+            return;
+        }
+
+        const removeInfo = this.createRemoveInfo(windowId);
+        await this.handleTabRemoval(activeTab.id, removeInfo);
+        await this.domainEventManager.handleDomainCleanup();
+    }
+
+    /**
+     * Creates the remove info object for tab removal.
+     * @param windowId The ID of the window.
+     * @param isWindowClosing Indicates if the window is closing.
+     * @returns The remove info object.
+     */
+    private createRemoveInfo(windowId: number, isWindowClosing: boolean = false): Tabs.OnRemovedRemoveInfoType {
+        return {
+            windowId: windowId,
+            isWindowClosing: isWindowClosing,
+        };
+    }
+
+    /**
+     * Principal method for handling active tab blur events coming from the WindowEventManager.
+     * @param windowId The ID of the window.
+     * @returns void    
+     */
+    public async handleActiveTabBlur(windowId: number | null) : Promise<void> {
+        try {
+            if (!this.isValidWindowId(windowId)) {
+                return;
+            }
+
+            await this.processActiveTabRemoval(windowId!);
+            await this.domainEventManager.handleDomainCleanup();
+
+        } catch (error) {
+            console.error('Error handling active tab blur:', error);
+            await this.domainEventManager.handleDomainCleanup();
+        }
     }
 
     // ----------------- Event Handlers -----------------
@@ -39,44 +128,71 @@ class TabEventManager {
     // --------------------------------------------------
     // Tab Activation Event Handler
     // --------------------------------------------------
-    private handleTabActivation = async (activeInfo: Tabs.OnActivatedActiveInfoType) => {
+    private handleTabActivation = async (
+        activeInfo: Tabs.OnActivatedActiveInfoType
+    ) => {
         try {
-            console.log('Tab Activation', activeInfo);
+            console.log('Tab Activation TAB EVENT', activeInfo);
             const { tabId, windowId } = activeInfo;
 
-            // Generate tab session ID
-            const tabSessionId = await this.tabManager.generateTabSession(tabId, windowId);
-            console.log('Tab Session ID in Activation:', tabSessionId);
-            const mapping = await this.dbService.getItem('tabslives', tabSessionId);
+            const windowSessionId = await this.tabManager.generateWindowSession(windowId);
+            const mapwindow = await this.dbService.getItem('winlives', windowSessionId);
 
-            if (!mapping){
-                // If no mapping exists, create window, tab, and domain sessions
-                await this.handleNewTabActivation(tabId, windowId);
+            if (!mapwindow || mapwindow instanceof Error) {
+                console.warn('No window mapping found for windowId:', windowId);
+                return;
             }
 
             await this.handleTabUpdate(tabId, {status: 'complete'}, await tabs.get(tabId));
-
-            } catch (error) {
+        
+        } catch (error) {
                 console.error('Error processing tab activation', error);
                 this.handleTabError(error, 'activation');
         }
     };
 
-    private async handleNewTabActivation(tabId: number, windowId: number) {
-        console.log('New Window/Tab Activation', tabId);
-        this.windowEventManager.processWindowCreation(windowId);
+    // --------------------------------------------------
+    // TAB UPDATE EVENT HANDLER
+    // --------------------------------------------------
+    
+    /**
+     * Checks if the tab should be processed after the update is complete.
+     * @param changeInfo The change information of the tab.
+     * @returns A boolean indicating if the tab should be processed.
+     */
+    private shouldProcessTabUpdate(changeInfo: Tabs.OnUpdatedChangeInfoType) {
+        return changeInfo.status === 'complete';
+    };
+    
+    /**
+     * Processes the tab update event.
+     * @param tab The tab data.
+     * @returns void
+    */
+    private async processTabUpdate(tab: Tabs.Tab) {
+        try {
+            if (typeof tab.windowId !== 'number') {
+                throw new Error('Tab window ID is not a number');
+            }
+        
+            const tabSessionId = await this.tabManager.generateTabSession(tab, tab.windowId);
+            const mapping = await this.dbService.getItem('tabslives', tabSessionId);
+            
+            await (mapping !== null && !(mapping instanceof Error)
+                ? this.handleExistingTab(tab, mapping)
+                : this.handleNewTab(tab));
+        } catch (error) {
+            this.handleTabError(error, 'update', tab.id);
+        }
     }
-
-    // --------------------------------------------------
-    // Tab Update Event Handler
-    // --------------------------------------------------
+    
     /**
      * Handles the tab update event to check if the tab is new or not.
      * @param tabId The id of the tab.
      * @param changeInfo The change information of the tab.
      * @param tab The tab data.
      * @returns void
-     */
+    */
     private handleTabUpdate = async (
         tabId: number,
         changeInfo: Tabs.OnUpdatedChangeInfoType,
@@ -87,41 +203,9 @@ class TabEventManager {
             await this.processTabUpdate(tab);
         }
     };
-
-    /**
-     * Checks if the tab should be processed after the update is complete.
-     * @param changeInfo The change information of the tab.
-     * @returns A boolean indicating if the tab should be processed.
-     */
-    private shouldProcessTabUpdate(changeInfo: Tabs.OnUpdatedChangeInfoType) {
-        return changeInfo.status === 'complete';
-    };
-
-    /**
-     * Processes the tab update event.
-     * @param tab The tab data.
-     * @returns void
-     */
-    private async processTabUpdate(tab: Tabs.Tab) {
-
-        try {
-
-            if (typeof tab.windowId !== 'number') {
-                throw new Error('Tab window ID is not a number');
-            }
-
-            const tabSessionId = await this.tabManager.generateTabSession(tab, tab.windowId);
-            console.log('Tab Session ID:', tabSessionId);
-            const mapping = await this.dbService.getItem('tabslives', tabSessionId);
-
-            await (mapping !== null && !(mapping instanceof Error)
-                ? this.handleExistingTab(tab, mapping)
-                : this.handleNewTab(tab));
-        } catch (error) {
-            this.handleTabError(error, 'update', tab.id);
-        }
-    }
-
+    
+    
+    
     /**
      * Handles the existing tab updating the domain.
      * @param tab The tab data.
@@ -307,11 +391,14 @@ class TabEventManager {
 
     private async handleExistingTabRemoval(tabId: number, mapping: TabPayloadTypes) {
         console.log('Existing Tab Removal', tabId);
+
         if (typeof this.domainEventManager.activeDomainSessionId !== 'string') {
             throw new Error('Domain session ID is not a string');
         }
 
         await this.tabManager.updateTab(tabId, mapping, 'PATCH', this.domainEventManager.activeDomainSessionId);
+
+        await this.domainEventManager.handleDomainCleanup();
     }
 
     private async handleNonExistingTabRemoval(tabId: number) {

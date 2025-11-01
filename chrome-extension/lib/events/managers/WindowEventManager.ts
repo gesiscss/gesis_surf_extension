@@ -21,37 +21,93 @@
 import { windows, Windows } from 'webextension-polyfill';
 import { WindowHandler, WindowDataTypes} from '@root/lib/handlers';
 import { InfoTypeValues } from '@root/lib/handlers/shared';
-import TabManager from '@root/lib/handlers/clients/TabHandler';
-import { DatabaseService } from '@root/lib/db';
 
+type FocusLostHandler = (windowId: number | null) => Promise<void> | void;
+type FocusGainedHandler = (windowId: number) => Promise<void> | void;
 export default class WindowEventManager {
   private isInitializing = true;
   private recentWindowCreation = new Set<number>();
   private currentActiveWindowId: number | null = null;
-  private readonly windowDebounceTime = 3000;
+  private readonly windowDebounceTime = 1000;
   private briefUnfocusTimeout: number = 500; 
-  private lastKnownSessionId: string | null = null;
+  private startupCompleted: boolean = false;
   private focusLossTimer: ReturnType<typeof setTimeout> | null = null;
-
+  private listenersRegistered: boolean = false;
+  private focusLostHandlers: Set<FocusLostHandler> = new Set();
+  private focusGainedHandlers: Set<FocusGainedHandler> = new Set();
 
   constructor(
     private windowManager: WindowHandler,
-    private tabManager: TabManager = new TabManager(),
-    private dbService: DatabaseService = new DatabaseService()
   ) {}
+
+  /**
+   * Registers a handler for focus lost events.
+   * @param handler The function to call when focus is lost.
+   * @returns A function to unregister the handler.
+   */
+  public onFocusLost(handler: FocusLostHandler): () => void {
+    this.focusLostHandlers.add(handler);
+    return () => this.focusLostHandlers.delete(handler);
+  }
+
+  /**
+   * Registers a handler for focus gained events.
+   * @param handler The function to call when focus is gained.
+   * @returns A function to unregister the handler.
+   */
+  public onFocusGained(handler: FocusGainedHandler): () => void {
+    this.focusGainedHandlers.add(handler);
+    return () => this.focusGainedHandlers.delete(handler);
+  }
+
+  /**
+   * Notifies all registered focus lost handlers.
+   * @param windowId The ID of the window that lost focus, or null if none.
+   */
+  private async notifyFocusLost(windowId: number | null): Promise<void> {
+    for (const handler of this.focusLostHandlers) {
+      try {
+        await handler(windowId);
+      } catch (error) {
+        console.error('Error in focus lost handler:', error);
+      }
+    }
+  }
+
+  /**
+   * Notifies all registered focus gained handlers.
+   * @param windowId The ID of the window that gained focus.  
+   */
+  private async notifyFocusGained(windowId: number): Promise<void> {
+    for (const handler of this.focusGainedHandlers) {
+      try {
+        await handler(windowId);
+      } catch (error) {
+        console.error('Error in focus gained handler:', error);
+      }
+    }
+  }
 
   /** Registers event listeners for window events.
    * Ensures that the global session is initialized before handling events.
    */
-  public registerWindowListeners(): void {
+  public async registerWindowListeners(): Promise<void> {
 
-    this.handleStartupWindow().then(() => {
+    if (this.listenersRegistered) {
+      return;
+    }
+
+    this.listenersRegistered = true;
+    windows.onCreated.addListener((win: Windows.Window) => void this.handleWindowCreation(win));
+    windows.onRemoved.addListener((winId: number) => void this.handleWindowRemoval(winId));
+    windows.onFocusChanged.addListener((newWindowId: number) => void this.handleWindowFocusChange(newWindowId));
+    
+    try {
+      await this.handleStartupWindow();
+      this.startupCompleted = true;
+    } finally {
       this.isInitializing = false;
-      // Register event listeners
-      windows.onCreated.addListener((win: Windows.Window) => void this.handleWindowCreation(win));
-      windows.onRemoved.addListener((winId: number) => void this.handleWindowRemoval(winId));
-      windows.onFocusChanged.addListener((newWindowId: number) => void this.handleWindowFocusChange(newWindowId));
-    });
+    }
   }
 
   /**
@@ -71,74 +127,25 @@ export default class WindowEventManager {
   }
 
   /**
-   * Create Tab Session ID from chrome query
-   * Cleans up any live tab entries associated with the session.
-   * @returns Promise<void>
+   * Handles the case when browser loses focus (Window ID = -1).
+   * This involves closing any active tab sessions.
    */
-  private async createAndCleanupTabSession(): Promise<string|null> {
-    try {
-      const window = await new Promise<chrome.windows.Window>((resolve) => {
-        chrome.windows.getCurrent(resolve);
-      });
-
-      if (!window.id) {
-        console.error('Window ID is undefined in createAndCleanupTabSession');
-        return null;
-      }
-
-      const tabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
-        chrome.tabs.query({ active: true, windowId: window.id! }, resolve);
-      });
-
-      if (tabs.length === 0) {
-        console.warn('No active tabs found in the current window');
-        return null;
-      }
-      const tabId = tabs[0].id!;
-      const tabSessionId = await this.tabManager.generateTabSession(tabId, window.id!);
-      // const tabSessionId = await this.tabManager.generateTabSession(tabs[0], window.id!);
-      await this.dbService.deleteItem('tabslives', tabSessionId);
-      return tabSessionId;
-
-    } catch (error) {
-      console.error('Error creating tab session ID', error);
-      return null;
-    }
-  }
-
-  /**
-   * Closes tab tracking when the browser loses focus.
-   * This involves creating a tab session and cleaning up any live tab entries.
-   * @returns Promise<void>
-   */
-  private async closeTabTrackingOnFocusLoss(): Promise<void> {
-    try {
-      const currentSession = await this.windowManager.globalSessionService.getLatestActiveSession();
-      if (currentSession) {
-        await this.createAndCleanupTabSession();
-      }
-    } catch (error) {
-      console.error('Error closing tab tracking on focus loss', error);
-    }
-  }
-
   private async handleBrowserFocusLost(): Promise<void> {
     try {
-      
       if (this.focusLossTimer) {
         clearTimeout(this.focusLossTimer);
       }
 
-      // Use the briefUnfocusTimeout for an initial quick check
-      this.focusLossTimer = setTimeout(() => {
-        // Check if focus is still lost after brief timeout
-        chrome.windows.getLastFocused(window => {
-          if (!window.focused) {
-            // Still unfocused, now set the longer timer
+      this.focusLossTimer = setTimeout(async () => {
+        try {
+          const window = await windows.getLastFocused();
+
+          if(!window.focused) {
+            // Use the briefUnfocusTimeout for an initial quick check
             this.focusLossTimer = setTimeout(async () => {
               await this.processWindowTransition(this.currentActiveWindowId, -1);
+              await this.notifyFocusLost(this.currentActiveWindowId);
               this.currentActiveWindowId = null;
-              await this.closeTabTrackingOnFocusLoss();
               console.warn('Browser focus lost, current active window set to null');
               this.focusLossTimer = null;
             }, this.windowDebounceTime - this.briefUnfocusTimeout);
@@ -146,12 +153,16 @@ export default class WindowEventManager {
             console.log('Focus returned during brief check - cancelling focus loss');
             this.focusLossTimer = null;
           }
-        });
+        } catch (error) {
+          console.error('Error handling browser focus lost', error);
+          this.focusLossTimer = null;
+        }
       }, this.briefUnfocusTimeout);
+
     } catch (error) {
-      console.error('Error handling browser focus lost', error);
+      console.error('Error initiating browser focus lost handling', error);
     }
-  }
+}
 
   /**
    * Handles window transition when focus changes.
@@ -192,6 +203,8 @@ export default class WindowEventManager {
       this.validateWindow({ id: newWindowId } as Windows.Window);
       await this.handleWindowTransition(newWindowId);
       await this.processWindowIfValid(newWindowId);
+      this.currentActiveWindowId = newWindowId;
+      await this.notifyFocusGained(newWindowId);
 
       console.warn('Browser focus gained, current active window set to:', newWindowId);
     
@@ -211,42 +224,6 @@ export default class WindowEventManager {
   }
 
   /**
-   * Waits for the global session to be initialized.
-   * @returns A promise that resolves when the global session is ready.
-   */
-  private async waitForGlobalSession(): Promise<void> {
-    let attempts = 0;
-    const maxAttempts = 10;
-    const interval = 1000;
-
-    // Check for existing global session
-    const initialSession = await this.windowManager.globalSessionService.getLatestActiveSession();
-
-    if (initialSession) {
-      this.lastKnownSessionId = initialSession.global_session_id;
-      console.warn('Current Global session being closed:', initialSession.global_session_id);
-    }
-
-
-    while (this.isInitializing && attempts < maxAttempts) {
-      attempts++;
-    
-      const session = await this.windowManager.globalSessionService.getLatestActiveSession();
-      console.log('Checked for global session:', session);
-
-      if (session && (!this.lastKnownSessionId || session.global_session_id !== this.lastKnownSessionId)) {
-        console.log('New Global session found:', session.global_session_id);
-        this.isInitializing = false;
-        return;
-      }
-
-      console.log('Waiting for global session... Attempt:', attempts);
-      await new Promise(resolve => setTimeout(resolve, interval));
-  }
-  throw new Error('Global session not found after maximum attempts');
-  }
-
-  /**
    * Handles the startup window event.
    * @returns A promise that resolves when the startup window handling is complete.
    */
@@ -254,8 +231,6 @@ export default class WindowEventManager {
     console.log('Handling startup windows...');
 
     try {
-      // await this.waitForGlobalSession();
-
       const windowsList = await windows.getAll();
       console.log('Startup windows detected:', windowsList.length);
 

@@ -32,6 +32,10 @@ class TabManager {
         return `${windowSessionId}-tabId-${tabId}`;
     }
 
+    async generateWindowSession(windowId: number): Promise<string> {
+        return await this.globalSessionService.getGlobalSessionId(windowId, 'window');
+    }
+
     /**
      * Builds the payload to be sent to the server.
      * @param tab_data The tab data to be sent.
