@@ -15,6 +15,7 @@ export class PrivateModeService {
     */
     public async initialize(): Promise<void> {
         if (this.initialized) return;
+        console.log('[PrivateModeService] Initializing service');
 
         await this.clearPrivateMode();
         this.initializeAlarmListener();
@@ -33,6 +34,7 @@ export class PrivateModeService {
     * Initialize alarm listener for private mode expiration
     */
     private initializeAlarmListener(): void {
+        console.log('[PrivateModeService] Initializing alarm listener');
         alarms.onAlarm.addListener(async (alarm) => {
             try {
                 if (alarm.name === PrivateModeService.ALARM_NAME) {

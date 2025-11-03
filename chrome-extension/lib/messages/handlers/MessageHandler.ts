@@ -1,7 +1,6 @@
 import { Runtime } from 'webextension-polyfill';
-import { AuthService} from '../../services/authService';
 import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
-import { PrivateModeService } from '@root/lib/services';
+import { PrivateModeService, AuthService } from '@root/lib/services';
 // import ClickEventManager from './click';
 // import ScrollEventManager from './scrolls';
 import { 
