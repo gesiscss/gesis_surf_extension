@@ -1,15 +1,28 @@
 import { runtime, Runtime } from 'webextension-polyfill';
-import { AuthService } from '../services';
+// import { handleInstallation, handleStartup } from './initialization';
+import { AuthService, PrivateModeService } from '../services';
 import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
 import { MessageHandler } from '../messages/handlers/MessageHandler';
 import { MessageResponse } from '../messages/interfaces';
 
 console.log('[background] Background script loaded');
 
+// void handleStartup();
 
-//  Starting Services
+// runtime.onStartup.addListener(() => {
+//     void handleStartup();
+// });
+
+// runtime.onInstalled.addListener((details: Runtime.OnInstalledDetailsType) => {
+//     void handleInstallation(details);
+// });
+
+// --- IGNORE ---
+
+// //  Starting Services
 const authService = new AuthService(API_CONFIG.STG_URL);
-const messageHandler = new MessageHandler(authService);
+const privateModeService = new PrivateModeService();
+const messageHandler = new MessageHandler(authService, privateModeService);
 
 //  Listen for startup events
 runtime.onStartup.addListener(async() => {
