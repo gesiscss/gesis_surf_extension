@@ -1,0 +1,1 @@
+export { initializeClickListener } from './clickData';

@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@chrome-extension-boilerplate/tsconfig": "workspace:*",
-    "@chrome-extension-boilerplate/hmr": "workspace:*"
+    "@chrome-extension-boilerplate/hmr": "workspace:*",
+    "@types/webextension-polyfill": "^0.10.0"
   }
 }
