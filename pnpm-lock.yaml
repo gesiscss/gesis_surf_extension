@@ -32,6 +32,9 @@ importers:
       react-router-dom:
         specifier: ^6.23.1
         version: 6.26.1(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      webextension-polyfill:
+        specifier: ^0.12.0
+        version: 0.12.0
     devDependencies:
       '@types/chrome':
         specifier: ^0.0.268
@@ -220,6 +223,28 @@ importers:
 
   packages/tsconfig: {}
 
+  pages/content:
+    dependencies:
+      '@chrome-extension-boilerplate/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      react:
+        specifier: ^18.2.0
+        version: 18.2.0
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.2.0(react@18.2.0)
+      webextension-polyfill:
+        specifier: ^0.10.0
+        version: 0.10.0
+    devDependencies:
+      '@chrome-extension-boilerplate/hmr':
+        specifier: workspace:*
+        version: link:../../packages/hmr
+      '@chrome-extension-boilerplate/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+
   pages/popup:
     dependencies:
       '@chrome-extension-boilerplate/shared':
@@ -234,6 +259,9 @@ importers:
       '@mui/material':
         specifier: ^6.1.10
         version: 6.1.10(@emotion/react@11.14.0(@types/react@18.3.2)(react@18.2.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@18.3.2)(react@18.2.0))(@types/react@18.3.2)(react@18.2.0))(@types/react@18.3.2)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      webextension-polyfill:
+        specifier: ^0.10.0
+        version: 0.10.0
     devDependencies:
       '@chrome-extension-boilerplate/hmr':
         specifier: workspace:*
@@ -3785,6 +3813,9 @@ packages:
   wcwidth@1.0.1:
     resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
 
+  webextension-polyfill@0.10.0:
+    resolution: {integrity: sha512-c5s35LgVa5tFaHhrZDnr3FpQpjj1BB+RXhLTYUxGqBVN460HkbM8TBtEqdXWbpTKfzwCcjAZVF7zXCYSKtcp9g==}
+
   webextension-polyfill@0.12.0:
     resolution: {integrity: sha512-97TBmpoWJEE+3nFBQ4VocyCdLKfw54rFaJ6EVQYLBCXqCIpLSZkwGgASpv4oPt9gdKCJ80RJlcmNzNn008Ag6Q==}
 
@@ -6854,7 +6885,7 @@ snapshots:
       camelcase-css: 2.0.1
       postcss: 8.4.38
 
-  postcss-load-config@4.0.2(postcss@8.4.38)(ts-node@10.9.2(@swc/core@1.5.5)(@types/node@20.12.11)(typescript@5.2.2)):
+  postcss-load-config@4.0.2(postcss@8.4.38)(ts-node@10.9.2(@types/node@20.12.11)(typescript@5.2.2)):
     dependencies:
       lilconfig: 3.0.0
       yaml: 2.3.4
@@ -7376,7 +7407,7 @@ snapshots:
       postcss: 8.4.38
       postcss-import: 15.1.0(postcss@8.4.38)
       postcss-js: 4.0.1(postcss@8.4.38)
-      postcss-load-config: 4.0.2(postcss@8.4.38)(ts-node@10.9.2(@swc/core@1.5.5)(@types/node@20.12.11)(typescript@5.2.2))
+      postcss-load-config: 4.0.2(postcss@8.4.38)(ts-node@10.9.2(@types/node@20.12.11)(typescript@5.2.2))
       postcss-nested: 6.0.1(postcss@8.4.38)
       postcss-selector-parser: 6.0.16
       resolve: 1.22.8
@@ -7488,7 +7519,7 @@ snapshots:
       execa: 5.1.1
       globby: 11.1.0
       joycon: 3.1.1
-      postcss-load-config: 4.0.2(postcss@8.4.38)(ts-node@10.9.2(@swc/core@1.5.5)(@types/node@20.12.11)(typescript@5.2.2))
+      postcss-load-config: 4.0.2(postcss@8.4.38)(ts-node@10.9.2(@types/node@20.12.11)(typescript@5.2.2))
       resolve-from: 5.0.0
       rollup: 4.17.2
       source-map: 0.8.0-beta.0
@@ -7687,6 +7718,8 @@ snapshots:
   wcwidth@1.0.1:
     dependencies:
       defaults: 1.0.4
+
+  webextension-polyfill@0.10.0: {}
 
   webextension-polyfill@0.12.0: {}
 

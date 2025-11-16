@@ -30,22 +30,22 @@ const manifest = Object.assign({
         service_worker: 'background.iife.js',
         type: 'module',
     },
-    action: {
+    action: { 
         default_popup: 'popup/index.html',
         default_icon: 'icon32.png',
     },
     icons: {
         128: 'icon128.png',
     },
-    // content_scripts: [{
-    //         matches: ['http://*/*', 'https://*/*', '<all_urls>'],
-    //         js: ['content/index.iife.js'],
-    //     },
-    //     {
-    //         matches: ['http://*/*', 'https://*/*', '<all_urls>'],
-    //         css: ['content.css'], // public folder
-    //     },
-    // ],
+    content_scripts: [{
+            matches: ['http://*/*', 'https://*/*', '<all_urls>'],
+            js: ['content/index.iife.js'],
+        },
+        {
+            matches: ['http://*/*', 'https://*/*', '<all_urls>'],
+            css: ['content.css'], // public folder
+        },
+    ],
     // devtools_page: 'devtools/index.html',
     web_accessible_resources: [{
         resources: ['*.js', '*.css', '*.svg', 'icon-128.png', 'icon-34.png'],
