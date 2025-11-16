@@ -25,6 +25,7 @@
   "type": "module",
   "dependencies": {
     "@types/react-router-dom": "^5.3.3",
+    "@types/webextension-polyfill": "^0.12.4",
     "eslint-import-resolver-typescript": "^4.4.4",
     "idb": "^8.0.0",
     "lint-staged": "^16.1.6",
