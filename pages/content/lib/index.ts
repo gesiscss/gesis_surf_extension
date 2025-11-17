@@ -1,9 +1,6 @@
 import { initializeClickListener } from "./content-script/clicks";
 import { initializeHTMLCapture } from "./content-script/htmls";
-
-// console.log('[Content] Content script loaded')
-// initializeClickListener();
-// initializeHTMLCapture();
+import { initializeScrollListener } from "./content-script/scrolls";
 
 function initializeContentScript(): void {
     try {
@@ -12,6 +9,9 @@ function initializeContentScript(): void {
 
         initializeHTMLCapture();
         console.log('[Content] HTML capture initialized successfully');
+
+        initializeScrollListener();
+        console.log('[Content] Scroll listener initialized successfully');
 
         console.log('[Content] All services initialized successfully');
     } catch (error) {
