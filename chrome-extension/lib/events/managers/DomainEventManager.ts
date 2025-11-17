@@ -63,9 +63,6 @@ class DomainEventManager {
     }
   }
 
-  // private updateMappingForNewTab(tab: Tab, mapping: TabMapping) {
-
-
   /**
    * Checks if the domain should be updated.
    * @param newDomain The new domain URL.
@@ -102,7 +99,8 @@ class DomainEventManager {
         this.currentActiveDomainSessionId !== newDomain) {
           await this.closePreviousDomainSession();
         }
-// COMO AQUI YA CAMBIE LA LOGICA TENDRIAMOS QUE HACER UPDATE DE DOMAIN Y NO DE TAB
+    
+    // COMO AQUI YA CAMBIE LA LOGICA TENDRIAMOS QUE HACER UPDATE DE DOMAIN Y NO DE TAB
     if (newDomain && newDomain !== this.currentActiveDomainSessionId) {
       await this.initializeNewDomainSession(newDomain, tab, mapping);
     }
@@ -159,17 +157,6 @@ class DomainEventManager {
     if(mapping.id === undefined){
       throw new Error('Tab ID is undefined');
     }
-
-    // const convertedMapping = {
-    //   ...mapping,
-    //   id: typeof mapping.id === 'string' ? Number(mapping.id) : mapping.id
-    // };
-
-    // console.log('Converted Mapping in DomainEventManager:', convertedMapping);
-
-    // // console.log('Mapping in DomainEventManager:', convertedMapping);  ///MODIFING THE UUID TO NUMBER
-    // console.log('Mapping in DomainEventManager:', mapping);
-    // console.log('TAB in DomainEventManager:', tab);
     
     if (this.isDomainReadyToSend(tab)) {
       console.warn(`Domain is ready to be sent for ${newDomain}`);
