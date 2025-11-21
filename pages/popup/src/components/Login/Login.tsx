@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext';
 import { readToken, writeToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
 import { validateToken, apiRequest } from '@chrome-extension-boilerplate/shared/lib/services/authServices';
-import Browser, { runtime, Runtime } from 'webextension-polyfill';
+import Browser from 'webextension-polyfill';
 
 interface LoginProps {}
 
