@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import { readToken, writeToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
 import { validateToken, apiRequest } from '@chrome-extension-boilerplate/shared/lib/services/authServices';
+import Browser, { runtime, Runtime } from 'webextension-polyfill';
 
 interface LoginProps {}
 
@@ -87,21 +88,22 @@ const Login: React.FC<LoginProps> = () => {
 
             const data = await response.json();
             console.log('Login response data:', data);
+            
             if (response.ok) {
                 await writeToken(data.token);
                 setIsAuthenticated(true);
                 
-                chrome.runtime.sendMessage(
-                    { type: 'AUTH_SUCCESS', token: data.token },
-                    (response) => {
-                        if (chrome.runtime.lastError) {
-                            console.error('Error sending message to background script:', chrome.runtime.lastError);
-                        } else {
-                            console.log('Message sent to background script successfully:', response);
-                        }
-                    }
-                );
+                try {
+                    const response = await Browser.runtime.sendMessage({
+                        type: 'AUTH_SUCCESS',
+                        token: data.token
+                    });
+                    console.log('Message sent to background script successfully:', response);
+                } catch (error) {
+                    console.error('Error sending message to background script:', error);
+                }
                 navigate('/home');
+
             } else {
                 const message = data.non_field_errors?.[0] || data.message || 'Login failed. Please check your credentials.';
                 setErrorMessage(message);
