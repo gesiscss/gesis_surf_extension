@@ -1,8 +1,9 @@
 import { Runtime } from 'webextension-polyfill';
 import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { PrivateModeService, AuthService } from '@root/lib/services';
-// import ClickEventManager from './click';
-// import ScrollEventManager from './scrolls';
+import { ContentEventHandler } from './handlers/clients/contentEventHandler';
+import { apiUrl } from '@root/lib/handlers/shared';
+
 import { 
     MessageResponse,
     PrivateModeMessage,
@@ -12,13 +13,20 @@ import {
 } from '../interfaces/types';
 
 export class MessageHandler {
+    
     constructor(
         protected readonly authService: AuthService,
         protected readonly privateModeService: PrivateModeService,
-        // private clickEventManager: ClickEventManager,
-        // private scrollEventManager: ScrollEventManager
-    ) {}
-
+    ) {
+        this.contentEventHandler = new ContentEventHandler(apiUrl);
+    }
+    
+    /**
+     * Handle authentication success messages
+     * @param message The incoming message
+     * @param sendResponse Function to send response back
+     * @returns Promise<boolean>
+     */
     public async handleAuthSuccess(
         message: unknown,
         sendResponse: (response: MessageResponse) => void
@@ -37,6 +45,11 @@ export class MessageHandler {
         return true;
     }
 
+    /** Handle private mode messages
+     * @param message The incoming message
+     * @param sendResponse Function to send response back
+     * @returns Promise<boolean>
+     */
     private async handlePrivateMode(
         message: PrivateModeMessage,
         sendResponse: (response: MessageResponse) => void
@@ -75,42 +88,71 @@ export class MessageHandler {
         return true;
     }
 
-    // private async handleClickEvent(
-    //     message: ClickEventMessage,
-    //     sender: Runtime.MessageSender,
-    //     sendResponse: (response: MessageResponse) => void
-    // ): Promise<boolean> {
-    //     try {
-    //         await this.clickEventManager.handleClickEvent(message.data, sender);
-    //         sendResponse({ status: 'success', message: 'Click event processed.' });
-    //     } catch (error) {
-    //         console.error('[background] Error processing click event:', error);
-    //         sendResponse({ 
-    //             status: 'error', 
-    //             message: error instanceof Error ? error.message : 'Failed to process click event'
-    //         });
-    //     }
-    //     return true;
-    // }
+    /**
+     * Hanlde content event messages (click, scroll, html capture)
+     * @param message The incoming message
+     * @param sender The message sender
+     * @param sendResponse Function to send response back
+     * @returns Promise<boolean>
+     */
+    private async handleContentEvent(
+        message: ExtensionMessage,
+        sender: Runtime.MessageSender,
+        sendResponse: (response: MessageResponse) => void
+    ): Promise<boolean> {
+        try {
+            let eventType: ContentEventType;
 
-    // private async handleScrollEvent(
-    //     message: ScrollEventMessage,
-    //     sender: Runtime.MessageSender,
-    //     sendResponse: (response: MessageResponse) => void
-    // ): Promise<boolean> {
-    //     try {
-    //         await this.scrollEventManager.handleScrollEvent(message.data, sender);
-    //         sendResponse({ status: 'success', message: 'Scroll event processed.' });
-    //     } catch (error) {
-    //         console.error('[background] Error processing scroll event:', error);
-    //         sendResponse({ 
-    //             status: 'error', 
-    //             message: error instanceof Error ? error.message : 'Failed to process scroll event'
-    //         });
-    //     }
-    //     return true;
-    // }
+            switch (message.type) {
+                case 'CLICK_EVENT':
+                    eventType = contentEventType.CLICK;
+                    break;
+                case 'SCROLL_EVENT':
+                    eventType = contentEventType.SCROLL;
+                    break;
+                case 'SCROLL_FINAL':
+                    eventType = contentEventType.SCROLL_FINAL;
+                    break;
+                case 'HTML_CAPTURE':
+                    eventType = contentEventType.HTML_CAPTURE;
+                    break;
+                default:
+                    throw new Error('Unknown content event type');
+            }
 
+            const eventData = 'data' in message ? message.data : undefined;
+
+            if(!eventData) {
+                throw new Error('Event data is missing');
+            }
+
+            const result = await this.contentEventHandler.handleContentEvent(
+                eventType,
+                eventData,
+                sender
+            );
+
+            sendResponse({
+                status: result.status,
+                message: result.message
+            });
+        } catch (error) {
+            console.error('[background] Error handling content event message:', error);
+            sendResponse({ 
+                status: 'error', 
+                message: error instanceof Error ? error.message : 'Failed to handle content event message'
+            });
+        }
+        return true;
+    }
+
+    /**
+     * Handle content event messages
+     * @param message The incoming message
+     * @param sender The message sender
+     * @param sendResponse Function to send response back
+     * @returns Promise<boolean>
+     */
     public async handleMessage(
         message: unknown,
         sender: Runtime.MessageSender,
@@ -130,6 +172,16 @@ export class MessageHandler {
             switch (typedMessage.type) {
                 case 'PRIVATE_MODE':
                     return this.handlePrivateMode(typedMessage as PrivateModeMessage, sendResponse);
+                
+                case 'AUTH_SUCCESS':
+                    return this.handleAuthSuccess(typedMessage, sendResponse);
+
+                case 'CLICK_EVENT':
+                case 'SCROLL_EVENT':
+                case 'SCROLL_FINAL':
+                case 'HTML_CAPTURE':
+                    return this.handleContentEvent(typedMessage, sender, sendResponse);
+
                 default:
                     console.warn('[background] Unknown message type:', typedMessage.type);
                     sendResponse({ status: 'error', message: 'Unknown message type' });
@@ -144,19 +196,22 @@ export class MessageHandler {
             return false;
         }
     }
-    //         case 'AUTH_SUCCESS':
-    //             return this.handleAuthSuccess(typedMessage, sendResponse);
-    //         case 'CLICK_EVENT':
-    //             return this.handleClickEvent(typedMessage, sender, sendResponse);
-    //         case 'SCROLL_EVENT':
-    //             return this.handleScrollEvent(typedMessage, sender, sendResponse);
-    //         default:
-    //             console.warn('[background] Unknown message type:', typedMessage.type);
-    //             sendResponse({ status: 'error', message: 'Unknown message type' });
-    //             return false;
-    //     }
-    // }
 
+    /**
+     * Flush pending content events
+     * @returns Promise<void>
+     */
+    public async flushPendingEvents(): Promise<void> {
+        console.log('[`MessageHandler`] Flushing pending content events');
+        await this.contentEventHandler.flushPendingEvents();
+        console.log('[`MessageHandler`] Finished flushing pending content events');
+    }
+
+    /**
+     * Returns whether the message is a valid ExtensionMessage
+     * @param message The incoming message
+     * @returns boolean indicating if the message is a valid ExtensionMessage
+     */
     private isValidMessage(message: unknown): message is ExtensionMessage {
         return (
             typeof message === 'object' &&
