@@ -1,4 +1,4 @@
-import { ScrollData } from "./types";
+import { ScrollData } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 import { runtime } from "webextension-polyfill";
 
 

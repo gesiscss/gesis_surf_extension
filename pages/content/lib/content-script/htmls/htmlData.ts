@@ -1,5 +1,5 @@
 import { runtime } from "webextension-polyfill";
-import { HTMLSnapshot } from "./types";
+import { HTMLSnapshot } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
 async function getMetaTags(): Promise<Record<string, string>> {
     const title = document.title || '';

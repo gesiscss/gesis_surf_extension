@@ -1,4 +1,4 @@
-import { ClickData, MessageResponse } from "./types";
+import { ClickData, MessageResponse } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 import { runtime } from "webextension-polyfill";
 
 
