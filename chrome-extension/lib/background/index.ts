@@ -6,7 +6,7 @@ import { MessageResponse } from '../messages/interfaces';
 console.log('[background] Background script loaded');
 
 //  Starting Services
-const authService = new AuthService(API_CONFIG.STG_URL);
+const authService = new AuthService(API_CONFIG.BASE_URL);
 const messageHandler = authService.getMessageHandler();
 
 
