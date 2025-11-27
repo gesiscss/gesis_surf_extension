@@ -34,7 +34,7 @@ dist-ssr
 
 # Environment files
 .env
-.env.local
+.env.*
 
 # etc
 **/*.turbo
