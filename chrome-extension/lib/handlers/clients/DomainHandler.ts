@@ -1,6 +1,5 @@
 import { DatabaseService } from "@root/lib/db";
 import { GlobalSessionService } from "@root/lib/services";
-import { Tabs} from "webextension-polyfill";
 import { readToken } from "@chrome-extension-boilerplate/shared/lib/storages/tokenStorage";
 import { DomainDataTypes, DomainResponseTypes, DomainPayloadTypes } from "../types/domainTypes";
 import { apiUrl } from "../shared";
