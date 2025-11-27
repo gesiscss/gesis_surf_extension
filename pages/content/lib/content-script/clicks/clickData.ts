@@ -1,8 +1,13 @@
+/**
+ * Module for capturing and sending click event data from content scripts
+ */
 import { ClickData, MessageResponse } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 import { runtime } from "webextension-polyfill";
 
 /**
  * Get click type based on MouseEvent button property
+ * @param event MouseEvent
+ * @returns Click type as string
  */
 function getClickType (event: MouseEvent): string {
     switch (event.button) {
@@ -19,9 +24,10 @@ function getClickType (event: MouseEvent): string {
     }
 }
 
-
 /** 
  * Get a descriptive text for the clicked element
+ * @param element The HTML element
+ * @returns Element text as string
  */
 function getElementText(element: HTMLElement): string {
     const tagName = element.tagName.toLowerCase();
@@ -86,7 +92,11 @@ function getClassName(element: HTMLElement): string {
     return 'no-class';
 }
 
-
+/**
+ * Logs click event data and sends it to the background script
+ * @param event MouseEvent
+ * @returns void
+ */
 function logClickData(event: MouseEvent): void {
 
     if(!event.isTrusted) return;
@@ -118,6 +128,10 @@ function logClickData(event: MouseEvent): void {
     });
 }
 
+/**
+ * Initialize click event listeners
+ * @returns void
+ */
 export function initializeClickListener(): void {
     document.addEventListener('contextmenu', logClickData, true);
     document.addEventListener('mousedown', logClickData, true);
