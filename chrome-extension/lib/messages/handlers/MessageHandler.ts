@@ -1,24 +1,40 @@
+/**
+ * @fileoverview Message handler for the Chrome extension background script.
+ * Processes incoming messages and routes them to appropriate services.
+ * @module handlers/messageHandler
+ */
+
 import { Runtime } from 'webextension-polyfill';
 import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { PrivateModeService, AuthService } from '@root/lib/services';
-import { ContentEventHandler } from './handlers/clients/contentEventHandler';
+import { ContentEventType } from '@root/lib/handlers';
+import { ContentEventManager } from '@root/lib/events/managers';
 import { apiUrl } from '@root/lib/handlers/shared';
-
+import { ClickData, ScrollData, HTMLSnapshot } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 import { 
     MessageResponse,
     PrivateModeMessage,
     ExtensionMessage,
-    // AuthSuccessMessage,
-    // AuthFailureMessage
+    ClickEventMessage,
+    ScrollEventMessage,
+    ScrollFinalEventMessage,
+    HTMLCaptureMessage
 } from '../interfaces/types';
 
+/**
+ * Class to handle messages in the Chrome extension background script.
+ * Routes messages to appropriate services based on their type.
+ * @class MessageHandler
+ * @implements {IMessageHandler}
+ */
 export class MessageHandler {
+    private contentEventManager: ContentEventManager;
     
     constructor(
         protected readonly authService: AuthService,
         protected readonly privateModeService: PrivateModeService,
     ) {
-        this.contentEventHandler = new ContentEventHandler(apiUrl);
+        this.contentEventManager = new ContentEventManager(apiUrl);
     }
     
     /**
@@ -96,37 +112,40 @@ export class MessageHandler {
      * @returns Promise<boolean>
      */
     private async handleContentEvent(
-        message: ExtensionMessage,
+        message: ClickEventMessage | ScrollEventMessage | ScrollFinalEventMessage | HTMLCaptureMessage,
         sender: Runtime.MessageSender,
         sendResponse: (response: MessageResponse) => void
     ): Promise<boolean> {
         try {
             let eventType: ContentEventType;
+            let eventData: ClickData | ScrollData | HTMLSnapshot;
 
             switch (message.type) {
                 case 'CLICK_EVENT':
-                    eventType = contentEventType.CLICK;
+                    eventType = ContentEventType.CLICK;
+                    eventData = message.data;
                     break;
                 case 'SCROLL_EVENT':
-                    eventType = contentEventType.SCROLL;
+                    eventType = ContentEventType.SCROLL;
+                    eventData = message.data;
                     break;
                 case 'SCROLL_FINAL':
-                    eventType = contentEventType.SCROLL_FINAL;
+                    eventType = ContentEventType.SCROLL_FINAL;
+                    eventData = message.data;
                     break;
                 case 'HTML_CAPTURE':
-                    eventType = contentEventType.HTML_CAPTURE;
+                    eventType = ContentEventType.HTML_CAPTURE;
+                    eventData = message.data;
                     break;
                 default:
                     throw new Error('Unknown content event type');
             }
 
-            const eventData = 'data' in message ? message.data : undefined;
-
             if(!eventData) {
                 throw new Error('Event data is missing');
             }
 
-            const result = await this.contentEventHandler.handleContentEvent(
+            const result = await this.contentEventManager.handleContentEvent(
                 eventType,
                 eventData,
                 sender
@@ -195,16 +214,6 @@ export class MessageHandler {
             });
             return false;
         }
-    }
-
-    /**
-     * Flush pending content events
-     * @returns Promise<void>
-     */
-    public async flushPendingEvents(): Promise<void> {
-        console.log('[`MessageHandler`] Flushing pending content events');
-        await this.contentEventHandler.flushPendingEvents();
-        console.log('[`MessageHandler`] Finished flushing pending content events');
     }
 
     /**

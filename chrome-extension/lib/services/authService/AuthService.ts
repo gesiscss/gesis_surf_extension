@@ -1,12 +1,23 @@
+/**
+ * @fileoverview Authentication service for the Chrome extension.
+ * Manages user authentication state, token validation, and service initialization.
+ * @module services/authService
+ */
+
 import { EventManager } from "@root/lib/events";
 import { GlobalSessionService } from "../globalSession";
 import { API_CONFIG } from "@chrome-extension-boilerplate/hmr/lib/constant";
 import { HeartbeatService } from "../heartBeatService";
 import { PrivateModeService } from "../privateModeService";
 import { MessageHandler } from "@root/lib/messages";
+import { MessageResponse } from "@root/lib/messages/interfaces";
+import { runtime, Runtime } from "webextension-polyfill";
+
 /**
  * Class to manage the authentication service.
  * Handles the authentication of the user.
+ * @class AuthService
+ * @implements {IAuthService}
  */
 export class AuthService {
     isAuthenticated: boolean;
@@ -38,6 +49,8 @@ export class AuthService {
     /**
      * Function to initialize services.
      * Initializes the services required for the extension.
+     * @return Promise<void>
+     * @throws {Error} If initialization fails
      */
     async initializeServices() {
         console.log('[background] Initializing services');
@@ -52,12 +65,31 @@ export class AuthService {
             ]);
 
             await this.heartbeatService.startAlarmAll();
+            await this.startMessageListener();
 
             console.log('[background] Services initialized successfully');
 
         } catch (error) {
             console.error('[background] Error initializing services:', error);
+            throw error;
         }
+    }
+
+    /**
+     * Start Listening to Messages from Content Scripts and Popups.
+     * @return Promise<void>
+     */
+    async startMessageListener(): Promise<void> {
+        console.log('[background] Setting up message listener');
+        runtime.onMessage.addListener((
+            message: unknown,
+            sender: Runtime.MessageSender,
+            sendResponse: (response: MessageResponse) => void
+        ): true => {
+            this.messageHandler.handleMessage(message, sender, sendResponse);
+            return true;
+        }
+        );
     }
 
     /**
@@ -67,7 +99,7 @@ export class AuthService {
      */
     async validateToken(token: string): Promise<boolean> {
         try {
-            const response = await fetch(`${API_CONFIG.STG_URL}${API_CONFIG.ENDPOINTS.USER_ME}`, {
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -90,6 +122,8 @@ export class AuthService {
     /**
      * Function to check if the user is authenticated.
      * Checks if the user is authenticated by checking the token.
+     * @return Promise<void>
+     * @throws {Error} If checking authentication fails
      */
     async checkAuthentication() {
 
