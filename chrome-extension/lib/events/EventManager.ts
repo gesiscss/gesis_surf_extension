@@ -1,4 +1,8 @@
-// eventManager.ts
+/**
+ * Main Event Manager
+ * Initializes and manages event listeners for windows and tabs
+ * @implements {EventManager}
+ */
 
 import { WindowHandler, TabHandler, DomainHandler } from "../handlers";
 import { DatabaseService } from "../db";
@@ -36,6 +40,10 @@ class EventManager {
     console.log('[EventManager] Services initilized successfully (listeners inactive)');
   }
 
+  /**
+   * Start event listeners
+   * @returns Promise<void>
+   */
   public async startListeners(){
     await this.windowEventManager.registerWindowListeners();
 
@@ -51,6 +59,10 @@ class EventManager {
     console.log('[EventManager] Starting listeners');
   }
 
+  /**
+   * Cleanup event listeners
+   * @returns void
+   */
   public cleanup(): void {
 
     if (this.focusLostUnsubscribe) {
