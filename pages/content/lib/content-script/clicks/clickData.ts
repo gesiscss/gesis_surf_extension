@@ -1,7 +1,9 @@
 import { ClickData, MessageResponse } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 import { runtime } from "webextension-polyfill";
 
-
+/**
+ * Get click type based on MouseEvent button property
+ */
 function getClickType (event: MouseEvent): string {
     switch (event.button) {
         case 0:
@@ -17,6 +19,74 @@ function getClickType (event: MouseEvent): string {
     }
 }
 
+
+/** 
+ * Get a descriptive text for the clicked element
+ */
+function getElementText(element: HTMLElement): string {
+    const tagName = element.tagName.toLowerCase();
+    
+    if (['style', 'script', 'noscript', 'svg', 'path'].includes(tagName)) {
+        return `<${tagName}>`;
+    }
+
+    if (tagName === 'input') {
+        const input = element as HTMLInputElement;
+        return input.value || input.placeholder || input.type || 'input';
+    }
+
+    if (tagName === 'button') {
+        return element.innerText?.trim() || element.getAttribute('aria-label') || 'button';
+    }
+
+    if (tagName === 'a') {
+        const anchor = element as HTMLAnchorElement;
+        return element.innerText?.trim() || anchor.title || anchor.href || 'link';
+    }
+
+    if (tagName === 'img') {
+        const img = element as HTMLImageElement;
+        return img.alt || img.title || img.src?.split('/').pop() || 'image';
+    }
+
+    let text = element.innerText?.trim() || '';
+    
+    if (text.length > 255) {
+        const label = element.getAttribute('aria-label') || element.title;
+        if (label) {
+            return label.substring(0, 255);
+        }
+        text = text.substring(0, 252) + '...';
+    }
+
+    return text || element.getAttribute('aria-label') || element.title || tagName;
+}
+
+/**
+ * Get a descriptive class name, handling className edge cases
+ * @param element The HTML element
+ * @returns Class name as string
+ */
+function getClassName(element: HTMLElement): string {
+
+    const classAttr = element.getAttribute('class');
+    
+    if (classAttr) {
+        return classAttr;
+    }
+
+    if (typeof element.className === 'string') {
+        return element.className || 'no-class';
+    }
+    
+    if (typeof element.className === 'string' && element.className) {
+        return element.className;
+    }
+
+    return 'no-class';
+}
+
+
 function logClickData(event: MouseEvent): void {
 
     if(!event.isTrusted) return;
@@ -28,29 +98,28 @@ function logClickData(event: MouseEvent): void {
     const clickData: ClickData = {
         click_time: new Date(),
         click_type: clickType,
-        click_target_element: target.textContent?.trim().substring(0, 255) || 'unknown',
-        click_target_tag: target.tagName.toLowerCase(),
-        click_target_class: target.className || 'no-class',
         click_page_x: mouseEvent.pageX,
         click_page_y: mouseEvent.pageY,
+        click_target_element: getElementText(target),
+        click_target_tag: target.tagName?.toLowerCase() || 'unknown',
+        click_target_id: target.id || 'unknown',
+        click_target_class: getClassName(target),
         click_referrer: document.referrer || 'no-referrer',
         domain_session_id: ''
     };
-
-    console.log('🖱️[Click] CLICK DETECTED:', clickData);
 
     runtime.sendMessage({
         type: 'CLICK_EVENT',
         data: clickData
     }).then((response: MessageResponse) => {
-        console.log('🖱️[Click] Click data sent successfully:', response);
+        console.log('[Click] Click data sent successfully:', response);
     }).catch((error: Error) => {
-        console.error('🖱️[Click] Error sending click data:', error);
+        console.error('[Click] Error sending click data:', error);
     });
 }
 
 export function initializeClickListener(): void {
     document.addEventListener('contextmenu', logClickData, true);
     document.addEventListener('mousedown', logClickData, true);
-    console.log('🖱️[Click] Click listener initialized.');
+    console.log('[Click] Click listener initialized.');
 }
