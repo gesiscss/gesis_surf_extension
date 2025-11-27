@@ -1,13 +1,13 @@
 import { runtime, Runtime } from 'webextension-polyfill';
 import { AuthService} from '../services';
 import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
-import { MessageResponse } from '../messages/interfaces';
 
 console.log('[background] Background script loaded');
+const API_URL = import.meta.env?.VITE_API_URL || API_CONFIG.BASE_URL;
+console.log(`[background] Using API URL: ${API_URL}`);
 
 //  Starting Services
-const authService = new AuthService(API_CONFIG.BASE_URL);
-const messageHandler = authService.getMessageHandler();
+const authService = new AuthService(API_URL);
 
 
 //  Listen for startup events
@@ -22,31 +22,4 @@ runtime.onInstalled.addListener(async(details: Runtime.OnInstalledDetailsType) =
     await authService.checkAuthentication();
 });
 
-// Listen for incoming messages
-runtime.onMessage.addListener((
-    message: unknown,
-    sender: Runtime.MessageSender,
-    sendResponse: (response: MessageResponse) => void
-    ): true => {
-        messageHandler.handleMessage(message, sender, sendResponse);
-        return true;
-    });
-
-// Flush pending messages before unloading
-runtime.onSuspend.addListener(() => {
-    console.log('[background] onSuspend - flushing pending messages if any');
-    messageHandler.flushPendingEvents().catch((error) => {
-        console.error('[background] Error flushing pending events on suspend:', error);
-    });
-});
-
-// Flush on unload
-if (typeof self !== 'undefined') {
-    self.addEventListener('unload', () => {
-        console.log('[background] unload event - flushing pending messages if any');
-        messageHandler.flushPendingEvents().catch((error) => {
-            console.error('[background] Error flushing pending events on unload:', error);
-        });
-    });
-}
 console.log('[background] Background script initialization complete');
