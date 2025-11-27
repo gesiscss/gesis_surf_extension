@@ -2,6 +2,7 @@
  * Manages domain-related events in the Chrome extension.
  * Handles domain changes, transitions, and session management.
  * Integrates with TabEventManager to track active domains across tabs.
+ * @implements {DomainEventManager}
  */
 
 import { DomainHandler, DomainDataTypes, TabMapping } from '@root/lib/handlers';
@@ -20,6 +21,7 @@ class DomainEventManager {
 
   /**
    * Gets the current active domain session ID.
+   * @returns The current active domain session ID or null if none exists.
    */
   get activeDomainSessionId(): string | null {
     return this.currentActiveDomainSessionId;
@@ -45,11 +47,19 @@ class DomainEventManager {
     }
   }
 
+  /**
+   * Resets the current active domain session ID.
+   * @returns void
+   */
   public resetDomainSession(): void {
     console.log('Resetting current active domain session ID');
     this.currentActiveDomainSessionId = null;
   }
 
+  /**
+   * Handles domain cleanup on tab closure or navigation away.
+   * @returns void
+   */
   public async handleDomainCleanup(): Promise<void> {
     try{
       if (this.currentActiveDomainSessionId) {
