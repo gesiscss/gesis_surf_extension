@@ -1,3 +1,7 @@
+/**
+ * Background script for the Chrome extension.
+ * Manages startup and installation events, and initializes services.
+ */
 import { runtime, Runtime } from 'webextension-polyfill';
 import { AuthService} from '../services';
 import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
