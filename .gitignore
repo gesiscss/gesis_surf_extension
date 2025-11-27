@@ -38,3 +38,15 @@ dist-ssr
 
 # etc
 **/*.turbo
+
+# MD files
+*.md
+
+# Mermaid diagrams
+*.mmd
+
+# PNG files
+*.png
+
+# VSCODE counter
+.VSCodeCounter/
