@@ -1,5 +1,5 @@
 /**
- * Handles API operations for content script events (clicks, scrolls, HTML captures)
+ * @fileoverview Handles API operations for content script events (clicks, scrolls, HTML captures)
  * @implements {ContentScriptHandler}
  */
 

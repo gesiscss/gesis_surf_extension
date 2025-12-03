@@ -1,12 +1,11 @@
 /**
- * Type definitions for content script event payloads
- * and related structures
+ * @fileoverview Type definitions for content script event payloads and related structures
  * @implements {ClickPayload, ScrollPayload, HTMLPayload, DomainInfo, ContentEventType, EventResult}
  */
 
 // Payload for click events
 export interface ClickPayload {
-    click_time: string;
+    click_time: Date;
     click_type: string;
     click_target_element: string;
     click_target_tag: string;
