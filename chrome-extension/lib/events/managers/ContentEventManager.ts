@@ -1,9 +1,10 @@
 /**
- * Manages content event routing, validation, and processing logic
+ * @fileoverview Manages content event routing, validation, and processing logic
  * @implements {ContentEventManager}
  */
+
 import { DatabaseService } from '@root/lib/db';
-import { Runtime } from 'webextension-polyfill';
+import { Runtime, Tabs } from 'webextension-polyfill';
 import DomainManager from '@root/lib/handlers/clients/DomainHandler';
 import { DomainInfo, ContentScriptHandler, ContentEventType } from '@root/lib/handlers';
 import { ClickData, ScrollData, HTMLSnapshot, EventResult } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
@@ -11,7 +12,6 @@ import { ClickData, ScrollData, HTMLSnapshot, EventResult } from '@chrome-extens
 
 /**
  * Handles content event routing and validation logic
- * @implements {ContentEventManager}
  */
 export default class ContentEventHandler {
     private domainManager: DomainManager;
@@ -81,7 +81,13 @@ export default class ContentEventHandler {
             throw new Error('Domain not found in database');
         }
 
-        return { domainSessionId, domainInfo };
+        if (domainInfo instanceof Error) {
+            throw new Error(`Database error: ${domainInfo.message}`);
+        }
+
+        const validDomainInfo = domainInfo as unknown as DomainInfo;
+
+        return { domainSessionId, domainInfo: validDomainInfo };
     }
 
     /**
@@ -123,7 +129,7 @@ export default class ContentEventHandler {
      * @param tab Chrome tab information
      * @returns Domain session ID or null
      */
-    private async getDomainSessionId(tab?: chrome.tabs.Tab): Promise<string | null> {
+    private async getDomainSessionId(tab?: Tabs.Tab): Promise<string | null> {
         if (!tab || !tab.id || !tab.windowId || !tab.url) {
             console.error('[ContentEventHandler] Missing tab information');
             return null;
