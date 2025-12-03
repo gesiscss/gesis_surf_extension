@@ -116,7 +116,7 @@ export default class ContentEventHandler {
                 break;
                 
             case ContentEventType.HTML_CAPTURE:
-                await this.handleHTML(eventData as HTMLSnapshot, domainInfo, domainSessionId);
+                await this.handleHTML(eventData as HTMLSnapshot, domainInfo);
                 break;
                 
             default:
@@ -193,10 +193,9 @@ export default class ContentEventHandler {
      */
     private async handleHTML(
         htmlData: HTMLSnapshot,
-        domainInfo: DomainInfo,
-        domainSessionId: string
+        domainInfo: DomainInfo
     ): Promise<void> {
         console.log('[ContentEventHandler] Processing HTML capture');
-        await this.apiClient.sendHTML(htmlData, domainInfo, domainSessionId);
+        await this.apiClient.sendHTML(htmlData, domainInfo);
     }
 }

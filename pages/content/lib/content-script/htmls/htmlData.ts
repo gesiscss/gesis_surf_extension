@@ -1,6 +1,15 @@
+/**
+ * @fileoverview Module to capture and send HTML content and meta tags from the current webpage.
+ * @implements {IHTMLCapture}
+ */
 import { runtime } from "webextension-polyfill";
 import { HTMLSnapshot } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
+
+/**
+ * Extract meta tags from the document
+ * @returns Promise<Record<string, string>>
+ */
 async function getMetaTags(): Promise<Record<string, string>> {
     const title = document.title || '';
     const description = document.querySelector('meta[name="description"]')?.getAttribute('content') || '';
@@ -13,6 +22,9 @@ async function getMetaTags(): Promise<Record<string, string>> {
     };
 }
 
+/** Capture and send HTML content along with meta tags
+ * @returns Promise<void>
+ */
 async function captureHTML(): Promise<void> {
 
     const htmlData = document.documentElement.cloneNode(true) as HTMLElement;
@@ -37,17 +49,19 @@ async function captureHTML(): Promise<void> {
     });
 }
 
-
+/** Initialize HTML capture on page load
+ * @returns void
+ */
 export function initializeHTMLCapture(): void {
 
     const captureWithDelay = () => {
         setTimeout(captureHTML, 1000);
     };
     
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', captureWithDelay);
+    if (document.readyState === 'complete') {
+        captureWithDelay();
     } else {
-        captureHTML();
+        window.addEventListener('load', captureWithDelay);
     }
     console.log('📄[HTML] HTML capture initialized.');
 }

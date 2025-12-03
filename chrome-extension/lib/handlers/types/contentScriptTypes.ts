@@ -47,15 +47,17 @@ export interface ScrollPayload {
     is_final?: boolean;
 }
 
+// Metadata structure for HTML captures
+interface metaData {
+    description?: string;
+    fav_icon?: string;
+    title?: string;
+}
+
 // Payload for HTML capture events
 export interface HTMLPayload {
-    html_content: string; 
-    meta: Record<string, any>; 
-    domain_id: string;
-    domain_session_id: string;
-    global_session: string;
-    captured_at: string;
-    size: number;
+    snapshot_html: string; 
+    meta?: metaData;
 }
 
 // Domain information structure

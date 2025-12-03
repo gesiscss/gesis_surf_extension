@@ -125,8 +125,7 @@ export default class ContentScriptHandler {
      */
     public async sendHTML(
         htmlData: HTMLSnapshot,
-        domainInfo: DomainInfo,
-        domainSessionId: string
+        domainInfo: DomainInfo
     ): Promise<void> {
         
         const globalSession = await this.globalSessionService.getFromLocalStorage();
@@ -134,19 +133,16 @@ export default class ContentScriptHandler {
             throw new Error('Global session not found');
         }
 
+        console.log('[ContentApiClient] Sending HTML data', htmlData);
+
         const payload: HTMLPayload = {
-            html_content: htmlData.html_content,
-            meta: htmlData.meta || {},
-            domain_id: domainInfo.id,
-            domain_session_id: domainSessionId,
-            global_session: globalSession.id,
-            captured_at: new Date().toISOString(),
-            size: new Blob([htmlData.html_content]).size
+            snapshot_html: htmlData.html_content,
+            meta: htmlData.meta,
         };
 
         try {
-            const endpoint = `${this.apiUrl}/domains/${payload.domain_id}/html/`;
-            const requestOptions = await this.requestOptions(payload, 'POST');
+            const endpoint = `${this.apiUrl}/domain/domains/${domainInfo.id}/`;
+            const requestOptions = await this.requestOptions(payload, 'PATCH');
             const response = await fetch(endpoint, requestOptions);
 
             if (!response.ok) {
