@@ -1,7 +1,7 @@
 /**
  * @fileoverview Authentication service for the Chrome extension.
  * Manages user authentication state, token validation, and service initialization.
- * @module services/authService
+ * @implements {IAuthService}
  */
 
 import { EventManager } from "@root/lib/events";
@@ -12,12 +12,11 @@ import { PrivateModeService } from "../privateModeService";
 import { MessageHandler } from "@root/lib/messages";
 import { MessageResponse } from "@root/lib/messages/interfaces";
 import { runtime, Runtime } from "webextension-polyfill";
+import { DataCollectionService } from "../dataCollectionService";
 
 /**
  * Class to manage the authentication service.
  * Handles the authentication of the user.
- * @class AuthService
- * @implements {IAuthService}
  */
 export class AuthService {
     isAuthenticated: boolean;
@@ -27,6 +26,7 @@ export class AuthService {
     heartbeatService: HeartbeatService;
     privateModeService: PrivateModeService;
     messageHandler: MessageHandler;
+    dataCollectionService: DataCollectionService;
 
     constructor(apiEndpoint: string) {
         this.isAuthenticated = false;
@@ -36,6 +36,7 @@ export class AuthService {
         this.heartbeatService = new HeartbeatService();
         this.privateModeService = new PrivateModeService();
         this.messageHandler = new MessageHandler(this, this.privateModeService);
+        this.dataCollectionService = new DataCollectionService();
     }
 
     /**
@@ -55,6 +56,12 @@ export class AuthService {
     async initializeServices() {
         console.log('[background] Initializing services');
         try{
+            await this.dataCollectionService.initialize();
+
+            if (!this.dataCollectionService.shouldCollectData()) {
+                console.log('[background] Data collection is disabled. Skipping service initialization.');
+                return;
+            }
 
             await this.globalSessionService.createGlobalSession();
             await this.eventManager.startListeners();

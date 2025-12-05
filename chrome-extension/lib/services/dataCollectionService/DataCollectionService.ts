@@ -25,6 +25,14 @@ class DataCollectionService {
     }
 
     /**
+     * Check if data collection is active
+     * @returns boolean
+     */
+    shouldCollectData(): boolean {
+        return this.isDataCollectionActive;
+    }
+
+    /**
      * Check if data collection is enabled in storage
      * @returns boolean
      */
@@ -34,8 +42,8 @@ class DataCollectionService {
             const storageData = await storage.local.get('token');
             const token = storageData.token;
 
-            if (token) {
-                console.log('[DataCollectionService] Token found in storage, enabling data collection.');
+            if (!token) {
+                console.log('[DataCollectionService] Token not found in storage, disabling data collection.');
                 return false;
             }
 
