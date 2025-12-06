@@ -3,7 +3,7 @@ import { DBGesisTypes, ItemTypes } from '../interfaces/types';
 import { DB_CONFIG } from '../constants/dbConfig';
 
 
-type StoreNames = 'winlives' | 'tabslives' | 'domainslives' | 'config' | 'winclose' ;
+type StoreNames = 'winlives' | 'tabslives' | 'domainslives' | 'config' | 'winclose'| 'hostslives';
 
 /**
  * Service for interacting with the IndexedDB database.
@@ -22,7 +22,7 @@ class DatabaseService {
           db.createObjectStore('winlives', { keyPath: 'window_session_id' });
           db.createObjectStore('tabslives', { keyPath: 'tab_session_id' });
           db.createObjectStore('domainslives', { keyPath: 'domain_session_id' });
-          // db.createObjectStore('hostslives', { autoIncrement: true });
+          db.createObjectStore('hostslives', { keyPath: 'id' });
         } else if (oldVersion < 2) {
           db.deleteObjectStore('winlives');
           db.createObjectStore('winlives', { keyPath: 'window_session_id' });
@@ -30,9 +30,27 @@ class DatabaseService {
           db.createObjectStore('tabslives', { keyPath: 'tab_session_id' });
           db.deleteObjectStore('domainslives');
           db.createObjectStore('domainslives', { keyPath: 'domain_session_id' });
+          db.deleteObjectStore('hostslives');
+          db.createObjectStore('hostslives', { keyPath: 'id' });
         }
       },
     });
+  }
+
+  /**
+   * Counts the number of items in the specified store.
+   * @param storeName The name of the store to count items in.
+   * @returns The number of items in the store.
+   * @throws An error if the count operation fails.
+   */
+  async count(storeName: StoreNames): Promise<number | Error> {
+    try {
+      const db = await this.db;
+      return await db.count(storeName);
+    } catch (error) {
+      console.error(`Error counting items in ${storeName}`, error);
+      return error as Error;
+    }
   }
 
   /**

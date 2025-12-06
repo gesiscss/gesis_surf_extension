@@ -7,6 +7,7 @@ export const DB_CONFIG = {
         tabslives: 'tab_session_id',
         domainslives: 'domain_session_id',
         config: 'id',
-        winclose: 'id'
+        winclose: 'id',
+        hostslives: 'id',
     } as const
 };

@@ -38,6 +38,45 @@ export interface DomainItemTypes {
 }
 
 /**
+ * Represents the criteria for a host category.
+ */
+export interface HostCriteria {
+    id: string;
+    criteria_classification: string;
+    criteria_window: boolean;
+    criteria_tab: boolean;
+    criteria_domain: boolean;
+    criteria_click: boolean;
+    criteria_scroll: boolean;
+    snapshot_html: boolean;
+}
+
+/**
+ * Represents a category associated with a host.
+ */
+export interface HostCategory {
+    id: string;
+    category_score: number;
+    category_parent: string;
+    category_label: string;
+    category_confidence: number;
+    created_at: string;
+    criteria: HostCriteria;
+}
+
+/**
+ * Represents a host entry with its rules and categories.
+ * @interface HostItemTypes
+ */
+export interface HostItemTypes {
+    id: string;
+    hostname: string;
+    created_at: string;
+    categories: HostCategory[];
+    hosts_version: string;
+}
+
+/**
  * Database schema for the GESIS browser extension.
  * Extends IndexedDB schema with custom stores.
  * @interface DBGesisTypes
@@ -72,5 +111,11 @@ export interface DBGesisTypes extends DBSchema {
     winclose: {
         key: number;
         value: ItemTypes;
+    };
+
+    /** Store for host live data */
+    hostslives: {
+        key: string;
+        value: HostItemTypes;
     };
 }
