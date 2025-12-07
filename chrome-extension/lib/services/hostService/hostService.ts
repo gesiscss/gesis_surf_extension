@@ -1,232 +1,176 @@
-// import { storage } from "webextension-polyfill";
-// import { getHostAll, getHostHostId, getTabById, setHost } from "../db/services/DatabaseService";
-// const API_URL:any = 'https://surfcollect.gesis.org/api/'
+/**
+ * @fileoverview Service for managing host data synchronization with remote API for blocklist/allowlist.
+ * Handles version checking, data fetching, and local database updates.
+ * @implements {HostService}
+ */
+import { storage } from 'webextension-polyfill';
+import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
+import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
+import { DatabaseService, HostItemTypes } from '@root/lib/db';
 
-// async function delay(ms) {console.log(ms);
-//   return new Promise(resolve => setTimeout(resolve, ms));
-// }
+const HOST_VERSION_KEY = 'host_version';
+const MAX_ATTEMPTS = 8;
+const MAX_DELAY = 30000;
 
-// export async function getHosts() {
+// Service to manage host data synchronization
+export class HostService {
+    constructor(    
+        private readonly dbService = new DatabaseService()
+    ) {}
 
-//   const xtoken = await storage.local.get("WTG_User");
-//   console.log('GET HOSTS');  
-//    try {
+    /**
+     *  Check remote host version and sync local database if needed
+     * @returns Promise<boolean> True if sync occurred, false otherwise
+     */
+    async checkAndSyncVersion(): Promise<boolean> {
+        const remoteVersion = await this.fetchRemoteVersion();
+        if (!remoteVersion) return false;
 
-//      const requestOptions = {
-//        method: 'GET',
-//        headers: {
-//          'Authorization':'token '+xtoken.WTG_User.token,
-//          'Content-Type': 'application/json',
-//        },
-//       }
-//       let _taskHost:any;
+        const local = (await storage.local.get(HOST_VERSION_KEY))?.[HOST_VERSION_KEY] as string | undefined;
+        const hasHosts = await this.dbService.count('hostslives');
+        const hasAnyHosts = typeof hasHosts === 'number' && hasHosts > 0;
+        
 
-//       const response = await fetch(API_URL+'host/hosts/async_hosts/', requestOptions);
-//       const _hosts = await response.json();
-//       let a = 1000;
-//       do{
-//         _taskHost = await getTask(_hosts.task_id);
-//         console.log('time',a);
-//         a = a*2
-//         await delay(a);
-//       }
-//         while (_taskHost.status)
-      
+        if (!hasAnyHosts || local !== remoteVersion) {
+            const hosts = await this.fetchHostsFromApi();
+            if (hosts.length) {
+                await this.syncHosts(hosts);
+                await storage.local.set({ [HOST_VERSION_KEY]: remoteVersion });
+            }
+            return true;
+        }
+        return false;
+    }
 
-//       if(_taskHost){
-//         for (const h of _taskHost) {
-//           await setHost(h,h.id)
-//       }
-//       }
-      
-   
-//    } catch (error) {
-//      return false;  
-//    }
-// }
+    /** Fetch the remote host version from the API
+     * @returns Promise<string | null> The remote version or null if fetch fails
+     */
+    private async fetchRemoteVersion(): Promise<string | null> {
+        const token = await readToken();
+        if (!token) return null;
 
-// export async function getTask(taskId:any){
+        try {
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`, {
+                method: 'GET',
+                headers: {
+                    Authorization: `Token ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+            
+            if (!response.ok) return null;
+            const data = await response.json();
+            return data.extension?.host_version ?? null;
+        } catch (error) {
+            console.error('[HostService] Error fetching version:', error);
+            return null;
+        }
+    }
 
-//   const xtoken = await storage.local.get("WTG_User");
-//   console.log('GET TASKID');
-  
-//    try {
-//      const requestOptions = {
-//        method: 'GET',
-//        headers: {
-//          'Authorization':'token '+xtoken.WTG_User.token,
-//          'Content-Type': 'application/json',
-//        },
-//       }
-//      const response = await fetch(API_URL+'host/task-result/'+taskId, requestOptions);
+    /** Fetch the remote hosts from the API
+     * @returns Promise<HostItemTypes[]> The list of hosts or empty array if fetch fails
+     */
+    private async fetchHostsFromApi(): Promise<HostItemTypes[]> {
+        const token = await readToken();
+        if (!token) return [];
+        try {
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.HOST}async_hosts/`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Token ${token}`,
+                    'Content-Type': 'application/json',
+            },
+        });
 
-//      return await response.json();
-   
-//    } catch (error) {
-//     console.log('Error in Get TASKID');
-//      return false;  
-//    }
-// }
+        if (!response.ok) return [];
 
-// export async function checkHost(host:string) {
-//     try {
-//         const _host = await getHostHostId(host);
-//         return _host.length>0 ? _host : false
+        const initial = await response.json();
+        
+        if (Array.isArray(initial)) return initial as HostItemTypes[];
+        if (!initial?.task_id) return [];
 
-//     } catch (error) {
-//          return false;  
-//     }
-// }
+        return await this.pollTaskResult(initial.task_id, token);
+    } catch (error) {
+        console.error('[HostService] Error fetching hosts:', error);
+        return [];
+        }
+    }
 
-// export async function setPayloadByHost(host:any,tab,data,mode){
-    
-//   const domain:any = {};
-//   console.log(host);
-  
-//   if(mode)
-//     {
-//       console.log('PRIVATE MODE ON');
-      
-//       domain.domain_title = 'Private Mode';
-//       domain.domain_url = 'Private Mode';
-//       domain.domain_fav_icon ='Private Mode';
-//       domain.domain_status= "true";
+    /** Sync the fetched hosts with the local database
+     * @param hosts The list of hosts to sync
+     */
+    private async syncHosts(hosts: HostItemTypes[]): Promise<void> {
+        const existing = await this.dbService.getAllItems('hostslives');
+        const existingSafe = existing instanceof Error ? [] : (existing as HostItemTypes[]);
+        const incomingIds = new Set(hosts.map((host) => host.id));
 
-//       const payload:any =  {
-//         "start_time": new Date(),
-//         "closing_time": new Date(),
-//         "tab_num": tab.id,
-//         "window_num": tab.windowId,
-//         "domains":[
-//           domain
-//         ]
-//       }
-//         return payload;
-//     }
+        for (const host of hosts) {
+            await this.dbService.setItem('hostslives', host);
+        }
 
-//     if(host && !mode){
+        for (const item of existingSafe) {
+            if (!incomingIds.has(item.id)) {
+                await this.dbService.deleteItem('hostslives', item.id);
+            }
+        }
+    }
 
-//     host[0].categories[0].criteria.criteria_domain==false ? (domain.domain_title = host[0].categories[0].criteria.criteria_classification,domain.domain_url = host[0].categories[0].criteria.criteria_classification, domain.snapshot_html =host[0].categories[0].criteria.criteria_classification, domain.criteria_classification = host[0].categories[0].criteria.criteria_classification) : (domain.domain_title = tab.title,domain.domain_url = tab.url, domain.criteria_classification = host[0].categories[0].criteria.criteria_classification);
-      
-//     domain.category_label = host[0].categories[0].category_label;
-//     domain.category_number = host[0].categories[0].category_parent;
+    /** Poll the task result until completion or max attempts
+     * @param taskId The task ID to poll
+     * @param token The authentication token
+     * @returns Promise<HostItemTypes[]> The list of hosts or empty array if polling fails
+     */
+    private async pollTaskResult(taskId: string, token: string): Promise<HostItemTypes[]> {
+        let delay = 1000;
 
-//     host[0].categories[0].criteria.snapshot_html ? domain.snapshot_html = data : domain.snapshot_html = host[0].categories[0].criteria.criteria_classification;
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+            await new Promise((resolve) => setTimeout(resolve, delay));
 
-//     host[0].categories[0].criteria.criteria_classification=='only_host' ?  domain.domain_url = host[0].hostname : null;
+            try {
+                const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.HOST_TASK}${taskId}/`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Token ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
 
-//     domain.closing_time = new Date();
-//     domain.start_time = new Date();
-//     domain.domain_status = 'true';
+                if (!response.ok) {
+                    delay = Math.min(delay * 2, MAX_DELAY);
+                    continue;
+                }
 
-//     tab.favIconUrl ? 
-//       domain.domain_fav_icon = tab.favIconUrl : 
-//         domain.domain_fav_icon = 'Not found';
+                const result = (await response.json()) as unknown;
 
-//     }else if(!host && !mode){
+                const status =
+                    typeof result === 'object' && result !== null
+                    ? (result as { status?: string }).status
+                    : undefined;
 
-//       domain.domain_title = tab.title;
-//       domain.domain_url = tab.url;
-//       domain.snapshot_html =data;
-//       domain.closing_time = new Date();
-//       domain.start_time = new Date();
-//       domain.domain_status = 'true';
-     
-//       tab.favIconUrl ? 
-//         domain.domain_fav_icon = tab.favIconUrl : 
-//           domain.domain_fav_icon = 'Not found';
+                if (status === 'PENDING' || status === 'STARTED') {
+                    delay = Math.min(delay * 2, MAX_DELAY);
+                    continue;
+                } 
 
-//     }else{
+                if (Array.isArray(result)) {
+                    return result as HostItemTypes[];
+                }
 
-//       domain.domain_title = tab.title;
-//       domain.domain_url = tab.url;
-//       domain.snapshot_html =data;
-//       domain.closing_time = new Date();
-//       domain.start_time = new Date();
-//       domain.domain_status = 'true';
-     
-//       tab.favIconUrl ? 
-//         domain.domain_fav_icon = tab.favIconUrl : 
-//           domain.domain_fav_icon = 'Not found';
+                if (typeof result === 'object' && result !== null) {
+                    const { result: nested, hosts } = result as { result?: unknown; hosts?: unknown };
+                    if (Array.isArray(nested)) return nested as HostItemTypes[];
+                    if (Array.isArray(hosts)) return hosts as HostItemTypes[];
+                }
 
-//     }
+                return []
 
-//     const payload:any =  {
-//       "start_time": new Date(),
-//       "closing_time": new Date(),
-//       "tab_num": tab.id,
-//       "window_num": tab.windowId,
-//       "domains":[
-//         domain
-//       ]
-//     }
-//       return payload;
+            } catch (error) {
+                console.error('[HostService] Error polling task result:', error);
+                return [];
+            }
+        }
 
-// }
-
-// export async function hostVersion(){
-//   const xtoken = await storage.local.get("WTG_User");
-//   try {
-
-//     const requestOptions = {
-//       method: 'GET',
-//       headers: {
-//         'Authorization':'token ' + xtoken.WTG_User.token,
-//         'Content-Type': 'application/json',
-//       }
-//      }
-//      const response = await fetch(API_URL+'user/me/', requestOptions);
-//      return response.json();
-    
-//   } catch (error) {
-//     console.log(error);
-    
-//     return false;
-//   }
-// }
-
-// export async function getHostVersion(){
-//   return new Promise(async (resolve, reject) => {
-//       const _version = await hostVersion();
-//       const _idTask = await storage.local.get("host_version");
-//       const _isHosts = await getHostAll();
-
-//     if(!_isHosts){
-//       resolve(true)
-//     }
-
-//       if(_idTask){
-//         if(_version.extension.host_version == _idTask.host_version ){
-//           resolve(false);
-//         }else{
-//           await storage.local.set({"host_version":_version.extension.host_version});
-//           resolve(true)
-//         }
-//       }else{
-//         await storage.local.set({"host_version":_version.extension.host_version});
-//         resolve(true)
-//       }
-//   })
-
-// }
-
-
-// export async function getMePrivacy(){
-//   const xtoken = await storage.local.get("WTG_User");
-//   try {
-
-//     const requestOptions = {
-//       method: 'GET',
-//       headers: {
-//         'Authorization':'token ' + xtoken.WTG_User.token,
-//         'Content-Type': 'application/json',
-//       }
-//      }
-//      const response = await fetch(API_URL+'user/me/', requestOptions);
-//      return response.json();
-    
-//   } catch (error) {
-//     console.log(error);
-//     return false;
-//   }
-// }
+        console.warn(`[HostService] Task ${taskId} polling reached max attempts`);
+        return [];
+    }
+}
