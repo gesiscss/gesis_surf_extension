@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Service for interacting with the IndexedDB database.
+ * Provides methods to perform CRUD operations on various object stores.
+ * @implements {DatabaseService}
+ */
 import { openDB, IDBPDatabase } from 'idb';
 import { DBGesisTypes, ItemTypes } from '../interfaces/types';
 import { DB_CONFIG } from '../constants/dbConfig';
