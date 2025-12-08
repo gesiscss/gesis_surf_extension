@@ -27,11 +27,17 @@ export class HostService {
         if (!remoteVersion) return false;
 
         const local = (await storage.local.get(HOST_VERSION_KEY))?.[HOST_VERSION_KEY] as string | undefined;
+        console.log(`[HostService] Local host version: ${local}, Remote host version: ${remoteVersion}`);
+
         const hasHosts = await this.dbService.count('hostslives');
         const hasAnyHosts = typeof hasHosts === 'number' && hasHosts > 0;
         
+        console.log(`[HostService] Number of local hosts: ${hasHosts}`);
+        console.log(`[HostService] Has any local hosts: ${hasAnyHosts}`);
+        
 
         if (!hasAnyHosts || local !== remoteVersion) {
+            console.log('[HostService] Syncing hosts from remote API...');
             const hosts = await this.fetchHostsFromApi();
             if (hosts.length) {
                 await this.syncHosts(hosts);
@@ -60,6 +66,7 @@ export class HostService {
             
             if (!response.ok) return null;
             const data = await response.json();
+            console.log('[HostService] Fetched remote version:', data.extension?.host_version);
             return data.extension?.host_version ?? null;
         } catch (error) {
             console.error('[HostService] Error fetching version:', error);
@@ -102,15 +109,15 @@ export class HostService {
     private async syncHosts(hosts: HostItemTypes[]): Promise<void> {
         const existing = await this.dbService.getAllItems('hostslives');
         const existingSafe = existing instanceof Error ? [] : (existing as HostItemTypes[]);
-        const incomingIds = new Set(hosts.map((host) => host.id));
+        const incomingIds = new Set(hosts.map((host) => host.hostname));
 
         for (const host of hosts) {
             await this.dbService.setItem('hostslives', host);
         }
 
         for (const item of existingSafe) {
-            if (!incomingIds.has(item.id)) {
-                await this.dbService.deleteItem('hostslives', item.id);
+            if (!incomingIds.has(item.hostname)) {
+                await this.dbService.deleteItem('hostslives', item.hostname);
             }
         }
     }
