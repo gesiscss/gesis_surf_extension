@@ -27,7 +27,7 @@ class DatabaseService {
           db.createObjectStore('winlives', { keyPath: 'window_session_id' });
           db.createObjectStore('tabslives', { keyPath: 'tab_session_id' });
           db.createObjectStore('domainslives', { keyPath: 'domain_session_id' });
-          db.createObjectStore('hostslives', { keyPath: 'id' });
+          db.createObjectStore('hostslives', { keyPath: 'hostname' });
         } else if (oldVersion < 2) {
           db.deleteObjectStore('winlives');
           db.createObjectStore('winlives', { keyPath: 'window_session_id' });
@@ -36,7 +36,7 @@ class DatabaseService {
           db.deleteObjectStore('domainslives');
           db.createObjectStore('domainslives', { keyPath: 'domain_session_id' });
           db.deleteObjectStore('hostslives');
-          db.createObjectStore('hostslives', { keyPath: 'id' });
+          db.createObjectStore('hostslives', { keyPath: 'hostname' });
         }
       },
     });
@@ -85,7 +85,7 @@ class DatabaseService {
    * @returns The item from the store.
    * @throws An error if the get operation fails.
    */
-  async getItem(storeName: StoreNames, key: string): Promise<ItemTypes | Error | null> {
+  async getItem<K extends StoreNames>(storeName: K, key: string): Promise<DBGesisTypes[K]['value'] | null> {
     console.log('Store Name:', storeName);
     console.log('Key:', key);
     try {

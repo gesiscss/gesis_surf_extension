@@ -8,6 +8,6 @@ export const DB_CONFIG = {
         domainslives: 'domain_session_id',
         config: 'id',
         winclose: 'id',
-        hostslives: 'id',
+        hostslives: 'hostname',
     } as const
 };

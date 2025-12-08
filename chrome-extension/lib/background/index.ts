@@ -6,7 +6,7 @@ import { runtime, Runtime } from 'webextension-polyfill';
 import { AuthService} from '../services';
 import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
 import { MessageHandler } from '../messages';
-// import { run } from 'node:test';
+import { ExtensionMessage } from '../messages/interfaces/types';
 
 console.log('[background] Background script loaded');
 const API_URL = import.meta.env?.VITE_API_URL || API_CONFIG.BASE_URL;
@@ -16,20 +16,27 @@ console.log(`[background] Using API URL: ${API_URL}`);
 const authService = new AuthService(API_URL);
 const messageHandler = new MessageHandler(authService, authService.privateModeService);
 
+// Listen for incoming messages
 runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('[background] Message received:', message);
-    
-    // Handle message asynchronously but return true synchronously
     (async () => {
         try {
+            const allowedTypes = [
+                'AUTH_SUCCESS',
+            ];
+
+            if (!message || !allowedTypes.includes((message as ExtensionMessage).type)) {
+                console.warn('[background] Unsupported message type:', message);
+                sendResponse({ status: 'error', message: 'Unsupported message type' });
+                return;
+            }
+
             await messageHandler.handleMessage(message, sender, sendResponse);
         } catch (error) {
             console.error('[background] Error handling message:', error);
             sendResponse({ status: 'error', message: 'Internal error' });
         }
     })();
-    
-    // Return true to indicate we will send a response asynchronously
     return true;
 });
 
