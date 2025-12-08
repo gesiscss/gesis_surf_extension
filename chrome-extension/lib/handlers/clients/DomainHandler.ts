@@ -1,9 +1,11 @@
-import { DatabaseService } from "@root/lib/db";
+import { DatabaseService, HostItemTypes, ItemTypes } from "@root/lib/db";
 import { GlobalSessionService } from "@root/lib/services";
 import { readToken } from "@chrome-extension-boilerplate/shared/lib/storages/tokenStorage";
 import { DomainDataTypes, DomainResponseTypes, DomainPayloadTypes } from "../types/domainTypes";
 import { apiUrl } from "../shared";
 import { TabMapping } from "../types";
+import { PolicyService } from "@root/lib/services/policyService/policyService";
+import { HostService } from "@root/lib/services/hostService";
 
 /**	
  * Manages browser domain requests.
@@ -12,10 +14,14 @@ import { TabMapping } from "../types";
 class DomainManager {
     dbService: DatabaseService;
     globalSessionService: GlobalSessionService;
+    policyService: PolicyService;
+    hostService: HostService;
 
     constructor() {
         this.dbService = new DatabaseService();
         this.globalSessionService = new GlobalSessionService(apiUrl);
+        this.policyService = new PolicyService();
+        this.hostService = new HostService();
     }
 
     /**
@@ -25,9 +31,15 @@ class DomainManager {
      * @param tabId The ID of the tab.
      * @returns The unique domain session id with the domain URL.
      */
-    async generateDomainSession(windowId: number, tabId: number, domainUrl: string): Promise<string> {
+    async generateDomainSession(
+        windowId: number, 
+        tabId: number, 
+        domainUrl: string,
+        maskUrl?: string
+    ): Promise<string> {
         const windowSessionId = await this.globalSessionService.getGlobalSessionId(windowId, 'window');
-        return `${windowSessionId}-tabId-${tabId}-domain-${domainUrl}`;
+        const urlPart = maskUrl ? maskUrl : domainUrl;
+        return `${windowSessionId}-tabId-${tabId}-domain-${urlPart}`;
     }
 
     /**
@@ -46,26 +58,52 @@ class DomainManager {
      * @returns The payload to be sent to the server.
      */
     async buildPayload(domain_data: DomainDataTypes): Promise<DomainPayloadTypes | null> {
+
         console.log('Building payload for domain data:', domain_data);
-        if (domain_data.status === 'complete') {
-            console.log('Domain data status is complete, building payload.');
-            const payload: DomainPayloadTypes = {
-                start_time: new Date().toISOString(),
-                closing_time: new Date().toISOString(),
-                domain_url: domain_data.url,
-                domain_title: domain_data.title,
-                domain_fav_icon: domain_data.favIconUrl || '',
+
+        if (domain_data.status !== 'complete') {
+            console.log('Domain data status is not complete, checking host rules.');
+            return null;
+        }
+        
+        try {
+            let hostRule: HostItemTypes | null = null;
+            let classification: string | undefined = undefined;
+
+            if (domain_data.url) {
+                const hostname = new URL(domain_data.url).hostname;
+                const result = await this.dbService.getItem('hostslives', hostname);
+                
+                if (result) {
+                    hostRule = result;
+                    classification = hostRule?.categories?.[0]?.criteria?.criteria_classification;
+                    console.log('[DomainManager] Found classification for hostname', hostname, ':', classification);
+                }
+            }
+
+            const payload = this.policyService.applyPolicy(
+                domain_data,
+                hostRule,
+                false // isPrivateMode - TODO: determine if private mode should be applied
+            );
+            
+            // TODO: Handle URL masking based on classification
+            // const shouldMaskUrl = classification === 'full_deny' || payload.domain_url === 'Private-Mode';
+            // const urlMask = shouldMaskUrl ? payload.domain_url : undefined;
+
+            return {
+                ...payload,
                 domain_last_accessed: await this.formatLastAccessed(domain_data.lastAccessed),
                 domain_session_id: await this.generateDomainSession(
                     domain_data.windowId,
                     domain_data.id,
-                    domain_data.url
+                    domain_data.url,
+                    // urlMask --- URL masking disabled for now
                 ),
             };
-            console.log('Built payload:', payload);
-            return payload;
+        } catch (error) {
+            console.error('Error building payload:', error);
         }
-
         return null;
     }
 

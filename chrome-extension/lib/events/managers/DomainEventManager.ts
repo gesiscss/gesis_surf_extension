@@ -6,6 +6,7 @@
  */
 
 import { DomainHandler, DomainDataTypes, TabMapping } from '@root/lib/handlers';
+// import { runtime } from 'webextension-polyfill';
 
 /**
  * Manages domain-related events in the Chrome extension.
