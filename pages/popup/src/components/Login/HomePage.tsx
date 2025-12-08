@@ -9,7 +9,7 @@ const Home: React.FC = () => {
   const [privateMode, setPrivateMode] = React.useState(false);
 
   const handleRedirect = () => {
-    chrome.tabs.create({ url: 'https://www.gesis.org/en/services/planning-studies-and-collecting-data/collecting/gesis-web-tracking' });
+    chrome.tabs.create({ url: 'https://www.gesis.org/info/surf' });
   };
 
   return (
