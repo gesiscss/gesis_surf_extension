@@ -27,7 +27,6 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
 
             if (!message || !allowedTypes.includes((message as ExtensionMessage).type)) {
                 console.warn('[background] Unsupported message type:', message);
-                sendResponse({ status: 'error', message: 'Unsupported message type' });
                 return;
             }
 
