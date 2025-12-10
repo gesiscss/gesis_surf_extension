@@ -18,25 +18,20 @@ const messageHandler = new MessageHandler(authService, authService.privateModeSe
 
 // Listen for incoming messages
 runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log('[background] Message received:', message);
-    (async () => {
-        try {
-            const allowedTypes = [
-                'AUTH_SUCCESS',
-            ];
-
-            if (!message || !allowedTypes.includes((message as ExtensionMessage).type)) {
-                console.warn('[background] Unsupported message type:', message);
-                return;
+    if (message && (message as ExtensionMessage).type === 'AUTH_SUCCESS') {
+        (async () => {
+            try {
+                await messageHandler.handleAuthSuccess(message, sendResponse);
+            } catch (error) {
+                console.log('[background] Error handling message:', error);
+                sendResponse({ 
+                    status: 'error', 
+                    message: error instanceof Error ? error.message : 'Unknown error occurred' });
             }
-
-            await messageHandler.handleMessage(message, sender, sendResponse);
-        } catch (error) {
-            console.error('[background] Error handling message:', error);
-            sendResponse({ status: 'error', message: 'Internal error' });
-        }
-    })();
-    return true;
+        })();
+        return true; 
+    }
+    return false; 
 });
 
 //  Listen for startup events

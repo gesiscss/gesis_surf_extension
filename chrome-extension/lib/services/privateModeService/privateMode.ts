@@ -4,7 +4,7 @@ import { PrivateModeState } from "./types";
 export class PrivateModeService {
     private static readonly ALARM_NAME = 'privatemode';
     private static readonly STORAGE_KEY = 'private';
-    private static readonly DURATION_MINUTES = 15;
+    private static readonly DURATION_MINUTES = 1;
     private initialized: boolean = false;
 
     constructor() {
@@ -17,7 +17,7 @@ export class PrivateModeService {
         if (this.initialized) return;
         console.log('[PrivateModeService] Initializing service');
 
-        await this.clearPrivateMode();
+        // await this.clearPrivateMode();
         this.initializeAlarmListener();
         this.initialized = true;
     }
@@ -83,6 +83,7 @@ export class PrivateModeService {
             await this.clearPrivateMode();
 
             const expirationTime = new Date();
+            console.log('[PrivateModeService] Current time:', expirationTime);
             expirationTime.setMinutes(expirationTime.getMinutes() + PrivateModeService.DURATION_MINUTES);
 
             const state: PrivateModeState = {
@@ -90,6 +91,8 @@ export class PrivateModeService {
                 alarm: expirationTime.toISOString(),
                 remainingTime: PrivateModeService.DURATION_MINUTES * 60
             };
+
+            console.log('[PrivateModeService] Enabling private mode with state:', state);
 
             if(!this.validateState(state)) {
                 throw new Error('Invalid private mode state');
@@ -152,6 +155,9 @@ export class PrivateModeService {
 
             const result = await storage.local.get(PrivateModeService.STORAGE_KEY);
             const storageDate = result[PrivateModeService.STORAGE_KEY] as PrivateModeState | undefined;
+
+            console.log('[PrivateModeService] Retrieved private mode state from storage:', storageDate);
+            console.log('[PrivateModeService] Default private mode state:', defaultState);
 
             if (!storageDate) {
                 return defaultState;

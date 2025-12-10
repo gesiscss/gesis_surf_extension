@@ -57,13 +57,13 @@ export class AuthService {
      * @throws {Error} If initialization fails
      */
     async initializeServices() {
-        console.log('[background] Initializing services');
+        console.log('[AuthService] Initializing services');
         try{
             await this.dataCollectionService.initialize();
             await this.hostService.checkAndSyncVersion();
 
             if (!this.dataCollectionService.shouldCollectData()) {
-                console.log('[background] Data collection is disabled. Skipping service initialization.');
+                console.log('[AuthService] Data collection is disabled. Skipping service initialization.');
                 return;
             }
 
@@ -78,10 +78,10 @@ export class AuthService {
             await this.heartbeatService.startAlarmAll();
             await this.startMessageListener();
 
-            console.log('[background] Services initialized successfully');
+            console.log('[AuthService] Services initialized successfully');
 
         } catch (error) {
-            console.error('[background] Error initializing services:', error);
+            console.error('[AuthService] Error initializing services:', error);
             throw error;
         }
     }
@@ -91,13 +91,15 @@ export class AuthService {
      * @return Promise<void>
      */
     async startMessageListener(): Promise<void> {
-        console.log('[background] Setting up message listener');
+        console.log('[AuthService] Setting up message listener');
         runtime.onMessage.addListener((
             message: unknown,
             sender: Runtime.MessageSender,
             sendResponse: (response: MessageResponse) => void
         ): true => {
-            this.messageHandler.handleMessage(message, sender, sendResponse);
+            (async () => {
+                await this.messageHandler.handleMessage(message, sender, sendResponse);
+            })();
             return true;
         }
         );

@@ -72,17 +72,21 @@ export class MessageHandler {
     ): Promise<boolean> {
         try {
             switch (message.action) {
-                case 'GET_STATE': {   
+                case 'GET_STATE': {
+                    console.log('[MessageHandler] Handling PRIVATE_MODE GET_STATE action');
                     const state = await this.privateModeService.getPrivateModeState();
                     sendResponse({ status: 'success', data: state });
                     break;
                 }
                 case 'TOGGLE': {
+                    console.log('[MessageHandler] Handling PRIVATE_MODE TOGGLE action');
                     if (typeof message.enable !== 'boolean') {
                         throw new Error('Enable parameter is required for TOGGLE action');
                     }
                     const newState = await this.privateModeService.togglePrivateMode(message.enable);
+                    console.log('[MessageHandler] New private mode state:', newState);
                     sendResponse({ status: 'success', data: newState });
+                    console.log('[MessageHandler] Sent response for PRIVATE_MODE TOGGLE action');
                     break;
                     
                 }
@@ -177,10 +181,10 @@ export class MessageHandler {
         sender: Runtime.MessageSender,
         sendResponse: (response: MessageResponse) => void
     ): Promise<boolean> {
-        console.log('[background] Received message:', message);
+        console.log('[MessageHandler] Received message:', message);
 
         if (!this.isValidMessage(message)) {
-            console.warn('[background] Received invalid message format');
+            console.warn('[MessageHandler] Received invalid message format');
             sendResponse({ status: 'error', message: 'Invalid message format' });
             return false;
         }
