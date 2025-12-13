@@ -40,8 +40,8 @@ importers:
         version: 0.12.0
     devDependencies:
       '@types/chrome':
-        specifier: ^0.0.268
-        version: 0.0.268
+        specifier: ^0.1.32
+        version: 0.1.32
       '@types/node':
         specifier: ^20.12.11
         version: 20.12.11
@@ -1137,8 +1137,8 @@ packages:
   '@tybys/wasm-util@0.10.0':
     resolution: {integrity: sha512-VyyPYFlOMNylG45GoAe0xDoLwWuowvf92F9kySqzYh8vmYm7D2u4iUJKa1tOUpS70Ku13ASrOkS4ScXFsTaCNQ==}
 
-  '@types/chrome@0.0.268':
-    resolution: {integrity: sha512-7N1QH9buudSJ7sI8Pe4mBHJr5oZ48s0hcanI9w3wgijAlv1OZNUZve9JR4x42dn5lJ5Sm87V1JNfnoh10EnQlA==}
+  '@types/chrome@0.1.32':
+    resolution: {integrity: sha512-n5Cqlh7zyAqRLQWLXkeV5K/1BgDZdVcO/dJSTa8x+7w+sx7m73UrDmduAptg4KorMtyTW2TNnPu8RGeaDMKNGg==}
 
   '@types/conventional-commits-parser@5.0.0':
     resolution: {integrity: sha512-loB369iXNmAZglwWATL+WRe+CRMmmBPtpolYzIebFaX4YA3x+BEfLqhUAV9WanycKI3TG1IMr5bMJDajDKLlUQ==}
@@ -1161,8 +1161,8 @@ packages:
   '@types/filewriter@0.0.33':
     resolution: {integrity: sha512-xFU8ZXTw4gd358lb2jw25nxY9QAgqn2+bKKjKOYfNCzN4DKCFetK7sPtrlpg66Ywe3vWY9FNxprZawAh9wfJ3g==}
 
-  '@types/har-format@1.2.15':
-    resolution: {integrity: sha512-RpQH4rXLuvTXKR0zqHq3go0RVXYv/YVqv4TnPH95VbwUxZdQlK1EtcMvQvMpDngHbt13Csh9Z4qT9AbkiQH5BA==}
+  '@types/har-format@1.2.16':
+    resolution: {integrity: sha512-fluxdy7ryD3MV6h8pTfTYpy/xQzCFC7m89nOH9y94cNqJ1mDIDPut7MnRHI3F6qRmh/cT2fUjG1MLdCNb4hE9A==}
 
   '@types/hast@3.0.4':
     resolution: {integrity: sha512-WPs+bbQw5aCj+x6laNGWLH3wviHtoCv/P3+otBhbOhJgG8qtpdAMlTCxLtsTWA7LH1Oh/bFCHsBn0TPS5m30EQ==}
@@ -4950,10 +4950,10 @@ snapshots:
       tslib: 2.6.2
     optional: true
 
-  '@types/chrome@0.0.268':
+  '@types/chrome@0.1.32':
     dependencies:
       '@types/filesystem': 0.0.36
-      '@types/har-format': 1.2.15
+      '@types/har-format': 1.2.16
 
   '@types/conventional-commits-parser@5.0.0':
     dependencies:
@@ -4980,7 +4980,7 @@ snapshots:
 
   '@types/filewriter@0.0.33': {}
 
-  '@types/har-format@1.2.15': {}
+  '@types/har-format@1.2.16': {}
 
   '@types/hast@3.0.4':
     dependencies:
