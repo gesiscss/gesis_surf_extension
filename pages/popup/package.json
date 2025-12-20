@@ -20,7 +20,7 @@
   "dependencies": {
     "@chrome-extension-boilerplate/shared": "workspace:*",
     "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@mui/material": "^6.1.10",
     "webextension-polyfill": "^0.10.0"
   },
