@@ -1,7 +1,7 @@
 {
-  "name": "BrainTrack",
-  "version": "2.1.2",
-  "description": "BrainTrack extension that helps you track your browsing activity",
+  "name": "GESIS Surf",
+  "version": "2.0.0",
+  "description": "GESIS Surf Chrome Extension",
   "scripts": {
     "clean": "rimraf ../../dist && rimraf .turbo",
     "build": "tsc --noEmit && vite build",
