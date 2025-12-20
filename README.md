@@ -1,6 +1,6 @@
 <div align="center">
 <table><tr><td bgcolor="white" style="padding: 20px;">
-<img src="images/gesis_logo.svg" alt="GESIS" width="150" height="50">
+<img src="images/gesis.png" alt="GESIS" height="120">
 </td></tr></table>
 
 # GESIS Surf Extension

@@ -1,9 +1,6 @@
 # Documentation files
 documentation
 
-# MD files
-*.md
-
 # Logs
 logs
 *.log
