@@ -6,7 +6,6 @@
  */
 
 import { DomainHandler, DomainDataTypes, TabMapping } from '@root/lib/handlers';
-// import { runtime } from 'webextension-polyfill';
 
 /**
  * Manages domain-related events in the Chrome extension.
@@ -17,7 +16,7 @@ class DomainEventManager {
   public currentActiveDomainSessionId: string | null = null;
 
   constructor(
-    private domainManager: DomainHandler
+    private domainManager: DomainHandler,
   ) {}
 
   /**
@@ -36,7 +35,8 @@ class DomainEventManager {
    * @returns void
    */
   async handleDomainChange(newDomain: string | null, tab: DomainDataTypes , mapping: TabMapping) {
-    console.log(`Handle Domain Change to ${newDomain}`); 
+    console.log(`Handle Domain Change to ${newDomain}`);
+
     try {
       if (this.shouldUpdateDomain(newDomain)) {
         await this.processDomainTransition(newDomain, tab, mapping);
@@ -171,9 +171,13 @@ class DomainEventManager {
     
     if (this.isDomainReadyToSend(tab)) {
       console.warn(`Domain is ready to be sent for ${newDomain}`);
-      await this.domainManager.sendDomain(tab, mapping, "PATCH");
+      // await this.domainManager.sendDomain(tab, mapping, "PATCH");
+      const savedDomainSessionId = await this.domainManager.sendDomain(tab, mapping, "PATCH");
+      this.currentActiveDomainSessionId = savedDomainSessionId || newDomain;
+      console.log('[DomainEventManager] Updated current active domain session ID to:', this.currentActiveDomainSessionId);
     } else {
       console.log(`Domain is not ready to be sent for ${newDomain}`);
+      this.currentActiveDomainSessionId = newDomain;
     }
   }
 

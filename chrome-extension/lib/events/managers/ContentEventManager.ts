@@ -8,6 +8,7 @@ import { Runtime, Tabs } from 'webextension-polyfill';
 import DomainManager from '@root/lib/handlers/clients/DomainHandler';
 import { DomainInfo, ContentScriptHandler, ContentEventType } from '@root/lib/handlers';
 import { ClickData, ScrollData, HTMLSnapshot, EventResult } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
+import { storage } from 'webextension-polyfill';
 
 
 /**
@@ -22,6 +23,17 @@ export default class ContentEventHandler {
         this.domainManager = new DomainManager();
         this.dbService = new DatabaseService();
         this.apiClient = new ContentScriptHandler(apiUrl);
+    }
+
+    private async isPrivateModeActive(): Promise<boolean> {
+        try {
+            const privateModeData = await storage.local.get('privateMode');
+            const state = privateModeData['privateMode'];
+            return state?.mode === true;
+        } catch (error) {
+            console.error('[ContentEventHandler] Error checking private mode status:', error);
+            return false;
+        }
     }
 
     /**
