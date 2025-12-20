@@ -1,5 +1,4 @@
 import { styled, Switch } from '@mui/material';
-import React from 'react';
 
 // Custom styled toggle switch
 export const CustomSwitch = styled(Switch)(({ theme }) => ({
@@ -43,12 +42,3 @@ export const CustomSwitch = styled(Switch)(({ theme }) => ({
     borderRadius: 20 / 2,
   },
 }));
-
-// Private mode toggle handler
-export const handlePrivateModeToggle = (
-  event: React.ChangeEvent<HTMLInputElement>,
-  setPrivateMode: React.Dispatch<React.SetStateAction<boolean>>
-) => {
-  setPrivateMode(event.target.checked);
-  console.log(`Private Mode: ${event.target.checked}`);
-};

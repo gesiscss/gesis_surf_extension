@@ -4,18 +4,33 @@ import { Box, Typography } from '@mui/material';
 interface PrivacyTimerProps {
   isActive: boolean;
   onTimerEnd: () => void;
+  initialTime?: number | null;
   duration?: number;
 }
 
-const PRIVATE_MODE_DURATION = 15 * 60; // 15 minutes in seconds
+const PRIVATE_MODE_DURATION = 1 * 60; // 15 minutes in seconds
 
 export const PrivacyTimer: React.FC<PrivacyTimerProps> = ({ 
   isActive, 
-  onTimerEnd, 
+  onTimerEnd,
+  initialTime,
   duration = PRIVATE_MODE_DURATION 
 }) => {
-  const [timeLeft, setTimeLeft] = useState(duration);
+  const [timeLeft, setTimeLeft] = useState(initialTime || PRIVATE_MODE_DURATION);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onTimeEndRef = useRef(onTimerEnd);
+
+  // Initialize timeLeft when initialTime prop changes
+  useEffect(() => {
+    if (initialTime !== null && initialTime !== undefined && initialTime > 0) {
+      setTimeLeft(initialTime);
+    }
+  }, [initialTime]);
+
+  // Update onTimerEnd ref to latest prop
+  useEffect(() => {
+    onTimeEndRef.current = onTimerEnd;
+  }, [onTimerEnd]);
 
   // Format seconds to MM:SS display
   const formatTimeLeft = () => {
@@ -32,31 +47,31 @@ export const PrivacyTimer: React.FC<PrivacyTimerProps> = ({
     }
 
     if (isActive) {
-      // Reset timer when private mode is enabled
-      setTimeLeft(duration);
-      
-      // Start countdown timer
       timerRef.current = setInterval(() => {
         setTimeLeft(prevTime => {
           if (prevTime <= 1) {
             // Time's up - turn off private mode
             clearInterval(timerRef.current!);
             timerRef.current = null;
-            onTimerEnd();
-            return duration;
+
+            setTimeout(() => {
+              onTimeEndRef.current();
+            }, 0);
+
+            return 0;
           }
+
           return prevTime - 1;
-        });
+        })
       }, 1000);
     }
-
-    // Cleanup timer on component unmount or when active state changes
     return () => {
+      // Cleanup on unmount
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
     };
-  }, [isActive, duration, onTimerEnd]);
+  }, [isActive, timeLeft > 0]);
 
   // Only render when active
   if (!isActive) return null;

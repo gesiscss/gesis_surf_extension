@@ -1,15 +1,75 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Box, Card, CardContent, Typography, CardMedia, Button} from '@mui/material';
-import { CustomSwitch, handlePrivateModeToggle } from '../styles/privacy/PrivateModeToggle.styles';
+import { CustomSwitch } from '../styles/privacy/PrivateModeToggle.styles';
 import PrivacyTimer from './PrivacyTimer';
+import { togglePrivateMode, getPrivateModeStatus, getRemainingTime } from './PrivacyMode';
+import { runtime } from 'webextension-polyfill';
 
 
 const Home: React.FC = () => {
+  console.log('[HomePage] Rendered HomePage component');
 
   const [privateMode, setPrivateMode] = React.useState(false);
+  const [remainingTime, setRemainingTime] = React.useState<number | null>(null);
 
   const handleRedirect = () => {
     chrome.tabs.create({ url: 'https://www.gesis.org/info/surf' });
+  };
+
+  useEffect(() => {
+    console.log('[HomePage] useEffect - triggered on mount');
+    const checkStatus = async () => {
+      console.log('[HomePage] Checking initial private mode status');
+      const status = await getPrivateModeStatus();
+      console.log(`[HomePage] Initial private mode status: ${status}`);
+      setPrivateMode(status);
+
+      if(status) {
+        const time = await getRemainingTime();
+        console.log(`[HomePage] Remaining time for private mode: ${time} seconds`);
+        setRemainingTime(time);
+      }
+    };
+    checkStatus();
+
+    const handleExpiration = (message: any) => {
+      if (message.type === 'PRIVATE_MODE_EXPIRED') {
+        console.log('[HomePage] Received PRIVATE_MODE_EXPIRED message');
+        setPrivateMode(false);
+        setRemainingTime(null);
+      }
+    };
+
+    runtime.onMessage.addListener(handleExpiration);
+
+    return () => {
+      console.log('[HomePage] Cleaning up message listener on unmount');
+      runtime.onMessage.removeListener(handleExpiration);
+    };
+  }, []);
+
+  const handlePrivateModeToggle = async (
+    event: React.ChangeEvent<HTMLInputElement>, 
+    setPrivateMode: React.Dispatch<React.SetStateAction<boolean>>
+  ) => {
+    console.log('[HomePage] Private mode toggle clicked');
+    const isEnabled = event.target.checked;
+    console.log(`[HomePage] Toggling private mode to: ${isEnabled}`);
+
+    setPrivateMode(isEnabled);
+
+    if (isEnabled) {
+      setRemainingTime(60);
+    } else {
+      setRemainingTime(null);
+    }
+
+    const success = await togglePrivateMode(isEnabled);
+
+    if (!success) {
+      console.error('[HomePage] Failed to toggle private mode');
+      setPrivateMode(!isEnabled);
+    }
   };
 
   return (
@@ -81,6 +141,7 @@ const Home: React.FC = () => {
         {/* Privacy Timer Component */}
         <PrivacyTimer 
           isActive={privateMode} 
+          initialTime={remainingTime}
           onTimerEnd={() => setPrivateMode(false)} 
         />
 
