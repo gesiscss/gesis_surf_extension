@@ -52,10 +52,17 @@ export class PrivateModeService {
     */
     private async handlePrivateModeExpiration(): Promise<void> {
         try {
+            console.log('[PrivateModeService] Private mode expired, disabling private mode');
             await this.clearPrivateMode();
-            runtime.sendMessage({ type: 'PRIVATE_MODE_EXPIRED' });
+
+            try {
+                await runtime.sendMessage({ type: 'PRIVATE_MODE_EXPIRED' });
+                console.log('[PrivateModeService] Sent PRIVATE_MODE_EXPIRED message to other components');
+            } catch (messageError) {
+                console.log('[PrivateModeService] Error sending PRIVATE_MODE_EXPIRED message:', messageError);
+            }
         } catch (error) {
-            console.error('Error handling private mode expiration:', error);
+            console.log('[PrivateModeService] Error during private mode expiration handling:', error);
         }
     }
 

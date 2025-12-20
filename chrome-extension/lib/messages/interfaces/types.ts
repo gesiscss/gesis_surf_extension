@@ -39,7 +39,7 @@ export type ExtensionMessage = AuthSuccessMessage
     | HTMLCaptureMessage;
 
 // Private Mode Messages and Types
-export type PrivateModeActionType = 'GET_STATE' | 'TOGGLE' | 'GET_TIME';
+export type PrivateModeActionType = 'GET_STATE' | 'TOGGLE' | 'GET_TIME' | 'PRIVATE_MODE_EXPIRED';
 
 export interface PrivateModeMessage extends BaseMessage {
     type: 'PRIVATE_MODE';
