@@ -1,0 +1,59 @@
+cff-version: 1.2.0
+title: "GESIS Surf Extension"
+message: "If you use this software in your research, please cite it as below."
+type: software
+authors:
+  - family-names: "Ramirez"
+    given-names: "Mario"
+    orcid: "https://orcid.org/0000-0001-0000-0000"
+    affiliation: "GESIS – Leibniz Institute for the Social Sciences"
+  - family-names: "Guzman"
+    given-names: "Fernando"
+    affiliation: "GESIS – Leibniz Institute for the Social Sciences"
+  - family-names: "Stier"
+    given-names: "Sebastian"
+    affiliation: "GESIS – Leibniz Institute for the Social Sciences"
+  - family-names: "Mangold"
+    given-names: "Frank"
+    affiliation: "GESIS – Leibniz Institute for the Social Sciences"
+identifiers:
+  - type: url
+    value: "https://github.com/Fersonmx/Gesis-Surf"
+  - type: doi
+    value: "10.1016/j.softx.2025.xxxxxx"
+repository-code: "https://github.com/Fersonmx/Gesis-Surf"
+url: "https://www.gesis.org/"
+abstract: "A browser extension for researching online behavior and user privacy. GESIS Surf is a scientific study conducted by GESIS to understand how people browse the internet in Germany."
+keywords:
+  - "browser extension"
+  - "research"
+  - "online behavior"
+  - "user privacy"
+  - "data collection"
+  - "firefox"
+  - "chrome"
+license: MIT
+version: 2.0.0
+date-released: 2024-01-01
+contact:
+  - affiliation: "GESIS – Leibniz Institute for the Social Sciences"
+    email: "mario.ramirez@gesis.org"
+    family-names: "Ramirez"
+    given-names: "Mario"
+preferred-citation:
+  type: article
+  authors:
+    - family-names: "Ramirez"
+      given-names: "Mario"
+    - family-names: "Guzman"
+      given-names: "Fernando"
+    - family-names: "Stier"
+      given-names: "Sebastian"
+    - family-names: "Mangold"
+      given-names: "Frank"
+  title: "GESIS Surf Extension: A Browser Extension for Social Media and Online Behavior Research"
+  journal: "SoftwareX"
+  year: 2026
+  volume: "XX"
+  pages: "XXXXXX"
+  doi: "10.1016/j.softx.2025.xxxxxx"
