@@ -13,13 +13,12 @@
 [![React](https://img.shields.io/badge/react-18.2-61dafb?logo=react&logoColor=white)](https://react.dev/)
 [![pnpm](https://img.shields.io/badge/pnpm-9.1.1-f69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
 
-[✨ Features](#-features) •
-[🚀 Installation](#-installation) •
-[💻 Development](#-development) •
-[🏗️ Architecture](#-architecture) •
-[🤝 Contributing](#-contributing) •
-[📄 License](#-license) •
-[📧 Contact](#-contact)
+[Features](#features) •
+[Installation](#installation) •
+[Usage](#development) •
+[API Documentation](#architecture) •
+[Contributing](#contributing) •
+[License](#license)
 
 </div>
 
