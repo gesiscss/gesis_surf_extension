@@ -1,4 +1,4 @@
-import { DatabaseService, HostItemTypes, ItemTypes } from "@root/lib/db";
+import { DatabaseService, HostItemTypes } from "@root/lib/db";
 import { GlobalSessionService } from "@root/lib/services";
 import { readToken } from "@chrome-extension-boilerplate/shared/lib/storages/tokenStorage";
 import { DomainDataTypes, DomainResponseTypes, DomainPayloadTypes } from "../types/domainTypes";
@@ -6,6 +6,7 @@ import { apiUrl } from "../shared";
 import { TabMapping } from "../types";
 import { PolicyService } from "@root/lib/services/policyService/policyService";
 import { HostService } from "@root/lib/services/hostService";
+import { storage } from "webextension-polyfill";
 
 /**	
  * Manages browser domain requests.
@@ -52,6 +53,18 @@ class DomainManager {
         return date.toISOString();
     }
 
+    private async isPrivateModeActive(): Promise<boolean> {
+        try {
+            const privateModeData = await storage.local.get('private');
+            const state = privateModeData['private'];
+            console.log('[DomainManager] Private mode state:', state);
+            return state?.mode === true;
+        } catch (error) {
+            console.error('[DomainManager] Error checking private mode state:', error);
+            return false;
+        }
+    }
+
     /**
      * Builds the payload to be sent to the server.
      * @param domain_data The domain data to be sent.
@@ -81,15 +94,21 @@ class DomainManager {
                 }
             }
 
+            const isPrivateMode = await this.isPrivateModeActive();
+
+
             const payload = this.policyService.applyPolicy(
                 domain_data,
                 hostRule,
-                false // isPrivateMode - TODO: determine if private mode should be applied
+                isPrivateMode // isPrivateMode - TODO: determine if private mode should be applied
             );
             
             // TODO: Handle URL masking based on classification
-            // const shouldMaskUrl = classification === 'full_deny' || payload.domain_url === 'Private-Mode';
-            // const urlMask = shouldMaskUrl ? payload.domain_url : undefined;
+            const shouldMaskUrl = classification === 'full_deny' || payload.domain_url === 'Private-Mode';
+            console.log('[DomainManager] Should mask URL:', shouldMaskUrl);
+            console.log('-------------------------------------------------------------------------');
+            const urlMask = shouldMaskUrl ? payload.domain_url : undefined;
+            console.log('[DomainManager] URL Mask:', urlMask);
 
             return {
                 ...payload,
@@ -98,7 +117,7 @@ class DomainManager {
                     domain_data.windowId,
                     domain_data.id,
                     domain_data.url,
-                    // urlMask --- URL masking disabled for now
+                    urlMask // --- URL masking disabled for now
                 ),
             };
         } catch (error) {
@@ -194,7 +213,7 @@ class DomainManager {
             if (createdDomain) {
                 await this.dbService.setItem('domainslives', createdDomain);
             }
-            return response;
+            return createdDomain?.domain_session_id || payloadDomain.domain_session_id;
         } catch (error) {
             console.error('Error:', error);
             return undefined;

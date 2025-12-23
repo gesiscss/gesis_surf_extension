@@ -25,6 +25,8 @@ export default class ContentEventHandler {
         this.apiClient = new ContentScriptHandler(apiUrl);
     }
 
+    // ======================================== Privacy / Policy Helpers ========================================
+
     private async isPrivateModeActive(): Promise<boolean> {
         try {
             const privateModeData = await storage.local.get('privateMode');
@@ -34,6 +36,55 @@ export default class ContentEventHandler {
             console.error('[ContentEventHandler] Error checking private mode status:', error);
             return false;
         }
+    }
+
+    private async getHostClassification(domainUrl: string): Promise<string | null> {
+        try {
+            const hostname = new URL(domainUrl).hostname;
+            const hostRule = await this.dbService.getItem('hostslives', hostname) as HostItemTypes | null;
+
+            if (hostRule?.categories?.[0]?.criteria?.criteria_classification) {
+                return hostRule.categories[0].criteria.criteria_classification;
+            }
+            return null;
+        } catch (error) {
+            console.error('[ContentEventHandler] Error retrieving host classification:', error);
+            return null;
+        }
+    }
+
+
+    private async getMaskingInfo(url?: string): Promise<{
+        shouldMask: boolean;
+        maskValue: string;
+    }> {
+        if (await this.isPrivateModeActive()) {
+            return { shouldMask: true, maskValue: 'Private-Mode' };
+        }
+
+        if (url) {
+            const classification = await this.getHostClassification(url);
+            if (classification === 'full_deny') {
+                return { shouldMask: true, maskValue: 'full_deny' };
+            }
+        }
+
+        return { shouldMask: false, maskValue: '' };
+    }
+
+    private maskClickData(clickData: ClickData, maskValue: string): ClickData {
+        return {
+            ...clickData,
+            click_referrer: maskValue,
+            click_target_element: maskValue,
+        };
+    }
+
+    private markHTMLSnapshot(htmlData: HTMLSnapshot, maskValue: string): HTMLSnapshot {
+        return {
+            ...htmlData,
+            html_content: maskValue,
+        };
     }
 
     /**
@@ -54,7 +105,9 @@ export default class ContentEventHandler {
         try {
             const { domainSessionId, domainInfo } = await this.validateAndGetDomainInfo(sender);
 
-            await this.routeEvent(eventType, eventData, domainInfo, domainSessionId);
+            const maskingInfo = await this.getMaskingInfo(sender.tab?.url);
+            
+            await this.routeEvent(eventType, eventData, domainInfo, domainSessionId, maskingInfo);
 
             return { 
                 status: 'success', 
@@ -112,13 +165,18 @@ export default class ContentEventHandler {
         eventType: ContentEventType,
         eventData: ClickData | ScrollData | HTMLSnapshot,
         domainInfo: DomainInfo,
-        domainSessionId: string
+        domainSessionId: string,
+        maskingInfo: { shouldMask: boolean; maskValue: string; }
     ): Promise<void> {
         switch (eventType) {
-            case ContentEventType.CLICK:
-                await this.handleClick(eventData as ClickData, domainInfo, domainSessionId);
+            case ContentEventType.CLICK: {
+                const clickData = maskingInfo.shouldMask
+                    ? this.maskClickData(eventData as ClickData, maskingInfo.maskValue)
+                    : eventData as ClickData;
+                await this.handleClick(clickData, domainInfo, domainSessionId);
                 break;
-                
+            }
+
             case ContentEventType.SCROLL:
                 await this.handleScroll(eventData as ScrollData, domainInfo, domainSessionId, false);
                 break;
@@ -127,10 +185,14 @@ export default class ContentEventHandler {
                 await this.handleScroll(eventData as ScrollData, domainInfo, domainSessionId, true);
                 break;
                 
-            case ContentEventType.HTML_CAPTURE:
-                await this.handleHTML(eventData as HTMLSnapshot, domainInfo);
+            case ContentEventType.HTML_CAPTURE: {
+                const htmlData = maskingInfo.shouldMask
+                    ? this.markHTMLSnapshot(eventData as HTMLSnapshot, maskingInfo.maskValue)
+                    : eventData as HTMLSnapshot;
+                await this.handleHTML(htmlData, domainInfo);
                 break;
-                
+            }
+
             default:
                 throw new Error(`Unknown event type: ${eventType}`);
         }
@@ -148,10 +210,16 @@ export default class ContentEventHandler {
         }
         
         try {
+            const isPrivateMode = await this.isPrivateModeActive();
+            const classification = await this.getHostClassification(tab.url);
+            const shouldMask = isPrivateMode || classification === 'full_deny';
+            const urlMask = shouldMask ? 'Private-Mode' : undefined;
+
             const domainSessionId = await this.domainManager.generateDomainSession(
                 tab.windowId,
                 tab.id,
-                tab.url
+                tab.url,
+                urlMask
             );
 
             return domainSessionId;
