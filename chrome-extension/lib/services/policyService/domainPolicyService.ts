@@ -5,10 +5,20 @@
  */
 import {  DomainPayloadTypes, DomainDataTypes } from "@root/lib/handlers/types/domainTypes";
 import { HostItemTypes } from "../../db/interfaces/types";
+import { BasePolicyService } from "./basePolicyService";
+import { DataBaseService } from "@root/lib/services/databaseService/databaseService";
 
 
-export class PolicyService {
-
+export class DomainPolicyService extends BasePolicyService {
+    
+    constructor(dbService: DataBaseService) {
+        super(dbService);
+    }
+    
+    protected get serviceName(): string {
+        return 'DomainPolicyService';
+    }
+    
     /**
      * Constructs the domain payload based on privacy mode and host rules
      * @param tab The browser tab information
@@ -16,7 +26,7 @@ export class PolicyService {
      * @param htmlSnapshot The HTML snapshot of the page
      * @param isPrivateMode Whether the browser is in private mode
      * @returns PolicyPayload The constructed payload
-     */
+    */
     applyPolicy(
         domain: DomainDataTypes,
         hostRule: HostItemTypes | null,
@@ -51,9 +61,7 @@ export class PolicyService {
      * @returns PolicyPayload The constructed payload for private mode
      */
     private createMaskedPayload(domain: DomainDataTypes, maskValue: string): DomainPayloadTypes {
-
         console.log('[PolicyService] Applying Private Mode policy');
-
         return {
             domain_title: maskValue,
             domain_url: maskValue,
@@ -66,17 +74,15 @@ export class PolicyService {
 
     /**
      * Payload based on host rule application
-     * @param tab 
-     * @param rule 
-     * @param htmlSnapshot 
+     * @param tab The browser tab information
+     * @param rule The host rule to apply
+     * @param htmlSnapshot The HTML snapshot of the page
      * @returns PolicyPayload The constructed payload based on host rule
      */
     private createFullAllowPayload(
         domain: DomainDataTypes,
     ): DomainPayloadTypes {
-
         console.log('[PolicyService] Applying Full Allow policy');
-
         return {
             domain_title: domain.title || 'No Title',
             domain_url: domain.url || 'No URL',
