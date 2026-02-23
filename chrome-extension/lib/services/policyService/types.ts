@@ -15,3 +15,23 @@ export interface PolicyPayload {
     window_num: number;
     domains: DomainPayloadTypes[];
 }
+
+/**
+ * Classification types for policy decisions.
+ */
+export type PolicyClassification = 'full_allow' | 'only_host' | 'full_deny' | 'private' | 'default';
+
+/**
+ * Event kinds for content-level policy decisions.
+ */
+export type ContentEventKind = 'click' | 'scroll' | 'html';
+
+/**
+ * The structure of the content policy decision returned by the service.
+ */
+export interface ContentPolicyDecision {
+    action: 'allow' | 'block' | 'mask';
+    reason?: string;
+    maskValue?: string;
+}
+
