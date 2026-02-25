@@ -47,7 +47,7 @@
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
     "cz-conventional-changelog": "^3.3.0",
-    "eslint": "8.56.0",
+    "eslint": "9.26.0",
     "eslint-config-airbnb-typescript": "17.1.0",
     "eslint-config-prettier": "9.0.0",
     "eslint-plugin-import": "2.32.0",
