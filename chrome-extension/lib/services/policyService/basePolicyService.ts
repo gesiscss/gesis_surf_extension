@@ -25,11 +25,30 @@ export abstract class BasePolicyService {
     protected async isPrivateModeActive(): Promise<boolean> {
         try {
             const privateModeState = await storage.local.get('private');
-            const state = privateModeState['private'];
+            const state = privateModeState['private'] as { mode?: boolean } | undefined;
             return state?.mode === true;
         } catch (error) {
-            console.error("[BasePolicyService] Error checking private mode state:", error);
+            console.error(`[${this.serviceName}] Error checking private mode state:`, error);
             return false;
+        }
+    }
+
+    /**
+     * Parses and validates a URL, returning the hostname only for http/https URLs.
+     * @param url The URL to parse and validate.
+     * @returns The hostname if the URL is valid and uses http/https, or null otherwise.
+     */
+    protected parseAndValidateUrl(url: string): string | null {
+        try {
+            const parsedUrl = new URL(url);
+            if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+                console.warn(`[${this.serviceName}] Unsupported URL protocol: ${parsedUrl.protocol} in URL ${url}`);
+                return null;
+            }
+            return parsedUrl.hostname;
+        } catch (error) {
+            console.error(`[${this.serviceName}] Error parsing URL ${url}:`, error);
+            return null;
         }
     }
 
@@ -38,13 +57,19 @@ export abstract class BasePolicyService {
      * @param url The URL for which to retrieve the host rule.
      * @returns A promise that resolves to the host rule if found, or null if not found or an error occurs.
      */
-    protected async getHostRule(url: string): Promise<HostItemTypes | null> {
+    protected async getHostRule(url: string): Promise<HostItemTypes | null> 
+    {
+        const hostname = this.parseAndValidateUrl(url);
+        if (!hostname) {
+            console.warn(`[${this.serviceName}] Invalid URL provided for host rule lookup: ${url}`);
+            return null;
+        }
+
         try {
-            const hostname = new URL(url).hostname;
             const hostRule = await this.databaseService.getItem('hostslives', hostname);
             return hostRule as HostItemTypes || null;
         } catch (error) {
-            console.error(`[BasePolicyService] Error retrieving host rule for URL ${url}:`, error);
+            console.error(`[${this.serviceName}] Error retrieving host rule for URL ${url}:`, error);
             return null;
         }
     }
@@ -56,7 +81,7 @@ export abstract class BasePolicyService {
      */
     protected classifyHostRule(hostRule: HostItemTypes): PolicyClassification {
         const classification = hostRule.categories?.[0]?.criteria?.criteria_classification;
-        console.log(`[BasePolicyService] Classifying host rule with criteria classification: ${classification}`);
+        console.log(`[${this.serviceName}] Classifying host rule with criteria classification: ${classification}`);
         
         switch (classification) {
             case 'full_deny':
@@ -66,7 +91,7 @@ export abstract class BasePolicyService {
             case 'full_allow':
                 return 'full_allow';
             default:
-                console.warn(`[BasePolicyService] Unrecognized criteria classification: ${classification}. Defaulting to 'default'.`);
+                console.warn(`[${this.serviceName}] Unrecognized criteria classification: ${classification}. Defaulting to 'default'.`);
                 return 'default';
         }
     }
@@ -78,7 +103,7 @@ export abstract class BasePolicyService {
      */
     protected async resolvePolicy(url: string): Promise<PolicyClassification> {
         if (await this.isPrivateModeActive()) {
-            console.log(`[BasePolicyService] Private mode is active. URL ${url} is considered private.`);
+            console.log(`[${this.serviceName}] Private mode is active. URL ${url} is considered private.`);
             return 'private';
         }
 
