@@ -57,8 +57,8 @@ export abstract class BasePolicyService {
      * @param url The URL for which to retrieve the host rule.
      * @returns A promise that resolves to the host rule if found, or null if not found or an error occurs.
      */
-    protected async getHostRule(url: string): Promise<HostItemTypes | null> 
-    {
+    protected async getHostRule(url: string): Promise<HostItemTypes | null> {
+
         const hostname = this.parseAndValidateUrl(url);
         if (!hostname) {
             console.warn(`[${this.serviceName}] Invalid URL provided for host rule lookup: ${url}`);
@@ -80,7 +80,13 @@ export abstract class BasePolicyService {
      * @returns The policy classification corresponding to the host rule's criteria classification.
      */
     protected classifyHostRule(hostRule: HostItemTypes): PolicyClassification {
+
         const classification = hostRule.categories?.[0]?.criteria?.criteria_classification;
+        if (!classification) {
+            console.warn(`[${this.serviceName}] Host rule is missing criteria classification. Defaulting to 'default'.`);
+            return 'default';
+        }
+
         console.log(`[${this.serviceName}] Classifying host rule with criteria classification: ${classification}`);
         
         switch (classification) {
@@ -97,9 +103,9 @@ export abstract class BasePolicyService {
     }
 
     /**
-     * Determines if the given URL is in private mode based on stored rules.
-     * @param url The URL to check for private mode status.
-     * @returns A promise that resolves to true if the URL is in private mode, false otherwise.
+     * Resolves the policy classification for a given URL, taking into account private mode and host rules.
+     * @param url The URL for which to resolve the policy classification.
+     * @returns A promise that resolves to the determined PolicyClassification.
      */
     protected async resolvePolicy(url: string): Promise<PolicyClassification> {
         if (await this.isPrivateModeActive()) {
