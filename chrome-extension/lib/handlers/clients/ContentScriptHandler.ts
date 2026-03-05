@@ -4,7 +4,6 @@
  */
 
 import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
-import { GlobalSessionService } from '@root/lib/services';
 import { HTMLSnapshot, ClickData, ScrollData } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 import { ClickPayload, ScrollPayload, HTMLPayload, DomainInfo } from '../types/contentScriptTypes';
 
@@ -12,7 +11,7 @@ import { ClickPayload, ScrollPayload, HTMLPayload, DomainInfo } from '../types/c
  * Handles API operations for content script events (clicks, scrolls, HTML captures)
  */
 export default class ContentScriptHandler {
-    private globalSessionService: GlobalSessionService;
+    private readonly serviceName = 'ContentScriptHandler';
     private apiUrl: string;
 
     private lastScrollSent: number = 0;
@@ -20,7 +19,6 @@ export default class ContentScriptHandler {
 
     constructor(apiUrl: string) {
         this.apiUrl = apiUrl;
-        this.globalSessionService = new GlobalSessionService(apiUrl);
     }
 
     /**
@@ -55,6 +53,7 @@ export default class ContentScriptHandler {
         }
 
         await response.json();
+        console.log(`[${this.serviceName}] Click sent`);
     }
 
     /**
@@ -76,13 +75,10 @@ export default class ContentScriptHandler {
         if (!isFinal) {
             const now = Date.now();
             if (now - this.lastScrollSent < this.SCROLL_THROTTLE) {
-                console.log('[ContentApiClient] Scroll throttled');
                 return;
             }
             this.lastScrollSent = now;
         }
-
-        console.log('[ContentApiClient] Sending scroll data', scrollData);
 
         const scrollTime = scrollData.scrollTime instanceof Date
             ? scrollData.scrollTime.toISOString()
@@ -100,12 +96,7 @@ export default class ContentScriptHandler {
             is_final: isFinal
         };
 
-        console.log('[ContentApiClient] Scroll payload prepared', payload);
-
         const requestOptions = await this.requestOptions(payload, 'POST');
-
-        console.log('[ContentApiClient] Sending scroll to API', requestOptions);
-
         const response = await fetch(`${this.apiUrl}/scrolls/scrolls/`, requestOptions);
 
         if (!response.ok) {
@@ -113,7 +104,7 @@ export default class ContentScriptHandler {
         }
 
         await response.json();
-
+        console.log(`[${this.serviceName}] Scroll sent`);
     }
 
     /**
@@ -127,35 +118,23 @@ export default class ContentScriptHandler {
         htmlData: HTMLSnapshot,
         domainInfo: DomainInfo
     ): Promise<void> {
-        
-        const globalSession = await this.globalSessionService.getFromLocalStorage();
-        if (!globalSession) {
-            throw new Error('Global session not found');
-        }
-
-        console.log('[ContentApiClient] Sending HTML data', htmlData);
 
         const payload: HTMLPayload = {
             snapshot_html: htmlData.html_content,
             meta: htmlData.meta,
         };
+        
+        const endpoint = `${this.apiUrl}/domain/domains/${domainInfo.id}/`;
+        const requestOptions = await this.requestOptions(payload, 'PATCH');
+        const response = await fetch(endpoint, requestOptions);
 
-        try {
-            const endpoint = `${this.apiUrl}/domain/domains/${domainInfo.id}/`;
-            const requestOptions = await this.requestOptions(payload, 'PATCH');
-            const response = await fetch(endpoint, requestOptions);
-
-            if (!response.ok) {
-                throw new Error(`HTML API failed: ${response.status} - ${response.statusText}`);
-            }
-
-            await response.json();
-            console.log('[ContentApiClient] HTML sent');
-
-        } catch (error) {
-            console.error('[ContentApiClient] Error sending HTML:', error);
-            throw error;
+        if (!response.ok) {
+            throw new Error(`HTML API failed: ${response.status} - ${response.statusText}`);
         }
+
+        await response.json();
+        console.log(`[${this.serviceName}] HTML sent`);
+
     }
 
     /**
