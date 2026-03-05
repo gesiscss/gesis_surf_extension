@@ -10,7 +10,7 @@ import { ClickData, HTMLSnapshot } from "@chrome-extension-boilerplate/shared/li
 
 export class ContentPolicyService extends BasePolicyService {
 
-    constructor(databaseService?: DatabaseService) {
+    constructor(databaseService: DatabaseService) {
         super(databaseService);
     }
 
@@ -26,7 +26,7 @@ export class ContentPolicyService extends BasePolicyService {
      */
     public async evaluate(url: string, eventKind: ContentEventKind): Promise<ContentPolicyDecision> {
         const classification = await this.resolvePolicy(url);
-        console.log(`[ContentPolicyService] Classification for ${url}: ${classification}, event: ${eventKind}`);
+        console.log(`[${this.serviceName}] Classification for ${url}: ${classification}, event: ${eventKind}`);
         return this.decide(classification, eventKind);
     }
 
@@ -40,32 +40,36 @@ export class ContentPolicyService extends BasePolicyService {
                 return { action: 'allow' };
 
             case 'only_host':
-                return this.decideOnlyHost(eventKind);
-
             case 'full_deny':
+                return this.decideRestricted(eventKind, classification);
+                
             case 'private':
                 return { action: 'block', reason: classification };
 
             default:
-                console.warn(`[ContentPolicyService] Unknown classification: ${classification}`);
+                console.warn(`[${this.serviceName}] Unknown classification: ${classification}`);
                 return { action: 'allow' };
         }
     }
 
     /**
-     * Handles the only_host classification per event kind:
+     * Handles the restricted decision logic for different event kinds based on classification.
+     * - For 'only_host' and 'full_deny':
      * - Clicks: masked (referrer + target element)
      * - Scrolls: allowed (no sensitive content)
      * - HTML: blocked
+     * @param eventKind The type of content event
+     * @param classification The policy classification
+     * @returns ContentPolicyDecision with action and optional mask value
      */
-    private decideOnlyHost(eventKind: ContentEventKind): ContentPolicyDecision {
+    private decideRestricted(eventKind: ContentEventKind, classification: PolicyClassification): ContentPolicyDecision {
         switch (eventKind) {
             case 'click':
-                return { action: 'mask', maskValue: 'only_host' };
+                return { action: 'mask', maskValue: classification };
             case 'scroll':
                 return { action: 'allow' };
             case 'html':
-                return { action: 'block', reason: 'only_host' };
+                return { action: 'block', reason: classification };
             default:
                 return { action: 'allow' };
         }
@@ -97,4 +101,4 @@ export class ContentPolicyService extends BasePolicyService {
             html_content: maskValue,
         };
     }
-}
+}   
