@@ -62,6 +62,6 @@ export interface MessageResponse {
 
 // Generic event result structure
 export interface EventResult {
-    status: 'success' | 'error';
+    status: 'success' | 'error' | 'blocked';
     message?: string;
 }

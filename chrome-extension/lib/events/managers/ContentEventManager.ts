@@ -1,91 +1,44 @@
 /**
- * @fileoverview Manages content event routing, validation, and processing logic
+ * @fileoverview Manages content event routing, validation, and processing logic.
+ * All policy decisions are delegated to the ContentPolicyService.
  * @implements {ContentEventManager}
  */
 
 import { DatabaseService } from '@root/lib/db';
-import { Runtime, Tabs } from 'webextension-polyfill';
 import DomainManager from '@root/lib/handlers/clients/DomainHandler';
 import { DomainInfo, ContentScriptHandler, ContentEventType } from '@root/lib/handlers';
 import { ClickData, ScrollData, HTMLSnapshot, EventResult } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
-import { storage } from 'webextension-polyfill';
+import { ContentPolicyService, ContentEventKind } from '@root/lib/services/policyService';
+import { ContentPolicyDecision } from '@root/lib/services/policyService/types';
+import { Runtime, Tabs } from 'webextension-polyfill';
 
 
 /**
  * Handles content event routing and validation logic
  */
 export default class ContentEventHandler {
+    private readonly serviceName = 'ContentEventHandler';
     private domainManager: DomainManager;
     private dbService: DatabaseService;
     private apiClient: ContentScriptHandler;
+    private policyService: ContentPolicyService;
 
     constructor(apiUrl: string) {
         this.domainManager = new DomainManager();
         this.dbService = new DatabaseService();
         this.apiClient = new ContentScriptHandler(apiUrl);
+        this.policyService = new ContentPolicyService(this.dbService);
     }
 
-    // ======================================== Privacy / Policy Helpers ========================================
-
-    private async isPrivateModeActive(): Promise<boolean> {
-        try {
-            const privateModeData = await storage.local.get('privateMode');
-            const state = privateModeData['privateMode'];
-            return state?.mode === true;
-        } catch (error) {
-            console.error('[ContentEventHandler] Error checking private mode status:', error);
-            return false;
-        }
-    }
-
-    private async getHostClassification(domainUrl: string): Promise<string | null> {
-        try {
-            const hostname = new URL(domainUrl).hostname;
-            const hostRule = await this.dbService.getItem('hostslives', hostname) as HostItemTypes | null;
-
-            if (hostRule?.categories?.[0]?.criteria?.criteria_classification) {
-                return hostRule.categories[0].criteria.criteria_classification;
-            }
-            return null;
-        } catch (error) {
-            console.error('[ContentEventHandler] Error retrieving host classification:', error);
-            return null;
-        }
-    }
-
-
-    private async getMaskingInfo(url?: string): Promise<{
-        shouldMask: boolean;
-        maskValue: string;
-    }> {
-        if (await this.isPrivateModeActive()) {
-            return { shouldMask: true, maskValue: 'Private-Mode' };
-        }
-
-        if (url) {
-            const classification = await this.getHostClassification(url);
-            if (classification === 'full_deny') {
-                return { shouldMask: true, maskValue: 'full_deny' };
-            }
-        }
-
-        return { shouldMask: false, maskValue: '' };
-    }
-
-    private maskClickData(clickData: ClickData, maskValue: string): ClickData {
-        return {
-            ...clickData,
-            click_referrer: maskValue,
-            click_target_element: maskValue,
-        };
-    }
-
-    private markHTMLSnapshot(htmlData: HTMLSnapshot, maskValue: string): HTMLSnapshot {
-        return {
-            ...htmlData,
-            html_content: maskValue,
-        };
-    }
+    /**
+     * Maps content event types to policy evaluation kinds
+     */
+    private static readonly EVENT_KIND_MAP: Partial<Record<ContentEventType, ContentEventKind>> = {
+        [ContentEventType.CLICK]: 'click',
+        [ContentEventType.SCROLL]: 'scroll',
+        [ContentEventType.SCROLL_FINAL]: 'scroll',
+        [ContentEventType.HTML_CAPTURE]: 'html',
+    };
 
     /**
      * Entry point for handling content events
@@ -100,14 +53,28 @@ export default class ContentEventHandler {
         sender: Runtime.MessageSender
     ): Promise<EventResult> {
 
-        console.log(`[ContentEventHandler] Processing ${eventType}:`, eventData);
+        console.log(`[${this.serviceName}] Processing ${eventType}:`, eventData);
         
         try {
-            const { domainSessionId, domainInfo } = await this.validateAndGetDomainInfo(sender);
+            const url = sender.tab?.url || '';
+            const eventKind = ContentEventHandler.EVENT_KIND_MAP[eventType];
+            if (!eventKind) {
+                throw new Error(`Unsupported event type: ${eventType}`);
+            }
 
-            const maskingInfo = await this.getMaskingInfo(sender.tab?.url);
+            const decision = await this.policyService.evaluate(url, eventKind);
+
+            if (decision.action === 'block') {
+                console.log(`[${this.serviceName}] Blocking event ${eventType} for URL ${url} due to policy decision:`, decision.reason);
+                return { 
+                    status: 'blocked', 
+                    message: `Event blocked due to policy decision: ${decision.reason}` 
+                };
+            }
+
+            const { domainSessionId, domainInfo } = await this.validateAndGetDomainInfo(sender);
             
-            await this.routeEvent(eventType, eventData, domainInfo, domainSessionId, maskingInfo);
+            await this.routeEvent(eventType, eventData, domainInfo, domainSessionId, decision);
 
             return { 
                 status: 'success', 
@@ -115,7 +82,7 @@ export default class ContentEventHandler {
             };
             
         } catch (error) {
-            console.error(`[ContentEventHandler] Error handling ${eventType}:`, error);
+            console.error(`[${this.serviceName}] Error handling ${eventType}:`, error);
             return { 
                 status: 'error', 
                 message: error instanceof Error ? error.message : 'Unknown error' 
@@ -140,7 +107,7 @@ export default class ContentEventHandler {
 
         const domainInfo = await this.dbService.getItem('domainslives', domainSessionId);
 
-        console.log('[ContentEventHandler] Retrieved domain info from DB:', domainInfo);
+        console.log(`[${this.serviceName}] Retrieved domain info from DB:`, domainInfo);
         
         if (!domainInfo) {
             throw new Error('Domain not found in database');
@@ -166,28 +133,34 @@ export default class ContentEventHandler {
         eventData: ClickData | ScrollData | HTMLSnapshot,
         domainInfo: DomainInfo,
         domainSessionId: string,
-        maskingInfo: { shouldMask: boolean; maskValue: string; }
+        decision: ContentPolicyDecision
     ): Promise<void> {
+
+        const shouldMask = decision.action === 'mask' && !!decision.maskValue;
+
         switch (eventType) {
+
             case ContentEventType.CLICK: {
-                const clickData = maskingInfo.shouldMask
-                    ? this.maskClickData(eventData as ClickData, maskingInfo.maskValue)
+                const clickData = shouldMask
+                    ? this.policyService.maskClickData(eventData as ClickData, decision.maskValue!)
                     : eventData as ClickData;
                 await this.handleClick(clickData, domainInfo, domainSessionId);
                 break;
             }
 
-            case ContentEventType.SCROLL:
+            case ContentEventType.SCROLL: {
                 await this.handleScroll(eventData as ScrollData, domainInfo, domainSessionId, false);
                 break;
+            }
                 
-            case ContentEventType.SCROLL_FINAL:
+            case ContentEventType.SCROLL_FINAL: {
                 await this.handleScroll(eventData as ScrollData, domainInfo, domainSessionId, true);
                 break;
-                
+            }
+
             case ContentEventType.HTML_CAPTURE: {
-                const htmlData = maskingInfo.shouldMask
-                    ? this.markHTMLSnapshot(eventData as HTMLSnapshot, maskingInfo.maskValue)
+                const htmlData = shouldMask
+                    ? this.policyService.maskHTMLSnapshot(eventData as HTMLSnapshot, decision.maskValue!)
                     : eventData as HTMLSnapshot;
                 await this.handleHTML(htmlData, domainInfo);
                 break;
@@ -204,28 +177,23 @@ export default class ContentEventHandler {
      * @returns Domain session ID or null
      */
     private async getDomainSessionId(tab?: Tabs.Tab): Promise<string | null> {
+        
         if (!tab || !tab.id || !tab.windowId || !tab.url) {
-            console.error('[ContentEventHandler] Missing tab information');
+            console.error(`[${this.serviceName}] Missing tab information`);
             return null;
         }
         
         try {
-            const isPrivateMode = await this.isPrivateModeActive();
-            const classification = await this.getHostClassification(tab.url);
-            const shouldMask = isPrivateMode || classification === 'full_deny';
-            const urlMask = shouldMask ? 'Private-Mode' : undefined;
-
             const domainSessionId = await this.domainManager.generateDomainSession(
                 tab.windowId,
                 tab.id,
                 tab.url,
-                urlMask
             );
 
             return domainSessionId;
             
         } catch (error) {
-            console.error('[ContentEventHandler] Error generating domain session:', error);
+            console.error(`[${this.serviceName}] Error generating domain session:`, error);
             return null;
         }
     }
@@ -242,7 +210,7 @@ export default class ContentEventHandler {
         domainInfo: DomainInfo,
         domainSessionId: string
     ): Promise<void> {
-        console.log('[ContentEventHandler] Processing click event');
+        console.log(`[${this.serviceName}] Processing click event`);
         await this.apiClient.sendClick(clickData, domainInfo, domainSessionId);
     }
 
@@ -260,7 +228,7 @@ export default class ContentEventHandler {
         domainSessionId: string,
         isFinal: boolean
     ): Promise<void> {
-        console.log(`[ContentEventHandler] Processing scroll event (final: ${isFinal})`);
+        console.log(`[${this.serviceName}] Processing scroll event (final: ${isFinal})`);
         await this.apiClient.sendScroll(scrollData, domainInfo, domainSessionId, isFinal);
     }
 
@@ -275,7 +243,7 @@ export default class ContentEventHandler {
         htmlData: HTMLSnapshot,
         domainInfo: DomainInfo
     ): Promise<void> {
-        console.log('[ContentEventHandler] Processing HTML capture');
+        console.log(`[${this.serviceName}] Processing HTML capture`);
         await this.apiClient.sendHTML(htmlData, domainInfo);
     }
 }
