@@ -3,7 +3,7 @@
  * These types are used to ensure consistent data handling between content scripts and background scripts.
  */
 
-// Payload for click events
+// Payload for scroll metrics
 export interface ScrollMetrics {
     scroll_depth_percentage: number;
     max_scroll_depth: number;

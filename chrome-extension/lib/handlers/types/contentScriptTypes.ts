@@ -1,7 +1,9 @@
 /**
  * @fileoverview Type definitions for content script event payloads and related structures
- * @implements {ClickPayload, ScrollPayload, HTMLPayload, DomainInfo, ContentEventType, EventResult}
+ * @implements {ClickPayload, ScrollPayload, HTMLPayload, DomainInfo, ContentEventType}
  */
+
+import { ScrollMetrics } from "@chrome-extension-boilerplate/shared/lib/types/contentScript/sharedContentScriptTypes";
 
 // Payload for click events
 export interface ClickPayload {
@@ -19,22 +21,6 @@ export interface ClickPayload {
 }
 
 // Payload for scroll events
-export interface ScrollMetrics {
-    scroll_depth_percentage: number;
-    max_scroll_depth: number;
-    total_scroll_distance: number;
-    scroll_events: number;
-    document_height: number;
-    document_width: number;
-    window_height: number;
-    window_width: number;
-    has_horizontal_scroll: boolean;
-    reached_bottom: boolean;
-    reading_zone: 'header' | 'upper_content' | 'lower_content' | 'footer';
-    engagement?: 'minimal' | 'low' | 'medium' | 'high';
-}
-
-// Payload for scroll events
 export interface ScrollPayload {
     scroll_time: string;
     scroll_x: number;
@@ -48,7 +34,7 @@ export interface ScrollPayload {
 }
 
 // Metadata structure for HTML captures
-interface metaData {
+interface MetaData {
     description?: string;
     fav_icon?: string;
     title?: string;
@@ -57,7 +43,7 @@ interface metaData {
 // Payload for HTML capture events
 export interface HTMLPayload {
     snapshot_html: string; 
-    meta?: metaData;
+    meta?: MetaData;
 }
 
 // Domain information structure
@@ -76,10 +62,4 @@ export enum ContentEventType {
     SCROLL = 'SCROLL_EVENT',
     SCROLL_FINAL = 'SCROLL_FINAL',
     HTML_CAPTURE = 'HTML_CAPTURE'
-}
-
-// Result structure for events
-export interface EventResult {
-    status: 'success' | 'error';
-    message?: string;
 }
