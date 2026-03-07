@@ -1,67 +1,75 @@
 /**
- * @fileoverview Service to apply policies based on privacy mode and host rules.
- * Generates domain payloads accordingly.
- * @implements {PolicyService}
+ * @fileoverview Domain-level policy service
+ * Handles policy decisions for domain-level data (title, URL, favicon) based on host rules and private mode status.
+ * Responsibilities:
+ * - Evaluating domain policies based on URL and host rules.
+ * - Building domain payloads with appropriate masking based on policy classification.
+ * - Providing a consistent interface for domain policy evaluation to be used by the DomainEventManager.
  */
 import {  DomainPayloadTypes, DomainDataTypes } from "@root/lib/handlers/types/domainTypes";
-import { HostItemTypes } from "../../db/interfaces/types";
 import { BasePolicyService } from "./basePolicyService";
-import { DataBaseService } from "@root/lib/services/databaseService/databaseService";
+import { DatabaseService } from "@root/lib/db";
+import { PolicyClassification } from "./types";
 
 
 export class DomainPolicyService extends BasePolicyService {
     
-    constructor(dbService: DataBaseService) {
+    constructor(dbService: DatabaseService) {
         super(dbService);
     }
     
     protected get serviceName(): string {
         return 'DomainPolicyService';
     }
+
+    /**
+     * Evaluates the domain policy for a given URL and domain data.
+     * @param url The page URL
+     * @param domain The domain data to evaluate
+     * @returns DomainPayloadTypes with masked or full information based on policy classification
+     */
+    public async evaluate(url: string, domain: DomainDataTypes) : Promise<DomainPayloadTypes> {
+        const classification = await this.resolvePolicy(url);
+        console.log(`[${this.serviceName}] Classification for ${url}: ${classification}`);
+        return this.buildPayload(domain, classification);
+    }
+
     
     /**
-     * Constructs the domain payload based on privacy mode and host rules
-     * @param tab The browser tab information
-     * @param hostRules The rules found by HostService
-     * @param htmlSnapshot The HTML snapshot of the page
-     * @param isPrivateMode Whether the browser is in private mode
-     * @returns PolicyPayload The constructed payload
-    */
-    applyPolicy(
-        domain: DomainDataTypes,
-        hostRule: HostItemTypes | null,
-        isPrivateMode: boolean
-    ): DomainPayloadTypes {
-
-        if (isPrivateMode) {
-            return this.createMaskedPayload(domain, 'Private-Mode');
+     * Builds the domain payload based on the policy classification.
+     * - For 'private' and 'full_deny': masks title, URL, and favicon
+     * - For 'only_host': shows only hostname, masks title and favicon
+     * - For 'full_allow' and 'default': includes full domain information
+     * @param domain The domain data to build the payload from
+     * @param classification The policy classification to determine masking
+     * @returns DomainPayloadTypes The constructed payload based on classification
+     */
+    private buildPayload(domain: DomainDataTypes, classification: PolicyClassification ): DomainPayloadTypes {
+        switch (classification) {
+            case 'private':
+                return this.createMaskedPayload(domain, "Private-Mode");
+            
+            case 'full_deny':
+                return this.createMaskedPayload(domain, classification);
+            
+            case 'only_host':
+                return this.createOnlyHostPayload(domain, classification);
+            
+            case 'full_allow':
+            case 'default':
+            default:
+                return this.createFullAllowPayload(domain);
         }
-
-        if (hostRule) {
-            const classification = hostRule.categories?.[0]?.criteria?.criteria_classification;
-
-            switch (classification) {
-                case 'full_deny':
-                    return this.createMaskedPayload(domain, classification);
-                case 'only_host':
-                    return this.createOnlyHostPayload(domain, classification);
-                case 'full_allow':
-                    return this.createFullAllowPayload(domain);
-                default:
-                    console.warn('[PolicyService] Unknown classification, applying default payload', classification);
-                    return this.createDefaultPayload(domain);
-            }
-        }
-        return this.createDefaultPayload(domain);
     }
 
     /**
-     * Creates a payload for private mode
-     * @param tab The browser tab information
-     * @returns PolicyPayload The constructed payload for private mode
+     * Creates a masked payload for private mode or full deny classification
+     * @param domain The domain data to build the payload from
+     * @param maskValue The value to use for masking
+     * @returns DomainPayloadTypes The constructed payload for private mode or full deny classification
      */
     private createMaskedPayload(domain: DomainDataTypes, maskValue: string): DomainPayloadTypes {
-        console.log('[PolicyService] Applying Private Mode policy');
+        console.log(`[${this.serviceName}] Applying masked payload for classification: ${maskValue}`);
         return {
             domain_title: maskValue,
             domain_url: maskValue,
@@ -73,16 +81,15 @@ export class DomainPolicyService extends BasePolicyService {
     }
 
     /**
-     * Payload based on host rule application
-     * @param tab The browser tab information
-     * @param rule The host rule to apply
-     * @param htmlSnapshot The HTML snapshot of the page
-     * @returns PolicyPayload The constructed payload based on host rule
+     * Creates a payload for full allow classification
+     * @param domain The domain data to build the payload from
+     * @returns DomainPayloadTypes The constructed payload for full allow classification
      */
     private createFullAllowPayload(
         domain: DomainDataTypes,
     ): DomainPayloadTypes {
-        console.log('[PolicyService] Applying Full Allow policy');
+        console.log(
+            `[${this.serviceName}] Applying Full Allow policy`);
         return {
             domain_title: domain.title || 'No Title',
             domain_url: domain.url || 'No URL',
@@ -95,34 +102,21 @@ export class DomainPolicyService extends BasePolicyService {
 
     /**
      * Creates payload for only_host classification
-     * Shows only hostname, masks title and HTML
-     * @param tab The browser tab information
-     * @param rule The host rule to apply
-     * @returns PolicyPayload The only_host payload
+     * Shows only hostname, masks title and favicon
+     * @param domain The domain data to build the payload from
+     * @param maskValue The value to use for masking
+     * @returns DomainPayloadTypes The only_host payload
      */
-    private createOnlyHostPayload(domain: DomainDataTypes, rule: string): DomainPayloadTypes {
-        console.log('[PolicyService] Creating only_host payload for:', rule);
-        
+    private createOnlyHostPayload(domain: DomainDataTypes, maskValue: string): DomainPayloadTypes {
+        console.log(`[${this.serviceName}] Creating only_host payload for: ${maskValue}`);
         return {
-            domain_title: rule,
+            domain_title: maskValue,
             domain_url: new URL(domain.url).hostname,
-            domain_fav_icon: rule,
+            domain_fav_icon: maskValue,
             start_time: new Date().toISOString(),
             closing_time: new Date().toISOString(),
         };
 
-    }
-
-    private createDefaultPayload(domain: DomainDataTypes): DomainPayloadTypes {
-        console.log('[PolicyService] Creating default payload');
-
-        return {
-            domain_title: domain.title,
-            domain_url: domain.url,
-            closing_time: new Date().toISOString(),
-            start_time: new Date().toISOString(),
-            domain_fav_icon: domain.favIconUrl || 'Not found'
-        };
     }
 }
             
