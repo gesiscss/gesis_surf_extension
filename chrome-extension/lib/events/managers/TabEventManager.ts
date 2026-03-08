@@ -1,12 +1,20 @@
-// Tab Event Manager
+/**
+ * @fileoverview Manages tab-related events in the Chrome extension.
+ * Handles tab updates, activations, and removals.
+ * Integrates with DomainEventManager to track domain sessions across tabs.
+ * Delegates domain-related policy decisions to the DomainPolicyService.
+ */
 
 import {tabs, Tabs} from "webextension-polyfill";
 import { TabHandler, DomainHandler, DomainDataTypes, TabPayloadTypes } from "@root/lib/handlers";
 import DomainEventManager from "./DomainEventManager";
 import { DatabaseService, ItemTypes} from "@root/lib/db";
+import { DomainPolicyService } from "@root/lib/services/policyService";
 
 class TabEventManager {
+    private readonly serviceName = 'TabEventManager';
     private domainEventManager: DomainEventManager
+    private domainPolicyService: DomainPolicyService;
 
     constructor(
         private tabManager: TabHandler,
@@ -16,6 +24,7 @@ class TabEventManager {
         this.domainEventManager = new DomainEventManager(
             this.domainManager
         );
+        this.domainPolicyService = new DomainPolicyService(this.dbService);
     }
 
 
@@ -31,9 +40,29 @@ class TabEventManager {
         tabs.onRemoved.addListener(this.handleTabRemoval);
     }
 
-    // ----------------- Helper Methods for message processing -----------------
-    // ----------------- Event Processing Helpers for unfocused tabs & windows -----------------
+    /**
+     * Generates a domain session ID with the proper URL masking based on policy decisions.
+     * Ensures the session ID matched the key stored by DomainHandler
+     * @param windowId The ID of the window.
+     * @param tabId The ID of the tab.
+     * @param url The URL of the tab.
+     * @returns The domain session ID to be used for policy decisions and storage.
+     */
+    private async generateMaskedDomainSessionId(windowId: number, tabId: number, url: string): Promise<string> {
+        const maskUrl = await this.domainPolicyService.getMaskedUrl(url);
+        console.log(`[${this.serviceName}] Generated masked URL for domain session: ${maskUrl} from original URL: ${url}`);
+        return this.domainManager.generateDomainSession(windowId, tabId, url, maskUrl);
+    }
 
+
+    // -----------------         Helper Methods for message processing         -----------------
+    // ----------------- Event Processing Helpers for unfocused tabs & windows -----------------
+    /**
+     * Handles the active tab focus event coming from the WindowEventManager.
+     * Validates the window ID and processes the active tab focus by querying the active tab in the window and delegating to the tab activation handler.
+     * @param windowId The ID of the window that has gained focus. 
+     * @returns void
+     */
     public async handleActiveTabFocus(windowId: number | null) : Promise<void> {
         try {
             if (!this.isValidWindowId(windowId)) {
@@ -43,7 +72,7 @@ class TabEventManager {
             await this.processActiveTabFocus(windowId!);
 
         } catch (error) {
-            console.error('Error handling active tab focus:', error);
+            console.error(`[${this.serviceName}] Error handling active tab focus:`, error);
         }
     }
 
@@ -52,7 +81,7 @@ class TabEventManager {
         const [activeTab] = await tabs.query({ windowId, active: true });
         
         if (!activeTab?.id) {
-            console.warn('No active tab found for window:', windowId);
+            console.warn(`[${this.serviceName}] No active tab found for window:`, windowId);
             return;
         }
         await this.handleTabActivation({tabId: activeTab.id, windowId: windowId});
@@ -81,7 +110,7 @@ class TabEventManager {
         const [activeTab] = await tabs.query({ windowId, active: true });
         
         if (!activeTab?.id) {
-            console.warn('No active tab found for window:', windowId);
+            console.warn(`[${this.serviceName}] No active tab found for window:`, windowId);
             return;
         }
 
@@ -118,7 +147,7 @@ class TabEventManager {
             await this.domainEventManager.handleDomainCleanup();
 
         } catch (error) {
-            console.error('Error handling active tab blur:', error);
+            console.error(`[${this.serviceName}] Error handling active tab blur:`, error);
             await this.domainEventManager.handleDomainCleanup();
         }
     }
@@ -132,21 +161,21 @@ class TabEventManager {
         activeInfo: Tabs.OnActivatedActiveInfoType
     ) => {
         try {
-            console.log('Tab Activation TAB EVENT', activeInfo);
+            console.log(`[${this.serviceName}] Tab Activation TAB EVENT`, activeInfo);
             const { tabId, windowId } = activeInfo;
 
             const windowSessionId = await this.tabManager.generateWindowSession(windowId);
             const mapwindow = await this.dbService.getItem('winlives', windowSessionId);
 
             if (!mapwindow || mapwindow instanceof Error) {
-                console.warn('No window mapping found for windowId:', windowId);
+                console.warn(`[${this.serviceName}] No window mapping found for windowId:`, windowId);
                 return;
             }
 
             await this.handleTabUpdate(tabId, {status: 'complete'}, await tabs.get(tabId));
         
         } catch (error) {
-                console.error('Error processing tab activation', error);
+                console.error(`[${this.serviceName}] Error processing tab activation`, error);
                 this.handleTabError(error, 'activation');
         }
     };
@@ -213,7 +242,7 @@ class TabEventManager {
      * @returns void
      */
     private async handleExistingTab(tab: Tabs.Tab, mapping: ItemTypes) {
-        console.log('Processing existing Tab -Domain-', tab.id);
+        console.log(`[${this.serviceName}] Processing existing Tab -Domain-`, tab.id);
 
         if (typeof tab.windowId !== 'number') {
             throw new Error('Tab window ID is not a number');
@@ -227,7 +256,7 @@ class TabEventManager {
             throw new Error('Tab ID is not a number');
         }
 
-        const domainSessionId = await this.domainManager.generateDomainSession(
+        const domainSessionId = await this.generateMaskedDomainSessionId(
             tab.windowId,
             tab.id,
             tab.url
@@ -256,7 +285,7 @@ class TabEventManager {
             status: tab.status || '',
         };
 
-        console.log('Domain Session ID in TabEventManager:', domainSessionId);
+        console.log(`[${this.serviceName}] Domain Session ID in TabEventManager:`, domainSessionId);
         if (tab.url) {
             await this.domainEventManager.handleDomainChange(
                 domainSessionId,
@@ -273,7 +302,7 @@ class TabEventManager {
      * @throws An error if the tab cannot be handled.
      */
     private async handleNewTab(tab: Tabs.Tab) {
-        console.log('New Tab', tab);
+        console.log(`[${this.serviceName}] New Tab`, tab);
         try {
             if (typeof tab.windowId !== 'number') {
                 throw new Error('Tab window ID is not a number');
@@ -288,24 +317,24 @@ class TabEventManager {
             
 
             const tabSessionId = await this.tabManager.generateTabSession(tab, tab.windowId);
-            console.log('Tab Session ID:', tabSessionId);
+            console.log(`[${this.serviceName}] Tab Session ID:`, tabSessionId);
             await this.tabManager.sendTab(tab, 'onCreated', 'POST');
-            console.log('New Tab Session ID:', tabSessionId);
+            console.log(`[${this.serviceName}] New Tab Session ID:`, tabSessionId);
 
             const mapping = await this.dbService.getItem('tabslives', tabSessionId);
-            console.log('Mapping:', mapping);
+            console.log(`[${this.serviceName}] Mapping:`, mapping);
             
             if (mapping === null || mapping instanceof Error) {
                 throw new Error('Tab mapping is null or an error');
             }
-            console.log('Mapping:', mapping);
+            console.log(`[${this.serviceName}] Mapping:`, mapping);
 
-            const domainSessionId = await this.domainManager.generateDomainSession(
+            const domainSessionId = await this.generateMaskedDomainSessionId(
                 tab.windowId,
                 tab.id,
                 tab.url
             );
-            console.log('Domain Session ID in second Tab:', domainSessionId);
+            console.log(`[${this.serviceName}] Domain Session ID in second Tab:`, domainSessionId);
 
             const tabMapping = {
                 ...mapping,
@@ -329,7 +358,7 @@ class TabEventManager {
                 windowId: tab.windowId,
                 status: tab.status || '',
             };
-            console.log('domainData:', domainData);
+            console.log(`[${this.serviceName}] domainData:`, domainData);
 
             if (tab.url) {
                 // Create domain session for new tab
@@ -363,11 +392,11 @@ class TabEventManager {
     ) => {
         try {
             const tabSessionId = await this.tabManager.generateTabSession(tabId, removeInfo.windowId);
-            console.log('Tab Session ID on Removal:', tabSessionId);
+            console.log(`[${this.serviceName}] Tab Session ID on Removal:`, tabSessionId);
             const mapping = await this.dbService.getItem('tabslives', tabSessionId);
     
             if (mapping !== null && !(mapping instanceof Error)) {
-                console.log("Mapping BEFORE UPDATE:", mapping);
+                console.log(`[${this.serviceName}] Mapping BEFORE UPDATE:`, mapping);
                 const payloadMapping: TabPayloadTypes = {
                     closing_time: mapping.close_time,
                     id: mapping.id,
@@ -390,19 +419,21 @@ class TabEventManager {
 
 
     private async handleExistingTabRemoval(tabId: number, mapping: TabPayloadTypes) {
-        console.log('Existing Tab Removal', tabId);
+        console.log(`[${this.serviceName}] Existing Tab Removal`, tabId);
 
-        if (typeof this.domainEventManager.activeDomainSessionId !== 'string') {
-            throw new Error('Domain session ID is not a string');
+        const domainSessionId = this.domainEventManager.activeDomainSessionId;
+
+        if (domainSessionId) {
+            await this.tabManager.updateTab(tabId, mapping, 'PATCH', domainSessionId);
+        } else {
+            console.warn(`[${this.serviceName}] No active domain session ID found for tab removal of tab ${tabId}`);
         }
-
-        await this.tabManager.updateTab(tabId, mapping, 'PATCH', this.domainEventManager.activeDomainSessionId);
 
         await this.domainEventManager.handleDomainCleanup();
     }
 
     private async handleNonExistingTabRemoval(tabId: number) {
-        console.log('Non-Existing Tab Removal', tabId);
+        console.log(`[${this.serviceName}] Non-Existing Tab Removal`, tabId);
     }
 
     // --------------------------------------------------
@@ -418,7 +449,7 @@ class TabEventManager {
      */
     private handleTabError(error: unknown, context: string, tabId?: number) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`Tab ${context} error for ${tabId || 'unknown tab'}:`, errorMessage);
+        console.error(`[${this.serviceName}] Tab ${context} error for ${tabId || 'unknown tab'}:`, errorMessage);
     }
 
 }
