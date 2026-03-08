@@ -8,7 +8,7 @@ import { DatabaseService } from '@root/lib/db';
 import DomainManager from '@root/lib/handlers/clients/DomainHandler';
 import { DomainInfo, ContentScriptHandler, ContentEventType } from '@root/lib/handlers';
 import { ClickData, ScrollData, HTMLSnapshot, EventResult } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
-import { ContentPolicyService, ContentEventKind } from '@root/lib/services/policyService';
+import { ContentPolicyService, ContentEventKind, DomainPolicyService } from '@root/lib/services/policyService';
 import { ContentPolicyDecision } from '@root/lib/services/policyService/types';
 import { Runtime, Tabs } from 'webextension-polyfill';
 
@@ -22,12 +22,14 @@ export default class ContentEventHandler {
     private dbService: DatabaseService;
     private apiClient: ContentScriptHandler;
     private policyService: ContentPolicyService;
+    private domainPolicyService: DomainPolicyService;
 
     constructor(apiUrl: string) {
         this.domainManager = new DomainManager();
         this.dbService = new DatabaseService();
         this.apiClient = new ContentScriptHandler(apiUrl);
         this.policyService = new ContentPolicyService(this.dbService);
+        this.domainPolicyService = new DomainPolicyService(this.dbService);
     }
 
     /**
@@ -184,10 +186,14 @@ export default class ContentEventHandler {
         }
         
         try {
+            const maskUrl = await this.domainPolicyService.getMaskedUrl(tab.url);
+            console.log(`[${this.serviceName}] Masked URL for domain session: ${maskUrl}`);
+            
             const domainSessionId = await this.domainManager.generateDomainSession(
                 tab.windowId,
                 tab.id,
                 tab.url,
+                maskUrl
             );
 
             return domainSessionId;
