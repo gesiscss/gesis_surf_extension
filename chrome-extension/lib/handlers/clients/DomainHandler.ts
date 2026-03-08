@@ -1,28 +1,27 @@
-import { DatabaseService, HostItemTypes } from "@root/lib/db";
+/**
+ * @fileoverview Manages browser domain API operations.
+ * Pure HTTP client for domain-related interactions with the backend API.
+ * Policy decisions and payload construction are delegated to the DomainPolicyService.
+ */
+
+import { DatabaseService } from "@root/lib/db";
 import { GlobalSessionService } from "@root/lib/services";
 import { readToken } from "@chrome-extension-boilerplate/shared/lib/storages/tokenStorage";
 import { DomainDataTypes, DomainResponseTypes, DomainPayloadTypes } from "../types/domainTypes";
 import { apiUrl } from "../shared";
 import { TabMapping } from "../types";
-import { PolicyService } from "@root/lib/services/policyService/policyService";
-import { HostService } from "@root/lib/services/hostService";
-import { storage } from "webextension-polyfill";
+import { DomainPolicyService } from "@root/lib/services/policyService";
 
-/**	
- * Manages browser domain requests.
- * Sends requests to the server to manage domains.
- */
 class DomainManager {
-    dbService: DatabaseService;
-    globalSessionService: GlobalSessionService;
-    policyService: PolicyService;
-    hostService: HostService;
+    private readonly serviceName = 'DomainManager';
+    private dbService: DatabaseService;
+    private globalSessionService: GlobalSessionService;
+    private domainPolicyService: DomainPolicyService;
 
     constructor() {
         this.dbService = new DatabaseService();
         this.globalSessionService = new GlobalSessionService(apiUrl);
-        this.policyService = new PolicyService();
-        this.hostService = new HostService();
+        this.domainPolicyService = new DomainPolicyService(this.dbService);
     }
 
     /**
@@ -53,18 +52,6 @@ class DomainManager {
         return date.toISOString();
     }
 
-    private async isPrivateModeActive(): Promise<boolean> {
-        try {
-            const privateModeData = await storage.local.get('private');
-            const state = privateModeData['private'];
-            console.log('[DomainManager] Private mode state:', state);
-            return state?.mode === true;
-        } catch (error) {
-            console.error('[DomainManager] Error checking private mode state:', error);
-            return false;
-        }
-    }
-
     /**
      * Builds the payload to be sent to the server.
      * @param domain_data The domain data to be sent.
@@ -72,43 +59,19 @@ class DomainManager {
      */
     async buildPayload(domain_data: DomainDataTypes): Promise<DomainPayloadTypes | null> {
 
-        console.log('Building payload for domain data:', domain_data);
+        console.log(`[${this.serviceName}] Building payload for domain data:`, domain_data);
 
         if (domain_data.status !== 'complete') {
-            console.log('Domain data status is not complete, checking host rules.');
+            console.log(`[${this.serviceName}] Domain data status is not complete, skipping payload build for URL: ${domain_data.url}`);
             return null;
         }
         
         try {
-            let hostRule: HostItemTypes | null = null;
-            let classification: string | undefined = undefined;
 
-            if (domain_data.url) {
-                const hostname = new URL(domain_data.url).hostname;
-                const result = await this.dbService.getItem('hostslives', hostname);
-                
-                if (result) {
-                    hostRule = result;
-                    classification = hostRule?.categories?.[0]?.criteria?.criteria_classification;
-                    console.log('[DomainManager] Found classification for hostname', hostname, ':', classification);
-                }
-            }
+            const payload = await this.domainPolicyService.evaluate(domain_data.url, domain_data);
 
-            const isPrivateMode = await this.isPrivateModeActive();
-
-
-            const payload = this.policyService.applyPolicy(
-                domain_data,
-                hostRule,
-                isPrivateMode // isPrivateMode - TODO: determine if private mode should be applied
-            );
-            
-            // TODO: Handle URL masking based on classification
-            const shouldMaskUrl = classification === 'full_deny' || payload.domain_url === 'Private-Mode';
-            console.log('[DomainManager] Should mask URL:', shouldMaskUrl);
-            console.log('-------------------------------------------------------------------------');
+            const shouldMaskUrl = payload.domain_url !== domain_data.url;
             const urlMask = shouldMaskUrl ? payload.domain_url : undefined;
-            console.log('[DomainManager] URL Mask:', urlMask);
 
             return {
                 ...payload,
@@ -117,13 +80,13 @@ class DomainManager {
                     domain_data.windowId,
                     domain_data.id,
                     domain_data.url,
-                    urlMask // --- URL masking disabled for now
-                ),
+                    urlMask
+                ),  
             };
         } catch (error) {
-            console.error('Error building payload:', error);
+            console.error(`[${this.serviceName}] Error building payload:`, error);
+            return null;
         }
-        return null;
     }
 
     /**
@@ -147,7 +110,7 @@ class DomainManager {
                 return options;
             }
         } catch (error) {
-            console.error('Failed to get token:', error);
+            console.error(`[${this.serviceName}] Failed to get token:`, error);
         }
         return undefined;
     }
@@ -158,15 +121,16 @@ class DomainManager {
      * @param tabSessionId The tab session ID to be used.
      * @param method The method to be used in the fetch request.
      */
-    async sendDomain(domainData: DomainDataTypes, tabSessionId: TabMapping, method: string): Promise<Response | undefined> {
+    async sendDomain(domainData: DomainDataTypes, tabSessionId: TabMapping, method: string): Promise<string | undefined> {
 
         // Build single domain payload
         const payloadDomain = await this.buildPayload(domainData);
-        console.log('Payload Domain to be sent:', payloadDomain);
-        console.log('Tab Session ID to be used:', tabSessionId);
+        
+        console.log(`[${this.serviceName}] Payload Domain to be sent:`, payloadDomain);
+        console.log(`[${this.serviceName}] Tab Session ID to be used:`, tabSessionId);
 
         if (!payloadDomain) {
-            console.error('Error building domain payload');
+            console.error(`[${this.serviceName}] Error building domain payload`);
             return undefined;
         }
 
@@ -178,44 +142,54 @@ class DomainManager {
         // Create the request options
         const requestOptions = await this.requestOptions(payload, method);
         if (!requestOptions) {
-            console.error('Error building request options');
+            console.error(`[${this.serviceName}] Error building request options`);
             return undefined;
         }
 
         // Get the tab instance ID
         const windowId = tabSessionId.id;
 
-        console.log('Payload Domain:', payloadDomain);
-        console.log('Request Options:', requestOptions);
-        console.log('Window ID:', windowId);
-        console.log('Tab Session ID:', tabSessionId);
+        console.log(`[${this.serviceName}] Payload Domain:`, payloadDomain);
+        console.log(`[${this.serviceName}] Request Options:`, requestOptions);
+        console.log(`[${this.serviceName}] Window ID:`, windowId);
+        console.log(`[${this.serviceName}] Tab Session ID:`, tabSessionId);
 
         try {
             const response = await fetch(`${apiUrl}/tab/tabs/${windowId}/`, requestOptions);
             const data = await response.json();
-            console.log('Fetch Response:', response);
-            console.log('Response Domain:', data);
+
+            if (!response.ok) {
+                throw new Error(`[${this.serviceName}] Error: ${response.status} - ${JSON.stringify(data)}`);
+            }
+
+            console.log(`[${this.serviceName}] Fetch Response:`, response);
+            console.log(`[${this.serviceName}] Response Domain:`, data);
 
             // Extract the domain session ID from the response
-            console.log('Domains in response:', data.domains); // The problem is not here
+            console.log(`[${this.serviceName}] Domains in response:`, data.domains);
+
             // Find the created domain in the response by domain_session_id and latest start_time (NEED CORRECTION)
             if (!data.domains || data.domains.length === 0) {
-                console.error('No domains found in response');
+                console.error(`[${this.serviceName}] No domains found in response`);
                 return undefined;
             }
+
             const sortedDomains = data.domains.sort((a: DomainResponseTypes, b: DomainResponseTypes) => {
                 return new Date(b.start_time).getTime() - new Date(a.start_time).getTime();
             });
+
             const createdDomain = sortedDomains[0];
-            console.log('Most recent domain:', createdDomain);
-            // const createdDomain = data.domains.find((domain: DomainResponseTypes) => domain.domain_session_id === payloadDomain.domain_session_id);
-            console.log('Created Domain:', createdDomain);
+
+            console.log(`[${this.serviceName}] Most recent domain:`, createdDomain);
+            console.log(`[${this.serviceName}] Created Domain:`, createdDomain);
+            
             if (createdDomain) {
                 await this.dbService.setItem('domainslives', createdDomain);
             }
+
             return createdDomain?.domain_session_id || payloadDomain.domain_session_id;
         } catch (error) {
-            console.error('Error:', error);
+            console.error(`[${this.serviceName}] Error:`, error);
             return undefined;
         }
     }
@@ -255,9 +229,9 @@ class DomainManager {
         
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Error: ${response.status} - ${errorText}`);
+            throw new Error(`[${this.serviceName}] Error: ${response.status} - ${errorText}`);
         }
-        console.log('Domain to be deleted:', payload);
+        console.log(`[${this.serviceName}] Domain updated, removed from local store`);
         await this.dbService.deleteItem('domainslives', domainSessionId);
     }
 
