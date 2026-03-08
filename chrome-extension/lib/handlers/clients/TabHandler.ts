@@ -1,3 +1,9 @@
+/**
+ * @fileoverview Handles browser tab events and interactions with the server.
+ * Manages tab creation, updates, and closures. Integrates with DomainEventManager for domain tracking.
+ * Communicates with the server to create/update tab records and manage sessions.
+ */
+
 import { Tabs} from "webextension-polyfill";
 import { DatabaseService } from "@root/lib/db";
 import { GlobalSessionService } from "@root/lib/services";
@@ -11,9 +17,10 @@ import { apiUrl, InfoType } from "../shared";
  * Sends requests to the server to manage tabs. 
 */
 class TabManager {
-    dbService: DatabaseService;
-    domainService: DomainManager;
-    globalSessionService: GlobalSessionService;
+    private readonly serviceName = 'TabHandler';
+    private dbService: DatabaseService;
+    private domainService: DomainManager;
+    private globalSessionService: GlobalSessionService;
 
     constructor() {
         this.dbService = new DatabaseService();
@@ -79,7 +86,7 @@ class TabManager {
                 return options;
             }
         } catch (error) {
-            console.error('Failed to get token:', error);
+            console.error(`[${this.serviceName}] Failed to get token:`, error);
         }
         return undefined;
     }   
@@ -93,7 +100,7 @@ class TabManager {
      * @throws An error if the request fails.
     */
     async sendTab(tab: Tabs.Tab, info: InfoType, method: string): Promise<Response> {
-        console.log('Tab in send tabs:', tab);
+        console.log(`[${this.serviceName}] Tab in send tabs:`, tab);
         try {
 
             if (typeof tab.windowId !== 'number') {
@@ -102,10 +109,10 @@ class TabManager {
 
             //  Getting window data for relation
             const windowSessionId = await this.globalSessionService.getGlobalSessionId(tab.windowId, 'window');
-            console.log('Window Session ID:', windowSessionId);
+            console.log(`[${this.serviceName}] Window Session ID:`, windowSessionId);
             
             const windowData = await this.dbService.getItem('winlives', windowSessionId);
-            console.log('Window Data:', windowData);
+            console.log(`[${this.serviceName}] Window Data:`, windowData);
 
             if (!windowData || windowData instanceof Error) {
                 throw new Error('Window data not found');
@@ -138,7 +145,7 @@ class TabManager {
             };
 
             const payloadTab = await this.buildPayload(tabData, info, windowId);
-            console.log('Payload:', payloadTab);
+            console.log(`[${this.serviceName}] Payload:`, payloadTab);
 
             // Prepare the request options for the Tab
             const requestOptionsTab = await this.requestOptions(payloadTab, method);
@@ -156,10 +163,10 @@ class TabManager {
             const responseBody = await tabResponse.json();
             await this.dbService.setItem('tabslives', responseBody);
 
-            console.log('Tab Response:', responseBody);
+            console.log(`[${this.serviceName}] Tab Response:`, responseBody);
             return tabResponse;
         } catch (error) {
-            console.error('Failed to send tab:', error);
+            console.error(`[${this.serviceName}] Failed to send tab:`, error);
             throw error;
         }
     }
@@ -169,10 +176,9 @@ class TabManager {
      * @param tab The tab data to be updated.
      * @param info The type of event that triggered the payload.
      */
-    async updateTab(tabId: number, mapping: TabPayloadTypes, method: string, url: string): Promise<Response> {
-        console.log('Mapping Tab:', mapping);
+    async updateTab(tabId: number, mapping: TabPayloadTypes, method: string, domainSessionId: string): Promise<Response> {
+        console.log(`[${this.serviceName}] Mapping Tab:`, mapping);
         try{
-            const domainSessionId = url;
             const payload = JSON.parse(JSON.stringify(mapping));
             tabId = payload.id;
 
@@ -187,58 +193,72 @@ class TabManager {
             if (!requestOptions) {
                 throw new Error('Request options are undefined');
             }
-
             
-            console.log('Payload UPDATE:', payload);	
             // Send the updated tab data to the server
+            console.log(`[${this.serviceName}] Payload update:`, payload);	
             const responseTab = await fetch(`${apiUrl}/tab/tabs/${tabId}/`, requestOptions);
             
             if (!responseTab.ok) {
                 throw new Error('Failed to update tab');
             }
-            console.log('Domain Session ID:', domainSessionId);
-            console.log('Control point after updating tab, before updating domain');
-            // Update the domain data in the server
-            this.dbService.getItem('domainslives', domainSessionId).then((itemOrError) => {
-                if (!itemOrError) {
-                    throw new Error(`Payload not found for domain session ID: ${domainSessionId}`);
-                }
 
-                if (itemOrError instanceof Error) {
-                    throw new Error(`Error: ${itemOrError.message}`);
-                }
+            console.log(`[${this.serviceName}] Domain Session ID:`, domainSessionId);
+            console.log(`[${this.serviceName}] Control point after updating tab, before updating domain`);
+            await this.closeDomainForTab(domainSessionId, method);
 
-                const domainItem = itemOrError as Partial<DomainObjectDataTypes>;
-                const payloadDomain: DomainObjectDataTypes = {
-                    id: domainItem.id || 0,
-                    domain_fav_icon: domainItem.domain_fav_icon || '',
-                    domain_last_accessed: domainItem.domain_last_accessed || '',
-                    domain_session_id: domainItem.domain_session_id || '',
-                    domain_title: domainItem.domain_title || '',
-                    domain_url: domainItem.domain_url || '',
-                    start_time: domainItem.start_time || '',
-                    closing_time: new Date().toISOString()
-                };
-
-                this.domainService.requestOptions(payloadDomain, method).then(async (requestOptionsDomain) => {
-                    const responseDomain = await fetch(`${apiUrl}/domain/domains/${payloadDomain.id}/`, requestOptionsDomain);
-                    if (!responseDomain.ok) {
-                        throw new Error('Failed to update domain');
-                    }
-                });
-            }
-            );
-
-            // Delete the tab from the local database
-            if (mapping.tab_session_id === undefined) {
+            if(mapping.tab_session_id === undefined) {
                 throw new Error('Tab session ID is undefined');
             }
+            await this.dbService.deleteItem('tabslives', mapping.tab_session_id);
+            return responseTab;
 
-            this.dbService.deleteItem('tabslives', mapping.tab_session_id);
-            return responseTab;    
         } catch (error) {
-            console.error('Failed to update tab:', error);
+            console.error(`[${this.serviceName}] Failed to update tab:`, error);
             throw error;
+        }
+    }
+
+    /**
+     * Closes the domain associated with a tab.
+     * @param domainSessionId The session ID of the domain to be closed.
+     * @param method The HTTP method to be used for the request.
+     * @returns A promise that resolves when the domain is closed.
+     */
+    private async closeDomainForTab(domainSessionId: string, method: string): Promise<void> {
+        const itemOrError = await this.dbService.getItem('domainslives', domainSessionId);
+        
+        if (!itemOrError) {
+            console.warn(`[${this.serviceName}] No domain found for session ID: ${domainSessionId}`);
+            return;
+        }
+
+        if (itemOrError instanceof Error) {
+            console.error(`[${this.serviceName}] Error retrieving domain for session ID ${domainSessionId}:`, itemOrError);
+            return;
+        }
+
+        const domainItem = itemOrError as Partial<DomainObjectDataTypes>;
+        const payloadDomain: DomainObjectDataTypes = {
+            id: domainItem.id || 0,
+            domain_fav_icon: domainItem.domain_fav_icon || '',
+            domain_last_accessed: domainItem.domain_last_accessed || '',
+            domain_session_id: domainItem.domain_session_id || '',
+            domain_title: domainItem.domain_title || '',
+            domain_url: domainItem.domain_url || '',
+            start_time: domainItem.start_time || '',
+            closing_time: new Date().toISOString()
+        };
+
+        const requestOptionsDomain = await this.domainService.requestOptions(payloadDomain, method);
+        
+        if (!requestOptionsDomain) {
+            console.error(`[${this.serviceName}] Request options for domain are undefined, skipping domain update`);
+            return;
+        }
+
+        const responseDomain = await fetch(`${apiUrl}/domain/domains/${payloadDomain.id}/`, requestOptionsDomain);
+        if (!responseDomain.ok) {
+            console.error(`[${this.serviceName}] Failed to update domain for session ID: ${domainSessionId}`);
         }
     }
 }
