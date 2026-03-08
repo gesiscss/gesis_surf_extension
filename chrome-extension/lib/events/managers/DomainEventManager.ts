@@ -5,6 +5,7 @@
  */
 
 import { DomainHandler, DomainDataTypes, TabMapping } from '@root/lib/handlers';
+import { tabs as browserTabs } from 'webextension-polyfill';
 
 /**
  * Manages domain-related events in the Chrome extension.
@@ -143,6 +144,21 @@ class DomainEventManager {
     return false;
   }
 
+  private async requestHTMLCapture(tabId: number): Promise<void> {
+    try {
+      console.log(`[${this.serviceName}] Requesting HTML capture for tab ID: ${tabId}`);
+      await browserTabs.sendMessage(tabId, { type: 'REQUEST_HTML_CAPTURE' });
+    } catch (error) {
+      console.warn(`[${this.serviceName}] First HTML capture attempt failed for tab ${tabId}, retrying in 1s...`);
+      setTimeout(async () => {
+        try {
+          await browserTabs.sendMessage(tabId, { type: 'REQUEST_HTML_CAPTURE' });
+        } catch (retryError) {
+          console.error(`[${this.serviceName}] Retry HTML capture also failed for tab ${tabId}:`, retryError);
+        }
+      }, 1000);
+    }
+  }
 
   /**
    * Initializes a new domain session.
@@ -167,6 +183,7 @@ class DomainEventManager {
       const savedDomainSessionId = await this.domainManager.sendDomain(tab, mapping, "PATCH");
       this.currentActiveDomainSessionId = savedDomainSessionId || newDomain;
       console.log(`[${this.serviceName}] Updated current active domain session ID to:`, this.currentActiveDomainSessionId);
+      await this.requestHTMLCapture(tab.id);
     } else {
       console.log(`[${this.serviceName}] Domain is not ready to be sent for ${newDomain}`);
       this.currentActiveDomainSessionId = newDomain;

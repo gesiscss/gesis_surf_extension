@@ -49,6 +49,19 @@ async function captureHTML(): Promise<void> {
     });
 }
 
+/** Listen for HTML capture requests from the background script
+ * @return voids
+ */
+function listenForCaptureRequest(): void {
+    runtime.onMessage.addListener((message: { type: string }) => {
+        if (message.type === 'REQUEST_HTML_CAPTURE') {
+            console.log('📄[HTML] Received HTML capture request');
+            captureHTML();
+        }
+    });
+    console.log('📄[HTML] Listening for HTML capture requests');
+}
+
 /** Initialize HTML capture on page load
  * @returns void
  */
@@ -63,5 +76,8 @@ export function initializeHTMLCapture(): void {
     } else {
         window.addEventListener('load', captureWithDelay);
     }
+
+    listenForCaptureRequest();
+
     console.log('📄[HTML] HTML capture initialized.');
 }
