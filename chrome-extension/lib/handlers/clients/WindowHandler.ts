@@ -1,4 +1,10 @@
+/**
+ * @fileoverview Manages browser window events.
+ * Automatically registers event listeners for window events.
+ */
+
 import { DatabaseService } from "@root/lib/db";
+import { readToken } from "@chrome-extension-boilerplate/shared/lib/storages/tokenStorage";
 import GlobalSessionService from "@root/lib/services/globalSession/GlobalSessionService";
 import { WindowDataTypes, WindowPayloadTypes } from "../types/windowTypes";
 import { apiUrl, InfoType } from "../shared";
@@ -8,8 +14,9 @@ import { apiUrl, InfoType } from "../shared";
  * Automatically registers event listeners for window events.
  */
 class WindowManager {
-    dbService: DatabaseService;
-    globalSessionService: GlobalSessionService;
+    private readonly serviceName = 'WindowHandler';
+    private dbService: DatabaseService;
+    private globalSessionService: GlobalSessionService;
     private apiUrl: string;
 
     constructor() {
@@ -55,7 +62,7 @@ class WindowManager {
         }
         
         const windowSessionId = WindowManager.generateWindowSession(windowId, globalSession.global_session_id);
-        console.log('Window Session ID:', windowSessionId);
+        console.log(`[${this.serviceName}] Generated window session ID:`, windowSessionId);
 
         const payload: WindowPayloadTypes = {
             start_time: startTime,
@@ -64,7 +71,6 @@ class WindowManager {
             window_session_id: windowSessionId,
             global_session: globalSession.id
         };
-        // console.log('Payload:', payload);
         return payload;
     }
 
@@ -77,7 +83,13 @@ class WindowManager {
     async buildRequestOptions(payload: WindowPayloadTypes, method: 'POST' | 'PUT' | 'PATCH'): Promise<RequestInit | undefined> {
 
         try {
-            const token = await this.getToken();
+            const token = await readToken();
+
+            if(!token) {
+                console.error(`[${this.serviceName}] Token is undefined`);
+                return undefined;
+            }
+
             return {
                 method: method,
                 headers: {
@@ -87,25 +99,9 @@ class WindowManager {
                 body: JSON.stringify(payload)
             };
         } catch (error) {
-            console.error('Error:', error);
+            console.error(`[${this.serviceName}] Error:`, error);
             throw error;
         }
-    }
-
-    /**
-     * Gets the token from the local storage.
-     * @returns The token from the local storage.
-     */
-    private getToken(): Promise<string> {
-        return new Promise((resolve, reject) => {
-            chrome.storage.local.get('token', (data) => {
-                if (data.token) {
-                    resolve(data.token);
-                } else {
-                    reject(new Error('Token not found'));
-                }
-            });
-        });
     }
 
     /**
@@ -119,7 +115,11 @@ class WindowManager {
             const payload = await this.buildPayload(window, info, startTime);
             const requestOptions = await this.buildRequestOptions(payload, method);
 
-            const response = await fetch(`${this.apiUrl}/window/windows/`, requestOptions)
+            if (!requestOptions) {
+                throw new Error('Failed to build request options');
+            }
+
+            const response = await fetch(`${this.apiUrl}/window/windows/`, requestOptions);
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -128,12 +128,12 @@ class WindowManager {
 
             // Save the window data response to the local database
             const responseBody = await response.json();
-            console.log('Window Response Creation:', responseBody);
+            console.log(`[${this.serviceName}] Window Response Creation:`, responseBody);
             await this.dbService.setItem('winlives', responseBody);
         
             return response;
         } catch (error) {
-            console.error('Error:', error);
+            console.error(`[${this.serviceName}] Error:`, error);
             throw error;
         }
     }
@@ -147,7 +147,7 @@ class WindowManager {
 
         const window_session_id = await this.globalSessionService.getGlobalSessionId(window, 'window');
         const itemOrError = await this.dbService.getItem('winlives', window_session_id);
-        console.log('Item or Error:', itemOrError);
+        console.log(`[${this.serviceName}] Item or Error:`, itemOrError);
 
         if (!itemOrError) {
             throw new Error(`Payload not found for window session ID: ${window_session_id}`);
@@ -162,13 +162,18 @@ class WindowManager {
             closing_time: new Date().toISOString()
         };
 
-        console.log('Window Payload to be updated:', payload);
+        console.log(`[${this.serviceName}] Window Payload to be updated:`, payload);
 
         if (payload.id === undefined) {
             throw new Error('Window ID is undefined');
         }
 
         const requestOptions = await this.buildRequestOptions(payload, method);
+
+        if (!requestOptions) {
+            throw new Error('Failed to build request options');
+        }
+        
         const response = await fetch(`${this.apiUrl}/window/windows/${payload.id}/`, requestOptions);
 
         if (!response.ok) {
@@ -177,7 +182,7 @@ class WindowManager {
         }
 
         const responseBody = await response.json();
-        console.log('Window Response Updated :', responseBody);
+        console.log(`[${this.serviceName}] Window Response Updated :`, responseBody);
 
         await this.dbService.deleteItem('winlives', window_session_id);
     }
