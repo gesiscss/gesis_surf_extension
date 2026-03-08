@@ -111,12 +111,50 @@ export class DomainPolicyService extends BasePolicyService {
         console.log(`[${this.serviceName}] Creating only_host payload for: ${maskValue}`);
         return {
             domain_title: maskValue,
-            domain_url: new URL(domain.url).hostname,
+            domain_url: this.extractHost(domain.url),
             domain_fav_icon: maskValue,
             start_time: new Date().toISOString(),
             closing_time: new Date().toISOString(),
         };
 
+    }
+    
+    /**
+    * Extracts the host from a given URL.
+    * @param url The URL to extract the host from.
+    * @returns The host part of the URL or the original URL if extraction fails.
+    */
+    private extractHost(url: string): string {
+        try {
+            const parsedUrl = new URL(url);
+            return parsedUrl.host;
+        } catch (error) {
+            console.error(`[${this.serviceName}] Error extracting host from URL ${url}:`, error);
+            return url;
+        }
+    }
+
+    /**
+     * Returns the masked URL for given URL based on policy classification.
+     * Used by ContentEventManager to reconstruct the domain session ID.
+     * @param url The URL to be masked.
+     * @returns The masked URL if policy requires masking, otherwise returns the original URL.
+     */
+    public async getMaskedUrl(url: string): Promise<string | undefined> {
+        const classification = await this.resolvePolicy(url);
+        console.log(`[${this.serviceName}] Classification for URL ${url}: ${classification}`);
+        switch (classification) {
+        case 'private':
+            return 'Private-Mode';
+        case 'full_deny':
+            return classification;
+        case 'only_host':
+            return this.extractHost(url);
+        case 'full_allow':
+        case 'default':
+        default:
+            return undefined;
+        }
     }
 }
             
