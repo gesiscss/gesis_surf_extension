@@ -12,7 +12,7 @@ export interface MessageResponse {
     data?: PrivateModeState | number | boolean  | null; 
 }
 
-export type MessageStatus = 'success' | 'error';
+export type MessageStatus = 'success' | 'error' | 'blocked';
 
 // Base Message Interface
 export interface BaseMessage {
