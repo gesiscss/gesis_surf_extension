@@ -29,9 +29,8 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
                     message: error instanceof Error ? error.message : 'Unknown error occurred' });
             }
         })();
-        return true; 
     }
-    return false; 
+    return true;
 });
 
 //  Listen for startup events

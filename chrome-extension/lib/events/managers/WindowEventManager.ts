@@ -1,5 +1,5 @@
 /**
- * WindowEventManager handles browser window events (creation, removal, focus changes)
+ * @fileoverview WindowEventManager handles browser window events (creation, removal, focus changes)
  * and maintains state about the current active window. It tracks window focus changes
  * including browser focus loss events.
  * 
@@ -11,11 +11,6 @@
  * 
  * This manager interacts with the WindowHandler to send window state updates to
  * the backend system.
- * 
- * @example
- * const windowManager = new WindowHandler(...);
- * const windowEventManager = new WindowEventManager(windowManager);
- * windowEventManager.registerWindowListeners();
  */
 
 import { windows, Windows } from 'webextension-polyfill';
@@ -25,6 +20,7 @@ import { InfoTypeValues } from '@root/lib/handlers/shared';
 type FocusLostHandler = (windowId: number | null) => Promise<void> | void;
 type FocusGainedHandler = (windowId: number) => Promise<void> | void;
 export default class WindowEventManager {
+  private readonly serviceName = 'WindowEventManager';
   private isInitializing = true;
   private recentWindowCreation = new Set<number>();
   private currentActiveWindowId: number | null = null;
@@ -69,7 +65,7 @@ export default class WindowEventManager {
       try {
         await handler(windowId);
       } catch (error) {
-        console.error('Error in focus lost handler:', error);
+        console.error(`[${this.serviceName}] Error in focus lost handler:`, error);
       }
     }
   }
@@ -83,7 +79,7 @@ export default class WindowEventManager {
       try {
         await handler(windowId);
       } catch (error) {
-        console.error('Error in focus gained handler:', error);
+        console.error(`[${this.serviceName}] Error in focus gained handler:`, error);
       }
     }
   }
@@ -122,7 +118,7 @@ export default class WindowEventManager {
         await this.handleBrowserFocusGained(newWindowId);
       }
     } catch (error) {
-      console.error('Error handling window focus change', error);
+      console.error(`[${this.serviceName}] Error handling window focus change`, error);
     }
   }
 
@@ -146,21 +142,21 @@ export default class WindowEventManager {
               await this.processWindowTransition(this.currentActiveWindowId, -1);
               await this.notifyFocusLost(this.currentActiveWindowId);
               this.currentActiveWindowId = null;
-              console.warn('Browser focus lost, current active window set to null');
+              console.log(`[${this.serviceName}] Browser focus lost, current active window set to null`);
               this.focusLossTimer = null;
             }, this.windowDebounceTime - this.briefUnfocusTimeout);
           } else {
-            console.log('Focus returned during brief check - cancelling focus loss');
+            console.log(`[${this.serviceName}] Focus returned during brief check - cancelling focus loss`);
             this.focusLossTimer = null;
           }
         } catch (error) {
-          console.error('Error handling browser focus lost', error);
+          console.error(`[${this.serviceName}] Error handling browser focus lost`, error);
           this.focusLossTimer = null;
         }
       }, this.briefUnfocusTimeout);
 
     } catch (error) {
-      console.error('Error initiating browser focus lost handling', error);
+      console.error(`[${this.serviceName}] Error initiating browser focus lost handling`, error);
     }
 }
 
@@ -184,7 +180,7 @@ export default class WindowEventManager {
       this.trackNewWindow(windowId);
       await this.processWindowCreation(windowId);
     } else {
-      console.warn('Skipping creation event for recently created window:', windowId);
+      console.log(`[${this.serviceName}] Skipping creation event for recently created window:`, windowId);
     }
   }
 
@@ -197,7 +193,8 @@ export default class WindowEventManager {
       if (this.focusLossTimer) {
         clearTimeout(this.focusLossTimer);
         this.focusLossTimer = null;
-        console.warn('Focus regained before debounce timeout, ignoring focus gain event.');
+        console.log(`[${this.serviceName}] Focus regained before debounce timeout, ignoring focus gain event.`);
+        return;
       }
 
       this.validateWindow({ id: newWindowId } as Windows.Window);
@@ -206,10 +203,10 @@ export default class WindowEventManager {
       this.currentActiveWindowId = newWindowId;
       await this.notifyFocusGained(newWindowId);
 
-      console.warn('Browser focus gained, current active window set to:', newWindowId);
+      console.log(`[${this.serviceName}] Browser focus gained, current active window set to:`, newWindowId);
     
     } catch (error) {
-      console.error('Error handling browser focus gained', error);
+      console.error(`[${this.serviceName}] Error handling browser focus gained`, error);
     }
   }
 
@@ -219,7 +216,7 @@ export default class WindowEventManager {
    */
   private validateWindow(window: Windows.Window): void {
     if (window.id === undefined) {
-      throw new Error('Window ID is undefined');
+      throw new Error(`[${this.serviceName}] Window ID is undefined`);
     }
   }
 
@@ -228,11 +225,11 @@ export default class WindowEventManager {
    * @returns A promise that resolves when the startup window handling is complete.
    */
   private async handleStartupWindow(): Promise<void> {
-    console.log('Handling startup windows...');
+    console.log(`[${this.serviceName}] Handling startup windows...`);
 
     try {
       const windowsList = await windows.getAll();
-      console.log('Startup windows detected:', windowsList.length);
+      console.log(`[${this.serviceName}] Startup windows detected:`, windowsList.length);
 
       for (const win of windowsList){
         if (win.id) {
@@ -240,7 +237,7 @@ export default class WindowEventManager {
         }
       }
     } catch (error) {
-        console.error('Error during startup window handling', error);
+        console.error(`[${this.serviceName}] Error during startup window handling`, error);
         throw error;
       }
     }
@@ -279,11 +276,15 @@ export default class WindowEventManager {
           await this.windowManager.updateWindow(previousId, transitionsStatus, 'PATCH');
         }
     } catch (error) {
-      console.error('Error processing window transition', error);
+      console.error(`[${this.serviceName}] Error processing window transition`, error);
     }
   }
 
-  public async processWindowCreation(newId: number): Promise<void> {
+  /**
+   * Processes a window creation event.
+   * @param newId The ID of the newly created window.
+   */
+  private async processWindowCreation(newId: number): Promise<void> {
     try {
       const startTime = new Date().toISOString();
       const window = await windows.get(newId);
@@ -294,13 +295,19 @@ export default class WindowEventManager {
       }
 
     } catch (error) {
-      console.error('Error processing window creation', error);
+      console.error(`[${this.serviceName}] Error processing window creation`, error);
     }
   }
 
+  /**
+   * Handles errors related to window events.
+   * @param error The error object.
+   * @param event The name of the window event.
+   * @param windowId The ID of the window associated with the error.
+   */
   private handleWindowError(error: Error, event: string, windowId: number): void {
     const errorMessage = `Error in ${event} for window ${windowId}: ${error.message}`;
-    console.error(errorMessage);
+    console.error(`[${this.serviceName}] ${errorMessage}`);
   }
 
   /**
@@ -309,7 +316,7 @@ export default class WindowEventManager {
    */
   private async handleWindowRemoval(windowId: number): Promise<void> {
     try {
-      console.log('Window closed:', windowId);
+      console.log(`[${this.serviceName}] Window closed:`, windowId);
       
       // Remove window from tracking (if needed)
       this.recentWindowCreation.delete(windowId);
@@ -325,10 +332,15 @@ export default class WindowEventManager {
     }
   }
 
+  /**
+   * Converts a Windows.Window object to a WindowDataTypes object.
+   * @param win The Windows.Window object.
+   * @returns The corresponding WindowDataTypes object.
+   */
   private toWindowData(win: Windows.Window): WindowDataTypes {
 
     if (win.top === undefined) {
-      throw new Error('Window top position is undefined');
+      throw new Error(`[${this.serviceName}] Window top position is undefined`);
     }
 
     return {
@@ -362,7 +374,7 @@ export default class WindowEventManager {
     try {
 
       if (window.id === undefined) {
-        console.error('Window ID is undefined in onCreated event');
+        console.error(`[${this.serviceName}] Window ID is undefined in onCreated event`);
         return;
       }
 
