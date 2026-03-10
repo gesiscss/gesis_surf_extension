@@ -3,6 +3,7 @@
  */
 
 import { ChatGPTExtractor } from './ChatGPTExtractor';
+import { ClaudeExtractor } from './ClaudeExtractor';
 
 /**
  * Initializes LLM tracking by creating instances of supported extractors and calling their initialization methods.
@@ -10,5 +11,5 @@ import { ChatGPTExtractor } from './ChatGPTExtractor';
  * @returns {void}
  */
 export function initializeLLMTracking(): void {
-    [new ChatGPTExtractor()].forEach(e => e.initialize());
+    [new ChatGPTExtractor(), new ClaudeExtractor()].forEach(e => e.initialize());
 }
