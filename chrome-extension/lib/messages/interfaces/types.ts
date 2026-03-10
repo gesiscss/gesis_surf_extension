@@ -1,4 +1,5 @@
 /**
+ * @fileoverview Shared types and interfaces for messages sent between content scripts and background scripts in the Chrome extension.
  * Message Interfaces and Types for Chrome Extension
  * Handles communication between content scripts and background scripts
  */
