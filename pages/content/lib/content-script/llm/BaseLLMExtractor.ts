@@ -22,7 +22,7 @@ export abstract class BaseLLMExtractor {
     abstract isSite(): boolean;
 
     /** Extracts structured LLMData from a message element, or null if not applicable.
-     * @element The DOM element representing a chat message to extract data from.
+     * @param element The DOM element representing a chat message to extract data from.
      * Must return an object with at least llm_provider, message_type, and message_id.
      * The implementation depends on the site's DOM structure and data attributes.
      */
@@ -72,7 +72,7 @@ export abstract class BaseLLMExtractor {
     */
     protected sendData(data: LLMData): void {
         runtime.sendMessage({ type: 'LLM_MESSAGE', data })
-        .then(r => console.log(`✅[${data.llm_provider}] Sent:`, data.message_type, data.message_id))
+        .then(() => console.log(`✅[${data.llm_provider}] Sent:`, data.message_type, data.message_id))
         .catch(e => console.error(`❌[${data.llm_provider}] Send failed:`, e));
     }
 

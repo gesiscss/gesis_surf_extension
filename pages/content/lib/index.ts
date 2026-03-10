@@ -1,5 +1,6 @@
 import { initializeClickListener } from "./content-script/clicks";
 import { initializeHTMLCapture } from "./content-script/htmls";
+import { initializeLLMTracking } from "./content-script/llm/LLMRegistry";
 import { initializeScrollListener } from "./content-script/scrolls";
 
 function initializeContentScript(): void {
@@ -12,6 +13,9 @@ function initializeContentScript(): void {
 
         initializeScrollListener();
         console.log('[Content] Scroll listener initialized successfully');
+
+        initializeLLMTracking();
+        console.log('[Content] LLM tracking initialized successfully');
 
         console.log('[Content] All services initialized successfully');
     } catch (error) {
