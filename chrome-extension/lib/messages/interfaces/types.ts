@@ -4,13 +4,13 @@
  * Handles communication between content scripts and background scripts
  */
 import { PrivateModeState } from '@root/lib/services/privateModeService/types';
-import { ClickData, ScrollData, HTMLSnapshot } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
+import { ClickData, ScrollData, HTMLSnapshot, LLMData } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
 // Message Response Interface
 export interface MessageResponse {
     status: MessageStatus;
     message?: string;
-    data?: PrivateModeState | number | boolean  | null; 
+    data?: PrivateModeState | number | boolean  | LLMData | null; 
 }
 
 export type MessageStatus = 'success' | 'error' | 'blocked';
@@ -31,13 +31,20 @@ export interface AuthFailureMessage extends BaseMessage {
     error: string;
 }
 
+// Types for LLM Event Messages
+export interface LLMEventMessage extends BaseMessage {
+    type: 'LLM_EVENT';
+    data: LLMData;
+}
+
 export type ExtensionMessage = AuthSuccessMessage
     | AuthFailureMessage
     | PrivateModeMessage
     | ClickEventMessage
     | ScrollEventMessage
     | ScrollFinalEventMessage
-    | HTMLCaptureMessage;
+    | HTMLCaptureMessage
+    | LLMEventMessage;
 
 // Private Mode Messages and Types
 export type PrivateModeActionType = 'GET_STATE' | 'TOGGLE' | 'GET_TIME' | 'PRIVATE_MODE_EXPIRED';
