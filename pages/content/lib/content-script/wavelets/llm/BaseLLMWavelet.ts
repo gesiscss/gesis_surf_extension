@@ -6,7 +6,7 @@
  * Captured messages are sent to the background script for processing.
  */
 
-import { LLMData } from './types';
+import { LLMData } from "@chrome-extension-boilerplate/shared/lib/types/contentScript";
 import { runtime } from 'webextension-polyfill';
 
 /**

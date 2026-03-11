@@ -4,7 +4,7 @@
  * It handles both user questions and AI responses, using a debounced approach for user messages and attribute watching for assistant messages.
  * The extracted data includes content, metadata, session info, and is deduplicated before sending.
  */
-import { LLMData } from './types';
+import { LLMData } from "@chrome-extension-boilerplate/shared/lib/types/contentScript";
 import { BaseLLMWavelet } from './BaseLLMWavelet';
 
 export class ClaudeWavelet extends BaseLLMWavelet {
@@ -53,7 +53,7 @@ export class ClaudeWavelet extends BaseLLMWavelet {
                 chat_session_id: chatSessionId,
                 url: window.location.href,
                 page_title: document.title,
-                domain_session_id: '',
+                domain_id: '',
             };
             } catch (error) {
             console.error('🤖[Claude] Error extracting message:', error);

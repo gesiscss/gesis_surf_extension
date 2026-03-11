@@ -4,7 +4,7 @@
  * Uses a debounced approach to handle dynamic content updates during message generation.
  * Extracted messages are sent to the background script for further processing and storage.
  */
-import { LLMData } from './types';
+import { LLMData } from "@chrome-extension-boilerplate/shared/lib/types/contentScript";
 import { BaseLLMWavelet } from './BaseLLMWavelet';
 
 export class ChatGPTWavelet extends BaseLLMWavelet {
@@ -51,7 +51,7 @@ export class ChatGPTWavelet extends BaseLLMWavelet {
         chat_session_id: chatSessionId,
         url: window.location.href,
         page_title: document.title,
-        domain_session_id: '',
+        domain_id: '',
       };
     } catch (error) {
       console.error('🤖[ChatGPT] Error extracting message:', error);
