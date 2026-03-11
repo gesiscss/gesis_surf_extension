@@ -1,12 +1,27 @@
+/**
+ * @fileoverview Implements the ClaudeWavelet class for extracting user and assistant messages from the Claude AI interface.
+ * The wavelet detects message elements in the DOM, extracts structured data, and sends it to the background script.
+ * It handles both user questions and AI responses, using a debounced approach for user messages and attribute watching for assistant messages.
+ * The extracted data includes content, metadata, session info, and is deduplicated before sending.
+ */
 import { LLMData } from './types';
 import { BaseLLMWavelet } from './BaseLLMWavelet';
 
 export class ClaudeWavelet extends BaseLLMWavelet {
 
+    /**
+     * Determines if the current page belongs to the Claude AI site by checking the hostname.
+     * @returns True if the page is a Claude conversation, false otherwise.
+     */
     isSite(): boolean {
         return window.location.hostname.includes('claude.ai');
     }
 
+    /**
+     * Extracts structured LLMData from a Claude message element.
+     * @param element The DOM element representing a chat message.
+     * @returns The extracted LLMData or null if extraction fails.
+     */
     extractMessage(element: HTMLElement): LLMData | null {
         try {
             const isUser = element.getAttribute('data-testid') === 'user-message';
@@ -46,6 +61,10 @@ export class ClaudeWavelet extends BaseLLMWavelet {
         }
     }
 
+    /**
+     * Watches a Claude assistant element for updates and schedules captures.
+     * @param element The assistant container element to watch for updates.
+     */
     watchElement(element: HTMLElement): void {
         // Claude exposes data-is-streaming attribute — no debounce needed
         if (element.getAttribute('data-is-streaming') === 'false') {
@@ -71,6 +90,11 @@ export class ClaudeWavelet extends BaseLLMWavelet {
         observer.observe(element, { attributes: true, attributeFilter: ['data-is-streaming'] });
     }
 
+    /**
+     * Captures an assistant message by extracting data and sending it if not already sent.
+     * @param element The DOM element representing the assistant message to capture.
+     * @returns void
+     */
     private captureAssistant(element: HTMLElement): void {
         const data = this.extractMessage(element);
         if (!data) return;
@@ -79,6 +103,10 @@ export class ClaudeWavelet extends BaseLLMWavelet {
         this.sendData(data);
     }
 
+    /**
+     * Processes a newly added DOM node.
+     * @param element The newly added DOM element to process. Detects user messages and assistant containers, routing to scheduleCapture or watchElement.
+     */
     protected processAddedNode(element: HTMLElement): void {
         // User messages
         const userMsgs: HTMLElement[] = element.getAttribute('data-testid') === 'user-message'
