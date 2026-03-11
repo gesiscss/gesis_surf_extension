@@ -1,0 +1,68 @@
+import { Runtime, Tabs } from 'webextension-polyfill';
+import { DatabaseService } from '@root/lib/db';
+import DomainManager from '@root/lib/handlers/clients/DomainHandler';
+import { DomainPolicyService } from '@root/lib/services/policyService';
+import { DomainResponseTypes } from '@root/lib/handlers/types/domainTypes';
+import { LLMData, EventResult } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
+import WaveletScriptHandler from '@root/lib/handlers/clients/WaveletScriptHandler';
+
+export default class WaveletEventManager {
+    private readonly serviceName = 'WaveletEventManager';
+    private dbService: DatabaseService;
+    private domainManager: DomainManager;
+    private domainPolicyService: DomainPolicyService;
+    private apiClient: WaveletScriptHandler;
+
+    constructor(apiUrl: string) {
+        this.dbService = new DatabaseService();
+        this.domainManager = new DomainManager();
+        this.domainPolicyService = new DomainPolicyService(this.dbService);
+        this.apiClient = new WaveletScriptHandler(apiUrl);
+    }
+
+    /**
+     * Handles incoming LLM events from the content script, resolves the domain ID, and sends the data to the Wavelet backend API.
+     * @param data The LLMData received from the content script.
+     * @param sender The sender of the message, used to resolve the domain ID based on the tab information.
+     * @returns An EventResult indicating the success or failure of processing the event.
+     */
+    public async handleLLMEvent(
+        data: LLMData,
+        sender: Runtime.MessageSender
+    ): Promise<EventResult> {
+        try {
+            const domainId = await this.resolveDomainId(sender.tab);
+            await this.apiClient.sendLLMData({ ...data, domain_id: domainId });
+            return { status: 'success', message: 'LLM wavelet processed' };
+        } catch (error) {
+            console.error(`[${this.serviceName}] Error handling LLM event:`, error);
+            return {
+                status: 'error',
+                message: error instanceof Error ? error.message : 'Unknown error',
+            };
+        }
+    }
+
+    // Future: handleXPost(data: XPostData, sender): Promise<EventResult> { ... }
+    
+    /**
+     * Resolves the domain ID for a given tab by checking the domain policy and generating a domain session if necessary.
+     * @param tab The tab information from which to resolve the domain ID.
+     * @returns A promise that resolves to the domain ID as a string, or an empty string if the domain is masked or denied.
+     */
+    private async resolveDomainId(tab?: Tabs.Tab): Promise<string> {
+        if (!tab?.id || !tab?.windowId || !tab?.url) return '';
+        try {
+            const maskUrl = await this.domainPolicyService.getMaskedUrl(tab.url);
+            const domainSessionId = await this.domainManager.generateDomainSession(
+                tab.windowId, tab.id, tab.url, maskUrl
+            );
+            const stored = await this.dbService.getItem('domainslives', domainSessionId);
+            if (!stored || stored instanceof Error) return '';
+            return String((stored as unknown as DomainResponseTypes).id);
+        } catch {
+            console.log(`[${this.serviceName}] domain_id not available (masked/denied domain)`);
+            return '';
+        }
+    }
+}
