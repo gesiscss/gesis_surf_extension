@@ -5,9 +5,9 @@
  * Extracted messages are sent to the background script for further processing and storage.
  */
 import { LLMData } from './types';
-import { BaseLLMExtractor } from './BaseLLMExtractor';
+import { BaseLLMWavelet } from './BaseLLMWavelet';
 
-export class ChatGPTExtractor extends BaseLLMExtractor {
+export class ChatGPTWavelet extends BaseLLMWavelet {
 
   /**
    * Determines if the current page belongs to the ChatGPT site.

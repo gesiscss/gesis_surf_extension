@@ -1,7 +1,7 @@
 import { LLMData } from './types';
-import { BaseLLMExtractor } from './BaseLLMExtractor';
+import { BaseLLMWavelet } from './BaseLLMWavelet';
 
-export class ClaudeExtractor extends BaseLLMExtractor {
+export class ClaudeWavelet extends BaseLLMWavelet {
 
     isSite(): boolean {
         return window.location.hostname.includes('claude.ai');

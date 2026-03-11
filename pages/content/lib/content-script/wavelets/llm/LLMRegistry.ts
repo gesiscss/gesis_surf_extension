@@ -2,8 +2,8 @@
  * @fileoverview Initializes and manages LLM tracking by registering specific extractors for supported platforms.
  */
 
-import { ChatGPTExtractor } from './ChatGPTExtractor';
-import { ClaudeExtractor } from './ClaudeExtractor';
+import { ChatGPTWavelet } from './ChatGPTWavelet';
+import { ClaudeWavelet } from './ClaudeWavelet';
 
 /**
  * Initializes LLM tracking by creating instances of supported extractors and calling their initialization methods.
@@ -11,5 +11,5 @@ import { ClaudeExtractor } from './ClaudeExtractor';
  * @returns {void}
  */
 export function initializeLLMTracking(): void {
-    [new ChatGPTExtractor(), new ClaudeExtractor()].forEach(e => e.initialize());
+    [new ChatGPTWavelet(), new ClaudeWavelet()].forEach(e => e.initialize());
 }

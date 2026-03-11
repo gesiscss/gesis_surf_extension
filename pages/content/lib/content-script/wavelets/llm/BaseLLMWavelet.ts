@@ -14,7 +14,7 @@ import { runtime } from 'webextension-polyfill';
  * Provides shared state, debounce logic, deduplication, and message sending.
  * Subclasses implement site detection, message extraction, and element watching.
  */
-export abstract class BaseLLMExtractor {
+export abstract class BaseLLMWavelet {
     protected readonly pendingCaptures = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
     protected readonly sentMessageIds = new Set<string>();
 
