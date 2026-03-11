@@ -10,7 +10,7 @@ import { ClickData, ScrollData, HTMLSnapshot, LLMData } from '@chrome-extension-
 export interface MessageResponse {
     status: MessageStatus;
     message?: string;
-    data?: PrivateModeState | number | boolean  | LLMData | null; 
+    data?: PrivateModeState | number | boolean | null; 
 }
 
 export type MessageStatus = 'success' | 'error' | 'blocked';
@@ -33,7 +33,7 @@ export interface AuthFailureMessage extends BaseMessage {
 
 // Types for LLM Event Messages
 export interface LLMEventMessage extends BaseMessage {
-    type: 'LLM_EVENT';
+    type: 'LLM_MESSAGE';
     data: LLMData;
 }
 

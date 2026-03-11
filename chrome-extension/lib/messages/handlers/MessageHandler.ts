@@ -8,7 +8,7 @@ import { Runtime } from 'webextension-polyfill';
 import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { PrivateModeService, AuthService } from '@root/lib/services';
 import { ContentEventType } from '@root/lib/handlers';
-import { ContentEventManager } from '@root/lib/events/managers';
+import { ContentEventManager, WaveletEventManager } from '@root/lib/events/managers';
 import { apiUrl } from '@root/lib/handlers/shared';
 import { ClickData, ScrollData, HTMLSnapshot } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 import { 
@@ -18,7 +18,8 @@ import {
     ClickEventMessage,
     ScrollEventMessage,
     ScrollFinalEventMessage,
-    HTMLCaptureMessage
+    HTMLCaptureMessage,
+    LLMEventMessage
 } from '../interfaces/types';
 
 /**
@@ -29,12 +30,14 @@ import {
  */
 export class MessageHandler {
     private contentEventManager: ContentEventManager;
+    private waveletEventManager: WaveletEventManager;
     
     constructor(
         protected readonly authService: AuthService,
         protected readonly privateModeService: PrivateModeService,
     ) {
         this.contentEventManager = new ContentEventManager(apiUrl);
+        this.waveletEventManager = new WaveletEventManager(apiUrl);
     }
     
     /**
@@ -170,6 +173,32 @@ export class MessageHandler {
     }
 
     /**
+     * Handle LLM event messages
+     * @param message The incoming LLM event message
+     * @param sender The message sender
+     * @param sendResponse Function to send response back
+     * @returns Promise<boolean>
+     */
+    private async handleLLMMessage(
+        message: LLMEventMessage,
+        sender: Runtime.MessageSender,
+        sendResponse: (response: MessageResponse) => void
+    ): Promise<boolean> {
+        try {
+            const result = await this.waveletEventManager.handleLLMEvent(message.data, sender);
+            sendResponse({status: result.status, message: result.message});
+            return true;
+        } catch (error) {
+            console.error('[background] Error handling LLM event message:', error);
+            sendResponse({ 
+                status: 'error', 
+                message: error instanceof Error ? error.message : 'Failed to handle LLM event message'
+            });
+        }
+        return true;
+    }
+
+    /**
      * Handle content event messages
      * @param message The incoming message
      * @param sender The message sender
@@ -204,6 +233,9 @@ export class MessageHandler {
                 case 'SCROLL_FINAL':
                 case 'HTML_CAPTURE':
                     return this.handleContentEvent(typedMessage, sender, sendResponse);
+                
+                case 'LLM_MESSAGE':
+                    return this.handleLLMMessage(typedMessage as LLMEventMessage, sender, sendResponse);
 
                 default:
                     console.warn('[background] Unknown message type:', typedMessage.type);
