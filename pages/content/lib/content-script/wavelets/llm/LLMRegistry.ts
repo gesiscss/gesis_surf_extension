@@ -4,6 +4,7 @@
 
 import { ChatGPTWavelet } from './ChatGPTWavelet';
 import { ClaudeWavelet } from './ClaudeWavelet';
+import { GeminiWavelet } from './GeminiWavelet';
 
 /**
  * Initializes LLM tracking by creating instances of supported extractors and calling their initialization methods.
@@ -11,5 +12,5 @@ import { ClaudeWavelet } from './ClaudeWavelet';
  * @returns {void}
  */
 export function initializeLLMTracking(): void {
-    [new ChatGPTWavelet(), new ClaudeWavelet()].forEach(e => e.initialize());
+    [new ChatGPTWavelet(), new ClaudeWavelet(), new GeminiWavelet()].forEach(e => e.initialize());
 }
