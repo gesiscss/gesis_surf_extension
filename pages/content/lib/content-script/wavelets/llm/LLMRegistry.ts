@@ -4,6 +4,7 @@
 
 import { ChatGPTWavelet } from './ChatGPTWavelet';
 import { ClaudeWavelet } from './ClaudeWavelet';
+import { DeepSeekWavelet } from './DeepSeekWavelet';
 import { GeminiWavelet } from './GeminiWavelet';
 
 /**
@@ -12,5 +13,5 @@ import { GeminiWavelet } from './GeminiWavelet';
  * @returns {void}
  */
 export function initializeLLMTracking(): void {
-    [new ChatGPTWavelet(), new ClaudeWavelet(), new GeminiWavelet()].forEach(e => e.initialize());
+    [new ChatGPTWavelet(), new ClaudeWavelet(), new DeepSeekWavelet(), new GeminiWavelet()].forEach(e => e.initialize());
 }
