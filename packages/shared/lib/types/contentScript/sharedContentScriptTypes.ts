@@ -77,4 +77,5 @@ export interface LLMData {
     url: string;
     page_title: string;
     domain_id: string;
+    turn_index: number; // 1-based index of the message in the conversation
 }

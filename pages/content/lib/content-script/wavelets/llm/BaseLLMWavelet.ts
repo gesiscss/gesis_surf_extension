@@ -93,6 +93,16 @@ export abstract class BaseLLMWavelet {
         console.log(`🤖[LLM] Observer active for ${this.constructor.name}`);
     }
 
+    /**
+     * Scans the existing DOM for message elements on initialization.
+     * This ensures we capture messages that were loaded before the observer was set up.
+     * Should call processAddedNode on relevant elements to trigger extraction and watching.
+     */
+    private scanExistingMessages(): void {
+        console.log(`🤖[LLM] Scanning existing messages for ${this.constructor.name}`);
+        this.processAddedNode(document.body);
+    }
+
     /** Entry point. Checks site, waits for DOM ready, starts observer. */
     initialize(): void {
         if (!this.isSite()) return;
@@ -100,9 +110,13 @@ export abstract class BaseLLMWavelet {
         console.log(`🤖[LLM] Initializing ${this.constructor.name}`);
 
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.setupObserver());
+            document.addEventListener('DOMContentLoaded', () => {
+                this.setupObserver();
+                this.scanExistingMessages();
+            });
         } else {
             this.setupObserver();
+            this.scanExistingMessages();
         }
     }
 }

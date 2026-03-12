@@ -41,7 +41,12 @@ export class ChatGPTWavelet extends BaseLLMWavelet {
       const chatSessionId =
         window.location.pathname.split('/').pop() ||
         `chat-${window.location.pathname.replace(/[^a-zA-Z0-9]/g, '-')}`;
-
+      
+        const allMessages = Array.from(
+          document.querySelectorAll<HTMLElement>('[data-message-author-role]')
+        );
+        const turnIndex = allMessages.indexOf(element) + 1;
+        
       return {
         llm_provider: 'chatgpt',
         message_type: role === 'user' ? 'user_question' : 'ai_response',
@@ -52,6 +57,7 @@ export class ChatGPTWavelet extends BaseLLMWavelet {
         url: window.location.href,
         page_title: document.title,
         domain_id: '',
+        turn_index: turnIndex,
       };
     } catch (error) {
       console.error('🤖[ChatGPT] Error extracting message:', error);
@@ -94,8 +100,19 @@ export class ChatGPTWavelet extends BaseLLMWavelet {
 
     found.forEach(el => {
       const role = el.getAttribute('data-message-author-role');
-      if (role === 'user') this.scheduleCapture(el);
-      else if (role === 'assistant') this.watchElement(el);
+      if (role === 'user') {
+        this.scheduleCapture(el);
+      } else if (role === 'assistant') {
+        const hasContent = !!(
+          el.querySelector('.whitespace-pre-wrap')?.textContent?.trim() ||
+          el.textContent?.trim()
+        );
+        if (hasContent){
+          this.scheduleCapture(el);
+        } else {
+          this.watchElement(el);
+        }
+      }
     });
   }
 }

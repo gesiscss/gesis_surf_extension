@@ -27,15 +27,19 @@ export default class WaveletScriptHandler {
         const endpoint = LLM_ENDPOINTS[data.llm_provider];
         if (!endpoint) throw new Error(`Unknown LLM provider: ${data.llm_provider}`);
 
-        const payload: Record<string, string> = {
+        const payload: Record<string, string | number> = {
             conversation_id: data.chat_session_id,
             conversation:    data.message_content,
             timestamp:       data.timestamp,
+            message_id:         data.message_id,
+            message_type:       data.message_type,
+            llm_provider:       data.llm_provider,
+            turn_index:          data.turn_index,
         };
         if (data.domain_id) payload['domain_id'] = data.domain_id;
 
         const options = await this.requestOptions(payload, 'POST');
-        console.log(`[${this.serviceName}] Sending payload`, payload);
+        // console.log(`[${this.serviceName}] Sending payload`, payload);
         const response = await fetch(`${this.apiUrl}${endpoint}`, options);
 
 

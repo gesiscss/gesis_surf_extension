@@ -43,6 +43,11 @@ export class ClaudeWavelet extends BaseLLMWavelet {
 
             const chatSessionId = window.location.pathname.split('/').pop() ||
                 `chat-${window.location.pathname.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            
+            const allMessages = Array.from(
+                document.querySelectorAll<HTMLElement>('[data-testid="user-message"], [data-is-streaming]')
+            );
+            const turnIndex = allMessages.indexOf(element) + 1;
 
             return {    
                 llm_provider: 'claude',
@@ -54,6 +59,7 @@ export class ClaudeWavelet extends BaseLLMWavelet {
                 url: window.location.href,
                 page_title: document.title,
                 domain_id: '',
+                turn_index: turnIndex,
             };
             } catch (error) {
             console.error('🤖[Claude] Error extracting message:', error);
