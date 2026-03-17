@@ -1,4 +1,6 @@
 import { type DBSchema } from 'idb';
+import type { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/contentScript/sharedContentScriptTypes';
+
 
 /**
  * Represent the window or tab item from google API calls
@@ -76,6 +78,8 @@ export interface HostItemTypes {
     hosts_version: string;
 }
 
+export type { SelectorConfig }
+
 /**
  * Database schema for the GESIS browser extension.
  * Extends IndexedDB schema with custom stores.
@@ -117,5 +121,11 @@ export interface DBGesisTypes extends DBSchema {
     hostslives: {
         key: string;
         value: HostItemTypes;
+    };
+
+    /** Store for selector configurations */
+    selectors: {
+        key: string;
+        value: SelectorConfig;
     };
 }

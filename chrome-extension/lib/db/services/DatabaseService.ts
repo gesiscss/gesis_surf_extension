@@ -8,7 +8,7 @@ import { DBGesisTypes, ItemTypes } from '../interfaces/types';
 import { DB_CONFIG } from '../constants/dbConfig';
 
 
-type StoreNames = 'winlives' | 'tabslives' | 'domainslives' | 'config' | 'winclose'| 'hostslives';
+type StoreNames = 'winlives' | 'tabslives' | 'domainslives' | 'config' | 'winclose'| 'hostslives' | 'selectors';
 
 /**
  * Service for interacting with the IndexedDB database.
@@ -37,6 +37,8 @@ class DatabaseService {
           db.createObjectStore('domainslives', { keyPath: 'domain_session_id' });
           db.deleteObjectStore('hostslives');
           db.createObjectStore('hostslives', { keyPath: 'hostname' });
+          db.deleteObjectStore('selectors');
+          db.createObjectStore('selectors', { keyPath: 'provider' });
         }
       },
     });
