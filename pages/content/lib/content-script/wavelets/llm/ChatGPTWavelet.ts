@@ -4,16 +4,23 @@
  * Uses a debounced approach to handle dynamic content updates during message generation.
  * Extracted messages are sent to the background script for further processing and storage.
  */
-import { LLMData } from "@chrome-extension-boilerplate/shared/lib/types/contentScript";
+import { LLMData, SelectorConfig } from "@chrome-extension-boilerplate/shared/lib/types/contentScript";
 import { BaseLLMWavelet } from './BaseLLMWavelet';
 
 export class ChatGPTWavelet extends BaseLLMWavelet {
+
+  constructor(config?: SelectorConfig) {
+    super(config);
+  }
 
   /**
    * Determines if the current page belongs to the ChatGPT site.
    * @returns True if the page is a ChatGPT conversation, false otherwise.
    */
   isSite(): boolean {
+    if (this.selectorConfig) {
+      return this.selectorConfig.hostname_patterns.some(p => window.location.hostname.includes(p));
+    }
     const hostname = window.location.hostname;
     return hostname.includes('chatgpt.com') || hostname.includes('chat.openai.com');
   }
@@ -25,28 +32,29 @@ export class ChatGPTWavelet extends BaseLLMWavelet {
    */
   extractMessage(element: HTMLElement): LLMData | null {
     try {
-      const role = element.getAttribute('data-message-author-role');
+      const roleAttr = this.sel(document.body, 'role_attribute', 'data-message-author-role');
+      const role = element.getAttribute(roleAttr);
       if (role !== 'user' && role !== 'assistant') return null;
 
+      const contentSel = this.sel(element, 'content', '.whitespace-pre-wrap');
       const messageContent =
-        element.querySelector('.whitespace-pre-wrap')?.textContent?.trim() ||
+        element.querySelector(contentSel)?.textContent?.trim() ||
         element.textContent?.trim() || '';
-
       if (!messageContent) return null;
 
+      const idAttr = this.sel(element, 'message_id_attribute', 'data-message-id');
       const messageId =
-        element.getAttribute('data-message-id') ||
-        `generated-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        element.getAttribute(idAttr) ||
+        `generated-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
       const chatSessionId =
         window.location.pathname.split('/').pop() ||
         `chat-${window.location.pathname.replace(/[^a-zA-Z0-9]/g, '-')}`;
-      
-        const allMessages = Array.from(
-          document.querySelectorAll<HTMLElement>('[data-message-author-role]')
-        );
-        const turnIndex = allMessages.indexOf(element) + 1;
-        
+
+      const containerSel = this.sel(document.body, 'message_container', '[data-message-author-role]');
+      const allMessages = Array.from(document.querySelectorAll<HTMLElement>(containerSel));
+      const turnIndex = allMessages.indexOf(element) + 1;
+
       return {
         llm_provider: 'chatgpt',
         message_type: role === 'user' ? 'user_question' : 'ai_response',
@@ -63,7 +71,7 @@ export class ChatGPTWavelet extends BaseLLMWavelet {
       console.error('🤖[ChatGPT] Error extracting message:', error);
       return null;
     }
-  }
+  }  
 
   /**
    * Watches a ChatGPT assistant element for updates and schedules captures.
@@ -94,17 +102,21 @@ export class ChatGPTWavelet extends BaseLLMWavelet {
    * @param element The newly added DOM element to process.
    */
   protected processAddedNode(element: HTMLElement): void {
+    const containerSel = this.sel(document.body, 'message_container', '[data-message-author-role]');
+    const roleAttr = this.sel(document.body, 'role_attribute', 'data-message-author-role');
+    const contentSel = this.sel(element, 'content', '.whitespace-pre-wrap');
+
     const found: HTMLElement[] = [];
-    if (element.hasAttribute('data-message-author-role')) found.push(element);
-    element.querySelectorAll<HTMLElement>('[data-message-author-role]').forEach(el => found.push(el));
+    if (element.hasAttribute(roleAttr)) found.push(element);
+    element.querySelectorAll<HTMLElement>(containerSel).forEach(el => found.push(el));
 
     found.forEach(el => {
-      const role = el.getAttribute('data-message-author-role');
+      const role = el.getAttribute(roleAttr);
       if (role === 'user') {
         this.scheduleCapture(el);
       } else if (role === 'assistant') {
         const hasContent = !!(
-          el.querySelector('.whitespace-pre-wrap')?.textContent?.trim() ||
+          el.querySelector(contentSel)?.textContent?.trim() ||
           el.textContent?.trim()
         );
         if (hasContent){

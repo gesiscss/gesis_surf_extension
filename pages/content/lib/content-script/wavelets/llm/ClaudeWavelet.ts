@@ -4,16 +4,21 @@
  * It handles both user questions and AI responses, using a debounced approach for user messages and attribute watching for assistant messages.
  * The extracted data includes content, metadata, session info, and is deduplicated before sending.
  */
-import { LLMData } from "@chrome-extension-boilerplate/shared/lib/types/contentScript";
+import { LLMData, SelectorConfig } from "@chrome-extension-boilerplate/shared/lib/types/contentScript";
 import { BaseLLMWavelet } from './BaseLLMWavelet';
 
 export class ClaudeWavelet extends BaseLLMWavelet {
+
+    constructor(config?: SelectorConfig) { super(config); }
 
     /**
      * Determines if the current page belongs to the Claude AI site by checking the hostname.
      * @returns True if the page is a Claude conversation, false otherwise.
      */
     isSite(): boolean {
+        if (this.selectorConfig?.hostname_patterns?.length) {
+            return this.selectorConfig.hostname_patterns.some(p => window.location.hostname.includes(p));
+        }
         return window.location.hostname.includes('claude.ai');
     }
 
@@ -24,14 +29,16 @@ export class ClaudeWavelet extends BaseLLMWavelet {
      */
     extractMessage(element: HTMLElement): LLMData | null {
         try {
-            const isUser = element.getAttribute('data-testid') === 'user-message';
-            const isAssistant = element.hasAttribute('data-is-streaming');
+            const userContainerSel = this.selectorConfig?.selectors['user_container']?.[0] ?? '[data-testid="user-message"]';
+            const streamingAttr = this.selectorConfig?.selectors['streaming_attribute']?.[0] ?? 'data-is-streaming';
+            const isUser = element.matches(userContainerSel);
+            const isAssistant = element.hasAttribute(streamingAttr);
 
             if (!isUser && !isAssistant) return null;
 
             const messageContent = isUser
-                ? element.querySelector('.whitespace-pre-wrap')?.textContent?.trim() || element.textContent?.trim() || ''
-                : Array.from(element.querySelectorAll('.font-claude-response-body'))
+                ? element.querySelector(this.sel(element, 'user_content', '.whitespace-pre-wrap'))?.textContent?.trim() || element.textContent?.trim() || ''
+                : Array.from(element.querySelectorAll(this.sel(element, 'assistant_content', '.font-claude-response-body')))
                     .map(el => el.textContent?.trim() ?? '')
                     .filter(Boolean)
                     .join('\n\n');
@@ -39,17 +46,17 @@ export class ClaudeWavelet extends BaseLLMWavelet {
             if (!messageContent) return null;
 
             // Claude has no stable data-message-id — generate from content hash
-            const messageId = `claude-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const messageId = `claude-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
             const chatSessionId = window.location.pathname.split('/').pop() ||
                 `chat-${window.location.pathname.replace(/[^a-zA-Z0-9]/g, '-')}`;
-            
+
             const allMessages = Array.from(
-                document.querySelectorAll<HTMLElement>('[data-testid="user-message"], [data-is-streaming]')
+                document.querySelectorAll<HTMLElement>(`${userContainerSel}, [${streamingAttr}]`)
             );
             const turnIndex = allMessages.indexOf(element) + 1;
 
-            return {    
+            return {
                 llm_provider: 'claude',
                 message_type: isUser ? 'user_question' : 'ai_response',
                 message_content: messageContent.substring(0, 5000),
@@ -61,7 +68,7 @@ export class ClaudeWavelet extends BaseLLMWavelet {
                 domain_id: '',
                 turn_index: turnIndex,
             };
-            } catch (error) {
+        } catch (error) {
             console.error('🤖[Claude] Error extracting message:', error);
             return null;
         }
@@ -72,8 +79,9 @@ export class ClaudeWavelet extends BaseLLMWavelet {
      * @param element The assistant container element to watch for updates.
      */
     watchElement(element: HTMLElement): void {
+        const streamingAttr = this.selectorConfig?.selectors['streaming_attribute']?.[0] ?? 'data-is-streaming';
         // Claude exposes data-is-streaming attribute — no debounce needed
-        if (element.getAttribute('data-is-streaming') === 'false') {
+        if (element.getAttribute(streamingAttr) === 'false') {
         // already complete when inserted
         this.captureAssistant(element);
         return;
@@ -83,8 +91,8 @@ export class ClaudeWavelet extends BaseLLMWavelet {
         for (const mutation of mutations) {
             if (
             mutation.type === 'attributes' &&
-            mutation.attributeName === 'data-is-streaming' &&
-            (mutation.target as HTMLElement).getAttribute('data-is-streaming') === 'false'
+            mutation.attributeName === streamingAttr &&
+            (mutation.target as HTMLElement).getAttribute(streamingAttr) === 'false'
             ) {
             observer.disconnect();
             this.captureAssistant(mutation.target as HTMLElement);
@@ -93,7 +101,7 @@ export class ClaudeWavelet extends BaseLLMWavelet {
         }
         });
 
-        observer.observe(element, { attributes: true, attributeFilter: ['data-is-streaming'] });
+        observer.observe(element, { attributes: true, attributeFilter: [streamingAttr] });
     }
 
     /**
@@ -114,17 +122,20 @@ export class ClaudeWavelet extends BaseLLMWavelet {
      * @param element The newly added DOM element to process. Detects user messages and assistant containers, routing to scheduleCapture or watchElement.
      */
     protected processAddedNode(element: HTMLElement): void {
+        const userContainerSel = this.selectorConfig?.selectors['user_container']?.[0] ?? '[data-testid="user-message"]';
+        const streamingAttr = this.selectorConfig?.selectors['streaming_attribute']?.[0] ?? 'data-is-streaming';
+
         // User messages
-        const userMsgs: HTMLElement[] = element.getAttribute('data-testid') === 'user-message'
+        const userMsgs: HTMLElement[] = element.matches(userContainerSel)
         ? [element]
-        : Array.from(element.querySelectorAll<HTMLElement>('[data-testid="user-message"]'));
+        : Array.from(element.querySelectorAll<HTMLElement>(userContainerSel));
 
         userMsgs.forEach(el => this.scheduleCapture(el, 500));
 
         // Assistant streaming containers
-        const assistantEls: HTMLElement[] = element.hasAttribute('data-is-streaming')
+        const assistantEls: HTMLElement[] = element.hasAttribute(streamingAttr)
         ? [element]
-        : Array.from(element.querySelectorAll<HTMLElement>('[data-is-streaming]'));
+        : Array.from(element.querySelectorAll<HTMLElement>(`[${streamingAttr}]`));
 
         assistantEls.forEach(el => this.watchElement(el));
     }

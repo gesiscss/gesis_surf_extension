@@ -4,7 +4,7 @@ import { initializeLLMTracking } from "./content-script/wavelets/llm";
 import { initializeSocialTracking } from "./content-script/wavelets/socials";
 import { initializeScrollListener } from "./content-script/scrolls";
 
-function initializeContentScript(): void {
+async function initializeContentScript(): Promise<void> {
     try {
         initializeClickListener();
         console.log('[Content] Click listener initialized successfully');
@@ -15,7 +15,7 @@ function initializeContentScript(): void {
         initializeScrollListener();
         console.log('[Content] Scroll listener initialized successfully');
 
-        initializeLLMTracking();
+        await initializeLLMTracking();
         console.log('[Content] LLM tracking initialized successfully');
 
         initializeSocialTracking();
@@ -27,7 +27,7 @@ function initializeContentScript(): void {
 }
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeContentScript);
+    document.addEventListener('DOMContentLoaded', () => void initializeContentScript());
 } else {
-    initializeContentScript();
+    void initializeContentScript();
 }

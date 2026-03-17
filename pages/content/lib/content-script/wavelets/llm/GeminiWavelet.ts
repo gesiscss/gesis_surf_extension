@@ -4,16 +4,21 @@
  * Uses `aria-busy` attribute on the markdown container to detect streaming completion.
  * Extracted messages are sent to the background script for further processing and storage.
  */
-import { LLMData } from "@chrome-extension-boilerplate/shared/lib/types/contentScript";
+import { LLMData, SelectorConfig } from "@chrome-extension-boilerplate/shared/lib/types/contentScript";
 import { BaseLLMWavelet } from './BaseLLMWavelet';
 
 export class GeminiWavelet extends BaseLLMWavelet {
+
+    constructor(config?: SelectorConfig) { super(config); }
 
     /**
      * Determines if the current page belongs to the Google Gemini site.
      * @returns True if the page is a Gemini conversation, false otherwise.
      */
     isSite(): boolean {
+        if (this.selectorConfig?.hostname_patterns?.length) {
+            return this.selectorConfig.hostname_patterns.some(p => window.location.hostname.includes(p));
+        }
         return window.location.hostname.includes('gemini.google.com');
     }
 
@@ -27,34 +32,37 @@ export class GeminiWavelet extends BaseLLMWavelet {
      */
     extractMessage(element: HTMLElement): LLMData | null {
         try {
+            const userTag = this.selectorConfig?.selectors['user_container']?.[0] ?? 'user-query';
+            const assistantTag = this.selectorConfig?.selectors['assistant_container']?.[0] ?? 'model-response';
             const tag = element.tagName.toLowerCase();
-            const isUser = tag === 'user-query';
-            const isAssistant = tag === 'model-response';
+            const isUser = tag === userTag;
+            const isAssistant = tag === assistantTag;
 
             if (!isUser && !isAssistant) return null;
 
             const messageContent = isUser
-                ? Array.from(element.querySelectorAll('p.query-text-line'))
+                ? Array.from(element.querySelectorAll(this.sel(element, 'user_content', 'p.query-text-line')))
                     .map(p => p.textContent?.trim() ?? '')
                     .filter(Boolean)
                     .join('\n')
-                : element.querySelector('.markdown.markdown-main-panel')?.textContent?.trim() || '';
+                : element.querySelector(this.sel(element, 'assistant_content', '.markdown.markdown-main-panel'))?.textContent?.trim() || '';
 
             if (!messageContent) return null;
 
             // Derive stable message ID from the parent conversation-container's id attribute
-            const container = element.closest('.conversation-container');
+            const stableClosestSel = this.selectorConfig?.selectors['stable_id_closest']?.[0] ?? '.conversation-container';
+            const container = element.closest(stableClosestSel);
             const containerId = container?.id || '';
             const messageId = containerId
                 ? `${containerId}-${isUser ? 'user' : 'model'}`
-                : `gemini-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                : `gemini-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
             const chatSessionId = window.location.pathname.split('/').pop() ||
                 `chat-${window.location.pathname.replace(/[^a-zA-Z0-9]/g, '-')}`;
 
             // Compute turn_index from all conversation containers in DOM order
-            const allContainers = Array.from(document.querySelectorAll('.conversation-container'));
-            const parentContainer = element.closest('.conversation-container');
+            const allContainers = Array.from(document.querySelectorAll(stableClosestSel));
+            const parentContainer = element.closest(stableClosestSel);
             const containerIndex = parentContainer ? allContainers.indexOf(parentContainer) : -1;
             // Each container holds one user-query + one model-response → 2 turns per container
             const turnIndex = containerIndex >= 0
@@ -86,12 +94,13 @@ export class GeminiWavelet extends BaseLLMWavelet {
      * @param element The `model-response` element to watch for updates.
      */
     watchElement(element: HTMLElement): void {
-        const markdownEl = element.querySelector('.markdown.markdown-main-panel');
+        const streamingElSel = this.sel(element, 'streaming_element', '.markdown.markdown-main-panel');
+        const markdownEl = element.querySelector(streamingElSel);
 
         // If no markdown container yet, fall back to subtree watching
         if (!markdownEl) {
             const subtreeObserver = new MutationObserver(() => {
-                const md = element.querySelector('.markdown.markdown-main-panel');
+                const md = element.querySelector(streamingElSel);
                 if (md) {
                     subtreeObserver.disconnect();
                     this.watchMarkdownStreaming(element, md as HTMLElement);
@@ -111,7 +120,8 @@ export class GeminiWavelet extends BaseLLMWavelet {
      * @param markdownEl The `.markdown.markdown-main-panel` element whose `aria-busy` attribute signals streaming state.
      */
     private watchMarkdownStreaming(responseEl: HTMLElement, markdownEl: HTMLElement): void {
-        const isBusy = markdownEl.getAttribute('aria-busy') === 'true';
+        const streamingAttr = this.selectorConfig?.selectors['streaming_attribute']?.[0] ?? 'aria-busy';
+        const isBusy = markdownEl.getAttribute(streamingAttr) === 'true';
 
         if (!isBusy) {
             // Already complete
@@ -123,8 +133,8 @@ export class GeminiWavelet extends BaseLLMWavelet {
             for (const mutation of mutations) {
                 if (
                     mutation.type === 'attributes' &&
-                    mutation.attributeName === 'aria-busy' &&
-                    (mutation.target as HTMLElement).getAttribute('aria-busy') !== 'true'
+                    mutation.attributeName === streamingAttr &&
+                    (mutation.target as HTMLElement).getAttribute(streamingAttr) !== 'true'
                 ) {
                     observer.disconnect();
                     this.scheduleCapture(responseEl, 1000);
@@ -133,7 +143,7 @@ export class GeminiWavelet extends BaseLLMWavelet {
             }
         });
 
-        observer.observe(markdownEl, { attributes: true, attributeFilter: ['aria-busy'] });
+        observer.observe(markdownEl, { attributes: true, attributeFilter: [streamingAttr] });
     }
 
     /**
@@ -143,22 +153,27 @@ export class GeminiWavelet extends BaseLLMWavelet {
      * @param element The newly added DOM element to process.
      */
     protected processAddedNode(element: HTMLElement): void {
+        const userTag = this.selectorConfig?.selectors['user_container']?.[0] ?? 'user-query';
+        const assistantTag = this.selectorConfig?.selectors['assistant_container']?.[0] ?? 'model-response';
+        const streamingElSel = this.sel(element, 'streaming_element', '.markdown.markdown-main-panel');
+        const streamingAttr = this.selectorConfig?.selectors['streaming_attribute']?.[0] ?? 'aria-busy';
+
         // Collect user-query elements
         const userEls: HTMLElement[] = [];
-        if (element.tagName?.toLowerCase() === 'user-query') userEls.push(element);
-        element.querySelectorAll<HTMLElement>('user-query').forEach(el => userEls.push(el));
+        if (element.tagName?.toLowerCase() === userTag) userEls.push(element);
+        element.querySelectorAll<HTMLElement>(userTag).forEach(el => userEls.push(el));
 
         userEls.forEach(el => this.scheduleCapture(el, 500));
 
         // Collect model-response elements
         const assistantEls: HTMLElement[] = [];
-        if (element.tagName?.toLowerCase() === 'model-response') assistantEls.push(element);
-        element.querySelectorAll<HTMLElement>('model-response').forEach(el => assistantEls.push(el));
+        if (element.tagName?.toLowerCase() === assistantTag) assistantEls.push(element);
+        element.querySelectorAll<HTMLElement>(assistantTag).forEach(el => assistantEls.push(el));
 
         assistantEls.forEach(el => {
-            const markdownEl = el.querySelector('.markdown.markdown-main-panel');
+            const markdownEl = el.querySelector(streamingElSel);
             const hasContent = !!(markdownEl?.textContent?.trim());
-            const isBusy = markdownEl?.getAttribute('aria-busy') === 'true';
+            const isBusy = markdownEl?.getAttribute(streamingAttr) === 'true';
 
             if (hasContent && !isBusy) {
                 // Already complete — capture directly

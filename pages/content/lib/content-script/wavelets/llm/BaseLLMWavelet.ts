@@ -6,9 +6,8 @@
  * Captured messages are sent to the background script for processing.
  */
 
-import { LLMData } from "@chrome-extension-boilerplate/shared/lib/types/contentScript";
+import { LLMData, SelectorConfig } from "@chrome-extension-boilerplate/shared/lib/types/contentScript";
 import { runtime } from 'webextension-polyfill';
-import { SelectorConfig } from "@chrome-extension-boilerplate/shared/lib/types/contentScript";
 
 /**
  * Abstract base class for LLM chat extractors.
