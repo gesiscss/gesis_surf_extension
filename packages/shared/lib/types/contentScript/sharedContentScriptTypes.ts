@@ -79,3 +79,13 @@ export interface LLMData {
     domain_id: string;
     turn_index: number; // 1-based index of the message in the conversation
 }
+
+// Configuration for a remote update wavelet selector, used to determine which DOM elements to observe for changes.
+export interface SelectorConfig {
+    family: 'llm' | 'social';
+    provider: string;
+    version: string;
+    hostname_patterns: string[];
+    selectors: Record<string, string[]>; // key -> fallback list, newest first
+    is_active: boolean;
+}

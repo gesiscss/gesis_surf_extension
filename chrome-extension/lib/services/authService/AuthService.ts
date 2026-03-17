@@ -14,6 +14,7 @@ import { MessageResponse } from "@root/lib/messages/interfaces";
 import { runtime, Runtime } from "webextension-polyfill";
 import { DataCollectionService } from "../dataCollectionService";
 import { HostService } from "../hostService";
+import { SelectorService } from "../selectorService";
 
 /**
  * Class to manage the authentication service.
@@ -29,6 +30,7 @@ export class AuthService {
     messageHandler: MessageHandler;
     dataCollectionService: DataCollectionService;
     hostService: HostService;
+    selectorService: SelectorService;
 
     constructor(apiEndpoint: string) {
         this.isAuthenticated = false;
@@ -40,6 +42,7 @@ export class AuthService {
         this.messageHandler = new MessageHandler(this, this.privateModeService);
         this.dataCollectionService = new DataCollectionService();
         this.hostService = new HostService();
+        this.selectorService = new SelectorService();
     }
 
     /**
@@ -61,6 +64,7 @@ export class AuthService {
         try{
             await this.dataCollectionService.initialize();
             await this.hostService.checkAndSyncVersion();
+            await this.selectorService.checkAndSyncVersion();
 
             if (!this.dataCollectionService.shouldCollectData()) {
                 console.log('[AuthService] Data collection is disabled. Skipping service initialization.');
