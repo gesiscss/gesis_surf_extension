@@ -8,6 +8,7 @@
 
 import { LLMData } from "@chrome-extension-boilerplate/shared/lib/types/contentScript";
 import { runtime } from 'webextension-polyfill';
+import { SelectorConfig } from "@chrome-extension-boilerplate/shared/lib/types/contentScript";
 
 /**
  * Abstract base class for LLM chat extractors.
@@ -17,6 +18,28 @@ import { runtime } from 'webextension-polyfill';
 export abstract class BaseLLMWavelet {
     protected readonly pendingCaptures = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
     protected readonly sentMessageIds = new Set<string>();
+
+    constructor(protected readonly selectorConfig?: SelectorConfig) {}
+
+    /**
+     * Tries each selector in the config list against parent.querySelector.
+     * Returns the first selector that matches an element, or the fallback if none match.
+     * This allows flexible configuration of selectors for different sites or DOM changes.
+     * @param parent The parent element to query within.
+     * @param key The key in the selectorConfig to look up (e.g. 'chatMessage').
+     * @param fallback A default CSS selector string to use if config is missing or no matches found.
+     * @returns A CSS selector string that matches an element within parent, or the fallback.
+     */
+    protected sel(parent: Element, key: string, fallback: string): string {
+        const candidates = this.selectorConfig?.selectors[key];
+        if (!candidates?.length) return fallback;
+        for (const selector of candidates) {
+            try {
+                if (parent.querySelector(selector) !== null) return selector;
+            } catch { /* invalid CSS - try next */}
+        }
+        return fallback;
+    }
 
     /** Returns true if the current page belongs to this extractor's LLM site. */
     abstract isSite(): boolean;
