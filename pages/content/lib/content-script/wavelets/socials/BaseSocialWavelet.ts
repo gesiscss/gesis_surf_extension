@@ -6,6 +6,7 @@
  * Captured posts are sent to the background script for processing.
  */
 import { runtime } from 'webextension-polyfill';
+import { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
 export interface SocialPostData {
     id: string;
@@ -19,6 +20,26 @@ export interface SocialPostData {
  */
 export abstract class BaseSocialWavelet {
     protected readonly capturedIds = new Set<string>();
+
+    constructor(protected readonly selectorConfig?: SelectorConfig) {}
+
+    /**
+     * Tries each selector in the config list against parent.querySelector.
+     * Returns the first selector that matches an element, or the fallback if none match.
+     * @param parent The parent element to query within.
+     * @param key The key in the selectorConfig to look up.
+     * @param fallback A default CSS selector string to use if config is missing or no matches found.
+     */
+    protected sel(parent: Element, key: string, fallback: string): string {
+        const candidates = this.selectorConfig?.selectors[key];
+        if (!candidates?.length) return fallback;
+        for (const selector of candidates) {
+            try {
+                if (parent.querySelector(selector) !== null) return selector;
+            } catch { /* invalid CSS - try next */ }
+        }
+        return fallback;
+    }
 
     /** Returns true if the current page belongs to this wavelet's target platform. */
     abstract isSite(): boolean;

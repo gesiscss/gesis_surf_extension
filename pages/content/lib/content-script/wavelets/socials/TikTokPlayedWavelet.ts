@@ -1,3 +1,4 @@
+import { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 import { TikTokWavelet } from './TikTokWavelet';
 
 /**
@@ -14,6 +15,8 @@ export class TikTokPlayedWavelet extends TikTokWavelet {
     protected readonly messageType = 'TIKTOK_PLAYED';
     protected readonly label = '▶[TikTok-Played]';
 
+    constructor(config?: SelectorConfig) { super(config); }
+
     // Override base initialize() — no MutationObserver, use play event instead
     initialize(): void {
         if (!this.isSite()) return;
@@ -29,7 +32,8 @@ export class TikTokPlayedWavelet extends TikTokWavelet {
                 if (!this.isSite()) return;
 
                 // Walk up from the <video> to the outer flex container TikTok uses
-                const container = e.target.closest<HTMLElement>('div[class*="DivContentFlexLayout"]');
+                const contentFlexSel = this.selectorConfig?.selectors['content_flex']?.[0] ?? 'div[class*="DivContentFlexLayout"]';
+                const container = e.target.closest<HTMLElement>(contentFlexSel);
                 if (!container) return;
 
                 const data = this.extractPost(container);

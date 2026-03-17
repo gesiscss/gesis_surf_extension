@@ -1,4 +1,5 @@
 import { YouTubeShortsData } from './types';
+import { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 import { BaseSocialWavelet, SocialPostData } from './BaseSocialWavelet';
 
 function parseLikesFromAriaLabel(label: string): number {
@@ -17,7 +18,11 @@ export class YouTubeShortsWavelet extends BaseSocialWavelet {
     protected readonly messageType = 'YOUTUBE_SHORT';
     protected readonly label = '▶[YTShorts]';
 
+    constructor(config?: SelectorConfig) { super(config); }
+
     isSite(): boolean {
+        const patterns = this.selectorConfig?.hostname_patterns;
+        if (patterns?.length) return patterns.some(p => new RegExp(p).test(window.location.hostname));
         // Covers any youtube.com page — path check is done in extractCurrent()
         return window.location.hostname.includes('youtube.com');
     }
@@ -31,23 +36,23 @@ export class YouTubeShortsWavelet extends BaseSocialWavelet {
             // Channel handle from the channel link inside the overlay
             // href format: "/@handle/shorts"
             const handleLink = overlay.querySelector<HTMLAnchorElement>(
-                'yt-reel-channel-bar-view-model .yt-core-attributed-string a'
+                this.sel(overlay, 'channel_link', 'yt-reel-channel-bar-view-model .yt-core-attributed-string a')
             );
             const handleHref = handleLink?.getAttribute('href') ?? '';
             const channelHandle = handleHref.split('/').filter(Boolean)[0] ?? ''; // "@handle"
 
             // Title / caption from the shorts title element
-            const title = overlay.querySelector('yt-shorts-video-title-view-model h2')
+            const title = overlay.querySelector(this.sel(overlay, 'video_title', 'yt-shorts-video-title-view-model h2'))
                 ?.textContent?.trim().substring(0, 500) ?? '';
 
             // Likes: aria-label = "46,278 likes"
             const likeLabel = overlay
-                .querySelector('like-button-view-model button[aria-label]')
+                .querySelector(this.sel(overlay, 'like_button', 'like-button-view-model button[aria-label]'))
                 ?.getAttribute('aria-label') ?? '';
 
             // Comments: aria-label = "View 1,950 comments"
             const commentLabel = overlay
-                .querySelector('button[aria-label*="comment" i]')
+                .querySelector(this.sel(overlay, 'comment_button', 'button[aria-label*="comment" i]'))
                 ?.getAttribute('aria-label') ?? '';
 
             return {
@@ -79,7 +84,8 @@ export class YouTubeShortsWavelet extends BaseSocialWavelet {
 
         // Small delay to let YouTube update the active overlay's DOM after navigation
         setTimeout(() => {
-            const overlay = document.querySelector<HTMLElement>('ytd-reel-player-overlay-renderer');
+            const reelOverlaySel = this.selectorConfig?.selectors['reel_overlay']?.[0] ?? 'ytd-reel-player-overlay-renderer';
+            const overlay = document.querySelector<HTMLElement>(reelOverlaySel);
             if (!overlay) return;
 
             const data = this.extractPost(overlay);

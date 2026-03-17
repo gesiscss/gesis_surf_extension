@@ -1,5 +1,6 @@
 import { XPostData } from './types';
 import { BaseSocialWavelet, SocialPostData } from './BaseSocialWavelet';
+import { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
 function parseMetric(label: string, keyword: string): number {
     const match = label.match(new RegExp('([\\d,]+)\\s+' + keyword, 'i'));
@@ -12,7 +13,13 @@ export class XWavelet extends BaseSocialWavelet {
 
     private static readonly EXCLUDED_PATHS = ['/messages', '/i/settings', '/i/sessions', '/i/display', '/i/accessibility'];
 
+    constructor(config?: SelectorConfig) { super(config); }
+
     isSite(): boolean {
+        if (this.selectorConfig?.hostname_patterns?.length) {
+            return this.selectorConfig.hostname_patterns.some(p => window.location.hostname.includes(p)) &&
+                !XWavelet.EXCLUDED_PATHS.some(p => window.location.pathname.startsWith(p));
+        }
         const h = window.location.hostname;
         if (!h.includes('x.com') && !h.includes('twitter.com')) return false;
         return !XWavelet.EXCLUDED_PATHS.some(p => window.location.pathname.startsWith(p));
@@ -20,7 +27,7 @@ export class XWavelet extends BaseSocialWavelet {
 
     extractPost(article: HTMLElement): (XPostData & SocialPostData) | null {
         try {
-            const statusLink = article.querySelector<HTMLAnchorElement>('a[href*="/status/"]');
+            const statusLink = article.querySelector<HTMLAnchorElement>(this.sel(article, 'status_link', 'a[href*="/status/"]'));
             if (!statusLink) return null;
 
             const parts = statusLink.pathname.split('/').filter(Boolean);
@@ -29,12 +36,12 @@ export class XWavelet extends BaseSocialWavelet {
             const tweetId = parts[2];
             if (!authorHandle || !tweetId) return null;
 
-            const tweetText = article.querySelector('[data-testid="tweetText"]')?.textContent?.trim() ?? '';
+            const tweetText = article.querySelector(this.sel(article, 'tweet_text', '[data-testid="tweetText"]'))?.textContent?.trim() ?? '';
             if (!tweetText) return null;
 
-            const displayName = article.querySelector('[data-testid="User-Name"] span')?.textContent?.trim() ?? authorHandle;
-            const tweetTimestamp = article.querySelector('time')?.getAttribute('datetime') ?? new Date().toISOString();
-            const ariaLabel = article.querySelector('[role="group"]')?.getAttribute('aria-label') ?? '';
+            const displayName = article.querySelector(this.sel(article, 'display_name', '[data-testid="User-Name"] span'))?.textContent?.trim() ?? authorHandle;
+            const tweetTimestamp = article.querySelector(this.sel(article, 'timestamp', 'time'))?.getAttribute('datetime') ?? new Date().toISOString();
+            const ariaLabel = article.querySelector(this.sel(article, 'metrics_group', '[role="group"]'))?.getAttribute('aria-label') ?? '';
 
             return {
                 id: tweetId,
@@ -61,9 +68,10 @@ export class XWavelet extends BaseSocialWavelet {
     protected processAddedNode(el: HTMLElement): void {
         if (XWavelet.EXCLUDED_PATHS.some(p => window.location.pathname.startsWith(p))) return;
 
-        const articles: HTMLElement[] = el.getAttribute('data-testid') === 'tweet'
+        const articleSel = this.sel(document.body, 'tweet_article', 'article[data-testid="tweet"]');
+        const articles: HTMLElement[] = el.matches?.(articleSel)
             ? [el]
-            : Array.from(el.querySelectorAll<HTMLElement>('article[data-testid="tweet"]'));
+            : Array.from(el.querySelectorAll<HTMLElement>(articleSel));
 
         for (const article of articles) {
             const data = this.extractPost(article);

@@ -18,7 +18,7 @@ async function initializeContentScript(): Promise<void> {
         await initializeLLMTracking();
         console.log('[Content] LLM tracking initialized successfully');
 
-        initializeSocialTracking();
+        await initializeSocialTracking();
         console.log('[Content] Social tracking initialized successfully');
         console.log('[Content] All services initialized successfully');
     } catch (error) {
