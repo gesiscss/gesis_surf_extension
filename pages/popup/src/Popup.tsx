@@ -8,9 +8,9 @@ import Home  from './components/Login/HomePage';
 
 
 const Popup = () => {
- 
+
   return (
-    <div id="app-container">
+    <>
       <AuthProvider>
         <Router>
           <Routes>
@@ -20,7 +20,7 @@ const Popup = () => {
           </Routes>
         </Router>
       </AuthProvider>
-    </div>
+    </>
   );
 };
 

@@ -80,7 +80,7 @@ const Home: React.FC = () => {
         justifyContent: 'center',
         alignItems: 'center',
         width: '100%',
-        height: '100%',
+        minHeight: '100%',
         backgroundColor: privateMode ? '#E53935' : '#003C78',
         padding: 1,
         boxSizing: 'border-box',
@@ -128,7 +128,7 @@ const Home: React.FC = () => {
         </CardContent>
 
         {/* Toggle for Private Mode */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1, p: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1, p: 1 }}>
           <Typography variant="body2" sx={{ mr: 1 }} color="text.secondary">Privater Modus</Typography>
           <CustomSwitch
             checked={privateMode}
@@ -146,7 +146,7 @@ const Home: React.FC = () => {
         />
 
         {/* Button to redirect to GESIS Surf */}
-        <Box sx={{ p: 2 }}>
+        <Box sx={{ p: 1 }}>
           <Button
             variant="contained"
             fullWidth
