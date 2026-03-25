@@ -100,7 +100,8 @@ export class TikTokWavelet extends BaseSocialWavelet {
                 favorites: parseFavoritesFromAriaLabel(favLabel),
                 captured_at: new Date().toISOString(),
                 page_url:  window.location.href,
-                domain_session_id: '',
+                domain_id: '',
+                signal_type: 'feed',
             };
         } catch {
             return null;

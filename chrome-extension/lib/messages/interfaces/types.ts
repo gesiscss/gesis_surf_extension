@@ -4,7 +4,7 @@
  * Handles communication between content scripts and background scripts
  */
 import { PrivateModeState } from '@root/lib/services/privateModeService/types';
-import { ClickData, ScrollData, HTMLSnapshot, LLMData } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
+import { ClickData, ScrollData, HTMLSnapshot, LLMData, SocialData, SocialMessageType } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
 // Message Response Interface
 export interface MessageResponse {
@@ -37,6 +37,12 @@ export interface LLMEventMessage extends BaseMessage {
     data: LLMData;
 }
 
+// Types for Social Event Messages
+export interface SocialEventMessage extends BaseMessage {
+    type: SocialMessageType;
+    data: SocialData;
+}
+
 export type ExtensionMessage = AuthSuccessMessage
     | AuthFailureMessage
     | PrivateModeMessage
@@ -44,7 +50,8 @@ export type ExtensionMessage = AuthSuccessMessage
     | ScrollEventMessage
     | ScrollFinalEventMessage
     | HTMLCaptureMessage
-    | LLMEventMessage;
+    | LLMEventMessage
+    | SocialEventMessage;
 
 // Private Mode Messages and Types
 export type PrivateModeActionType = 'GET_STATE' | 'TOGGLE' | 'GET_TIME' | 'PRIVATE_MODE_EXPIRED';

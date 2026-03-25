@@ -80,6 +80,89 @@ export interface LLMData {
     turn_index: number; // 1-based index of the message in the conversation
 }
 
+// Payload for X (Twitter) post events
+export interface XPostData {
+    id: string;
+    tweet_id: string;
+    author_handle: string;
+    author_display_name: string;
+    tweet_text: string;
+    tweet_url: string;
+    tweet_timestamp: string;    // from <time datetime="">
+    captured_at: string;        // when extractor fired
+    replies: number;
+    reposts: number;
+    likes: number;
+    bookmarks: number;
+    views: number;
+    page_url: string;
+    domain_id: string;
+}
+
+// Payload for TikTok post events
+export interface TikTokPostData {
+    id: string;
+    video_id: string;
+    feed_position: number;  // 1-based insertion order within the session
+    author_handle: string;
+    author_display_name: string;
+    is_verified: boolean;
+    caption: string;
+    video_url: string;
+    music_id: string;
+    music_name: string;
+    likes: number;
+    comments: number;
+    shares: number;
+    favorites: number;
+    captured_at: string;
+    page_url: string;
+    domain_id: string;
+    signal_type: 'feed';    // discriminator: video appeared in the feed (DOM insertion)
+}
+
+// Payload for TikTok played events — same shape but different signal
+export interface TikTokPlayedData {
+    id: string;
+    video_id: string;
+    feed_position: number;  // 1-based play order within the session
+    author_handle: string;
+    author_display_name: string;
+    is_verified: boolean;
+    caption: string;
+    video_url: string;
+    music_id: string;
+    music_name: string;
+    likes: number;
+    comments: number;
+    shares: number;
+    favorites: number;
+    captured_at: string;
+    page_url: string;
+    domain_id: string;
+    signal_type: 'played';  // discriminator: video was actually played by the user
+}
+
+// Payload for YouTube Shorts events
+export interface YouTubeShortsData {
+    id: string;
+    video_id: string;
+    channel_handle: string;
+    title: string;
+    likes: number;
+    comments: number;
+    video_url: string;
+    captured_at: string;
+    page_url: string;
+    domain_id: string;
+}
+
+// Union type for all social post data
+export type SocialData = XPostData | TikTokPostData | TikTokPlayedData | YouTubeShortsData;
+
+// Social message type identifiers
+export type SocialMessageType = 'X_POST' | 'TIKTOK_POST' | 'TIKTOK_PLAYED' | 'YOUTUBE_SHORT';
+
 // Configuration for a remote update wavelet selector, used to determine which DOM elements to observe for changes.
 export interface SelectorConfig {
     family: 'llm' | 'social';

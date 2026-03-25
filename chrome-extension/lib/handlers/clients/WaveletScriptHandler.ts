@@ -3,7 +3,7 @@
  * It sends LLM data to the appropriate endpoints based on the LLM provider and ensures that requests are authenticated.
  */
 import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
-import { LLMData } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
+import { LLMData, SocialData, SocialMessageType } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
 // Endpoints for different Wavelets.
 const LLM_ENDPOINTS: Record<string, string> = {
@@ -11,6 +11,13 @@ const LLM_ENDPOINTS: Record<string, string> = {
     claude:   '/claude/',
     deepseek: '/deepseek/',
     gemini:   '/gemini/',
+};
+
+const SOCIAL_ENDPOINTS: Record<SocialMessageType, string> = {
+    X_POST:         '/x/',
+    TIKTOK_POST:    '/tiktok/',
+    TIKTOK_PLAYED:  '/tiktok-played/',
+    YOUTUBE_SHORT:  '/youtube-shorts/',
 };
 
 export default class WaveletScriptHandler {
@@ -28,18 +35,19 @@ export default class WaveletScriptHandler {
         if (!endpoint) throw new Error(`Unknown LLM provider: ${data.llm_provider}`);
 
         const payload: Record<string, string | number> = {
-            conversation_id: data.chat_session_id,
-            conversation:    data.message_content,
+            chat_session_id: data.chat_session_id,
+            message_content:    data.message_content,
             timestamp:       data.timestamp,
             message_id:         data.message_id,
             message_type:       data.message_type,
             llm_provider:       data.llm_provider,
             turn_index:          data.turn_index,
+            page_title:           data.page_title,
+            url:                    data.url,
         };
         if (data.domain_id) payload['domain_id'] = data.domain_id;
 
         const options = await this.requestOptions(payload, 'POST');
-        // console.log(`[${this.serviceName}] Sending payload`, payload);
         const response = await fetch(`${this.apiUrl}${endpoint}`, options);
 
 
@@ -51,7 +59,25 @@ export default class WaveletScriptHandler {
         console.log(`[${this.serviceName}] ${data.llm_provider} ${data.message_type} sent`);
     }
 
-    // Future: sendXPost(data: XPostData): Promise<void> { ... }
+    /**
+     * Sends social post data to the appropriate endpoint based on the message type.
+     * @param messageType The social message type (X_POST, TIKTOK_POST, etc.).
+     * @param data The social post data to be sent.
+     */
+    public async sendSocialData(messageType: SocialMessageType, data: SocialData): Promise<void> {
+        const endpoint = SOCIAL_ENDPOINTS[messageType];
+        if (!endpoint) throw new Error(`Unknown social message type: ${messageType}`);
+
+        const options = await this.requestOptions(data, 'POST');
+        const response = await fetch(`${this.apiUrl}${endpoint}`, options);
+
+        if (!response.ok) {
+            const body = await response.text();
+            console.error(`[${this.serviceName}] ${messageType} API failed: ${response.status} - ${body}`);
+            throw new Error(`[${this.serviceName}] ${messageType} API failed: ${response.status}`);
+        }
+        console.log(`[${this.serviceName}] ${messageType} sent:`, data.id);
+    }
     /**
      * Requests the necessary options for making an authenticated API call, including the token.
      * @param payload The data payload to be sent in the request body.

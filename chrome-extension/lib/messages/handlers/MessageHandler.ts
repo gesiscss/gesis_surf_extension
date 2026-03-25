@@ -19,8 +19,10 @@ import {
     ScrollEventMessage,
     ScrollFinalEventMessage,
     HTMLCaptureMessage,
-    LLMEventMessage
+    LLMEventMessage,
+    SocialEventMessage
 } from '../interfaces/types';
+import type { SocialMessageType } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
 /**
  * Class to handle messages in the Chrome extension background script.
@@ -199,6 +201,33 @@ export class MessageHandler {
     }
 
     /**
+     * Handle social event messages (X_POST, TIKTOK_POST, TIKTOK_PLAYED, YOUTUBE_SHORT)
+     * @param message The incoming social event message
+     * @param sender The message sender
+     * @param sendResponse Function to send response back
+     * @returns Promise<boolean>
+     */
+    private async handleSocialMessage(
+        message: SocialEventMessage,
+        sender: Runtime.MessageSender,
+        sendResponse: (response: MessageResponse) => void
+    ): Promise<boolean> {
+        try {
+            const result = await this.waveletEventManager.handleSocialEvent(
+                message.type as SocialMessageType, message.data, sender
+            );
+            sendResponse({ status: result.status, message: result.message });
+        } catch (error) {
+            console.error('[background] Error handling social event message:', error);
+            sendResponse({
+                status: 'error',
+                message: error instanceof Error ? error.message : 'Failed to handle social event message'
+            });
+        }
+        return true;
+    }
+
+    /**
      * Handle content event messages
      * @param message The incoming message
      * @param sender The message sender
@@ -236,6 +265,12 @@ export class MessageHandler {
                 
                 case 'LLM_MESSAGE':
                     return this.handleLLMMessage(typedMessage as LLMEventMessage, sender, sendResponse);
+
+                case 'X_POST':
+                case 'TIKTOK_POST':
+                case 'TIKTOK_PLAYED':
+                case 'YOUTUBE_SHORT':
+                    return this.handleSocialMessage(typedMessage as SocialEventMessage, sender, sendResponse);
 
                 default:
                     console.warn('[background] Unknown message type:', typedMessage.type);

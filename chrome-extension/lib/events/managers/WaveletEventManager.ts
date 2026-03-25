@@ -3,7 +3,7 @@ import { DatabaseService } from '@root/lib/db';
 import DomainManager from '@root/lib/handlers/clients/DomainHandler';
 import { DomainPolicyService } from '@root/lib/services/policyService';
 import { DomainResponseTypes } from '@root/lib/handlers/types/domainTypes';
-import { LLMData, EventResult } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
+import { LLMData, EventResult, SocialData, SocialMessageType } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 import WaveletScriptHandler from '@root/lib/handlers/clients/WaveletScriptHandler';
 
 export default class WaveletEventManager {
@@ -43,7 +43,31 @@ export default class WaveletEventManager {
         }
     }
 
-    // Future: handleXPost(data: XPostData, sender): Promise<EventResult> { ... }
+    /**
+     * Handles incoming social events from the content script, resolves the domain session ID, and sends the data to the backend API.
+     * @param messageType The social message type (X_POST, TIKTOK_POST, etc.).
+     * @param data The social post data received from the content script.
+     * @param sender The sender of the message, used to resolve the domain session ID.
+     * @returns An EventResult indicating the success or failure of processing the event.
+     */
+    public async handleSocialEvent(
+        messageType: SocialMessageType,
+        data: SocialData,
+        sender: Runtime.MessageSender
+    ): Promise<EventResult> {
+        try {
+            const domainId = await this.resolveDomainId(sender.tab);
+            const enrichedData = { ...data, domain_id: domainId };
+            await this.apiClient.sendSocialData(messageType, enrichedData);
+            return { status: 'success', message: `${messageType} wavelet processed` };
+        } catch (error) {
+            console.error(`[${this.serviceName}] Error handling ${messageType} event:`, error);
+            return {
+                status: 'error',
+                message: error instanceof Error ? error.message : 'Unknown error',
+            };
+        }
+    }
     
     /**
      * Resolves the domain ID for a given tab by checking the domain policy and generating a domain session if necessary.

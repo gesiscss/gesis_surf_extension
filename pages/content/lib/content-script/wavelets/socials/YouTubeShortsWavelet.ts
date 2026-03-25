@@ -65,7 +65,7 @@ export class YouTubeShortsWavelet extends BaseSocialWavelet {
                 video_url: `https://www.youtube.com/shorts/${videoId}`,
                 captured_at: new Date().toISOString(),
                 page_url: window.location.href,
-                domain_session_id: '',
+                domain_id: '',
             };
         } catch {
             return null;

@@ -58,7 +58,7 @@ export class XWavelet extends BaseSocialWavelet {
                 bookmarks: parseMetric(ariaLabel, 'bookmark'),
                 views:     parseMetric(ariaLabel, 'view'),
                 page_url:  window.location.href,
-                domain_session_id: '',
+                domain_id: '',
             };
         } catch {
             return null;

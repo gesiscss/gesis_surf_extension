@@ -10,6 +10,8 @@ import { TikTokWavelet } from './TikTokWavelet';
  *
  * Emits messageType: 'TIKTOK_PLAYED' — separate signal from 'TIKTOK_POST'
  * (which fires on DOM insertion / feed pre-load).
+ * Overrides signal_type to 'played' before sending so the backend can
+ * distinguish feed exposure from actual playback in the same table.
  */
 export class TikTokPlayedWavelet extends TikTokWavelet {
     protected readonly messageType = 'TIKTOK_PLAYED';
@@ -41,7 +43,8 @@ export class TikTokPlayedWavelet extends TikTokWavelet {
                 if (this.capturedIds.has(data.video_id)) return;
                 this.capturedIds.add(data.video_id);
                 data.feed_position = ++this.feedPosition;
-                this.sendData(data);
+                // Override signal_type: base extractPost sets 'feed', played wavelet sends 'played'
+                this.sendData({ ...data, signal_type: 'played' as const });
             },
             true, // useCapture
         );
