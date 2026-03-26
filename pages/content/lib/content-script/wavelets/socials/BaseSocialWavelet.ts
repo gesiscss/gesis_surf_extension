@@ -80,13 +80,23 @@ export abstract class BaseSocialWavelet {
     private setupObserver(): void {
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
-                mutation.addedNodes.forEach((node) => {
-                    if (node.nodeType !== Node.ELEMENT_NODE) return;
-                    this.processAddedNode(node as HTMLElement);
-                });
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType !== Node.ELEMENT_NODE) return;
+                        this.processAddedNode(node as HTMLElement);
+                    });
+                } else if (mutation.type === 'attributes' && mutation.target.nodeType === Node.ELEMENT_NODE) {
+                    // Handles React deferred rendering: data-testid is set after element insertion (e.g. X/Twitter)
+                    this.processAddedNode(mutation.target as HTMLElement);
+                }
             });
         });
-        observer.observe(document.body, { childList: true, subtree: true });
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['data-testid', 'data-e2e'],
+        });
         console.log(`[${this.label}] Observer active`);
     }
 

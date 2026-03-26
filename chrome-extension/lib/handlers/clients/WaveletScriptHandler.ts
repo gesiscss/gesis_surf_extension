@@ -6,17 +6,12 @@ import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tok
 import { LLMData, SocialData, SocialMessageType } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
 // Endpoints for different Wavelets.
-const LLM_ENDPOINTS: Record<string, string> = {
-    chatgpt:  '/chatgpt/',
-    claude:   '/claude/',
-    deepseek: '/deepseek/',
-    gemini:   '/gemini/',
-};
-
+// LLM: single endpoint — backend routes to the correct index via llm_provider field.
+// TikTok: single endpoint — backend routes to the correct index via signal_type field.
 const SOCIAL_ENDPOINTS: Record<SocialMessageType, string> = {
     X_POST:         '/x/',
     TIKTOK_POST:    '/tiktok/',
-    TIKTOK_PLAYED:  '/tiktok-played/',
+    TIKTOK_PLAYED:  '/tiktok/',
     YOUTUBE_SHORT:  '/youtube-shorts/',
 };
 
@@ -31,8 +26,7 @@ export default class WaveletScriptHandler {
      * @returns A promise that resolves when the data is successfully sent.
      */
     public async sendLLMData(data: LLMData): Promise<void> {
-        const endpoint = LLM_ENDPOINTS[data.llm_provider];
-        if (!endpoint) throw new Error(`Unknown LLM provider: ${data.llm_provider}`);
+        const endpoint = '/llm/';
 
         const payload: Record<string, string | number> = {
             chat_session_id: data.chat_session_id,

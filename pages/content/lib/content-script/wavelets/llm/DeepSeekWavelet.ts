@@ -126,6 +126,13 @@ export class DeepSeekWavelet extends BaseLLMWavelet {
         if (element.matches?.(containerSel)) found.push(element);
         element.querySelectorAll<HTMLElement>(containerSel).forEach(el => found.push(el));
 
+        // When .ds-markdown is inserted inside an existing .ds-message (after thinking finishes),
+        // the added node itself is not a .ds-message — walk up to find the parent container.
+        if (!found.length) {
+            const parentMessage = element.closest<HTMLElement>(containerSel);
+            if (parentMessage) found.push(parentMessage);
+        }
+
         found.forEach(el => {
             const isAssistant = !!el.querySelector(assistantMarkerSel);
             if (!isAssistant) {
