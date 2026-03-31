@@ -6,7 +6,7 @@ const PROD_URL = 'https://surfcollect.gesis.org/api';
 const LOCAL_URL = 'http://localhost:8000/api';
 
 
-const getApiUrl = (): string => STG_URL;
+const getApiUrl = (): string => LOCAL_URL;
 
 // API Configuration & environment switching
 export const API_CONFIG = {
@@ -26,5 +26,7 @@ export const API_CONFIG = {
         DOMAIN: '/domain/domains/',
         HOST: '/host/hosts/',
         HOST_TASK: '/host/task-result/',
+        SELECTORS: '/selectors/',
+        SELECTORS_TASK: '/selectors/task-result/',
     }
 } as const;
