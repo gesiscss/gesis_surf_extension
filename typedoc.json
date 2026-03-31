@@ -1,0 +1,9 @@
+{
+  "entryPoints": ["./chrome-extension/lib/events/managers/WindowEventManager.ts"],
+  "out": "docs",
+  "name": "Gesis Surf Window Documentation",
+  "excludePrivate": false,
+  "excludeProtected": false,
+  "excludeExternals": true,
+  "tsconfig": "./chrome-extension/tsconfig.json"
+}

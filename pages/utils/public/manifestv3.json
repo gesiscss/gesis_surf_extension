@@ -1,0 +1,39 @@
+{
+  "name": "GESIS Surf",
+  "description": "Nehmen Sie mit GESIS Surf an wissenschaftlichen Studien von GESIS – Leibniz-Institut für Sozialwissenschaften teil",
+  "version": "1.1.1",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "./popup/index.html",
+    "default_title": "Open the popup"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "run_at": "document_end",
+      "js": [
+        "./index.global.js"
+      ],
+      "css": [
+        "./style.css"
+      ]
+    }
+  ],
+  "permissions": [
+    "storage","tabs", "activeTab", "scripting", "contextMenus","nativeMessaging","offscreen","background","alarms"
+  ],
+  "background": {
+    "service_worker": "./background.global.js"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "host_permissions": [
+    "<all_urls>"
+  ]
+}

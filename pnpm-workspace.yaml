@@ -1,0 +1,6 @@
+packages:
+  - "chrome-extension"
+  - "packages/*"
+  - "pages/content"
+  - "pages/newtab"
+  - "pages/popup"

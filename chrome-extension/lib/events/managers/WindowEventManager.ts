@@ -1,0 +1,396 @@
+/**
+ * @fileoverview WindowEventManager handles browser window events (creation, removal, focus changes)
+ * and maintains state about the current active window. It tracks window focus changes
+ * including browser focus loss events.
+ * 
+ * Key features:
+ * - Tracks creation and removal of browser windows
+ * - Manages window focus transitions between windows
+ * - Handles browser focus loss and restoration
+ * - Prevents duplicate processing using a debounce mechanism
+ * 
+ * This manager interacts with the WindowHandler to send window state updates to
+ * the backend system.
+ */
+
+import { windows, Windows } from 'webextension-polyfill';
+import { WindowHandler, WindowDataTypes} from '@root/lib/handlers';
+import { InfoTypeValues } from '@root/lib/handlers/shared';
+
+type FocusLostHandler = (windowId: number | null) => Promise<void> | void;
+type FocusGainedHandler = (windowId: number) => Promise<void> | void;
+export default class WindowEventManager {
+  private readonly serviceName = 'WindowEventManager';
+  private isInitializing = true;
+  private recentWindowCreation = new Set<number>();
+  private currentActiveWindowId: number | null = null;
+  private readonly windowDebounceTime = 1000;
+  private briefUnfocusTimeout: number = 500; 
+  private startupCompleted: boolean = false;
+  private focusLossTimer: ReturnType<typeof setTimeout> | null = null;
+  private listenersRegistered: boolean = false;
+  private focusLostHandlers: Set<FocusLostHandler> = new Set();
+  private focusGainedHandlers: Set<FocusGainedHandler> = new Set();
+
+  constructor(
+    private windowManager: WindowHandler,
+  ) {}
+
+  /**
+   * Registers a handler for focus lost events.
+   * @param handler The function to call when focus is lost.
+   * @returns A function to unregister the handler.
+   */
+  public onFocusLost(handler: FocusLostHandler): () => void {
+    this.focusLostHandlers.add(handler);
+    return () => this.focusLostHandlers.delete(handler);
+  }
+
+  /**
+   * Registers a handler for focus gained events.
+   * @param handler The function to call when focus is gained.
+   * @returns A function to unregister the handler.
+   */
+  public onFocusGained(handler: FocusGainedHandler): () => void {
+    this.focusGainedHandlers.add(handler);
+    return () => this.focusGainedHandlers.delete(handler);
+  }
+
+  /**
+   * Notifies all registered focus lost handlers.
+   * @param windowId The ID of the window that lost focus, or null if none.
+   */
+  private async notifyFocusLost(windowId: number | null): Promise<void> {
+    for (const handler of this.focusLostHandlers) {
+      try {
+        await handler(windowId);
+      } catch (error) {
+        console.error(`[${this.serviceName}] Error in focus lost handler:`, error);
+      }
+    }
+  }
+
+  /**
+   * Notifies all registered focus gained handlers.
+   * @param windowId The ID of the window that gained focus.  
+   */
+  private async notifyFocusGained(windowId: number): Promise<void> {
+    for (const handler of this.focusGainedHandlers) {
+      try {
+        await handler(windowId);
+      } catch (error) {
+        console.error(`[${this.serviceName}] Error in focus gained handler:`, error);
+      }
+    }
+  }
+
+  /** Registers event listeners for window events.
+   * Ensures that the global session is initialized before handling events.
+   */
+  public async registerWindowListeners(): Promise<void> {
+
+    if (this.listenersRegistered) {
+      return;
+    }
+
+    this.listenersRegistered = true;
+    windows.onCreated.addListener((win: Windows.Window) => void this.handleWindowCreation(win));
+    windows.onRemoved.addListener((winId: number) => void this.handleWindowRemoval(winId));
+    windows.onFocusChanged.addListener((newWindowId: number) => void this.handleWindowFocusChange(newWindowId));
+    
+    try {
+      await this.handleStartupWindow();
+      this.startupCompleted = true;
+    } finally {
+      this.isInitializing = false;
+    }
+  }
+
+  /**
+   * Handles changes in window focus.
+   * @param newWindowId The ID of the newly focused window, or -1 if focus is lost.
+   */
+  private async handleWindowFocusChange(newWindowId: number): Promise<void> {
+    try {
+      if (newWindowId === -1) {
+        await this.handleBrowserFocusLost();
+      } else {
+        await this.handleBrowserFocusGained(newWindowId);
+      }
+    } catch (error) {
+      console.error(`[${this.serviceName}] Error handling window focus change`, error);
+    }
+  }
+
+  /**
+   * Handles the case when browser loses focus (Window ID = -1).
+   * This involves closing any active tab sessions.
+   */
+  private async handleBrowserFocusLost(): Promise<void> {
+    try {
+      if (this.focusLossTimer) {
+        clearTimeout(this.focusLossTimer);
+      }
+
+      this.focusLossTimer = setTimeout(async () => {
+        try {
+          const window = await windows.getLastFocused();
+
+          if(!window.focused) {
+            // Use the briefUnfocusTimeout for an initial quick check
+            this.focusLossTimer = setTimeout(async () => {
+              await this.processWindowTransition(this.currentActiveWindowId, -1);
+              await this.notifyFocusLost(this.currentActiveWindowId);
+              this.currentActiveWindowId = null;
+              console.log(`[${this.serviceName}] Browser focus lost, current active window set to null`);
+              this.focusLossTimer = null;
+            }, this.windowDebounceTime - this.briefUnfocusTimeout);
+          } else {
+            console.log(`[${this.serviceName}] Focus returned during brief check - cancelling focus loss`);
+            this.focusLossTimer = null;
+          }
+        } catch (error) {
+          console.error(`[${this.serviceName}] Error handling browser focus lost`, error);
+          this.focusLossTimer = null;
+        }
+      }, this.briefUnfocusTimeout);
+
+    } catch (error) {
+      console.error(`[${this.serviceName}] Error initiating browser focus lost handling`, error);
+    }
+}
+
+  /**
+   * Handles window transition when focus changes.
+   * @param newWindowId The ID of the newly focused window.
+   */
+  private async handleWindowTransition(newWindowId: number): Promise<void> {
+    if (this.currentActiveWindowId !== newWindowId) {
+        await this.processWindowTransition(this.currentActiveWindowId, newWindowId);
+      }
+      this.currentActiveWindowId = newWindowId;
+    }
+
+  /**
+   * Processes window creation if the window is valid and not recently created.
+   * @param windowId The ID of the newly created window.
+   */
+  private async processWindowIfValid(windowId: number): Promise<void> {
+    if (!this.recentWindowCreation.has(windowId)) {
+      this.trackNewWindow(windowId);
+      await this.processWindowCreation(windowId);
+    } else {
+      console.log(`[${this.serviceName}] Skipping creation event for recently created window:`, windowId);
+    }
+  }
+
+  /**
+   * Handles the case when browser gains focus (Window ID != -1).
+   * @param newWindowId The ID of the newly focused window.
+   */
+  private async handleBrowserFocusGained(newWindowId: number): Promise<void> {
+    try {
+      if (this.focusLossTimer) {
+        clearTimeout(this.focusLossTimer);
+        this.focusLossTimer = null;
+        console.log(`[${this.serviceName}] Focus regained before debounce timeout, ignoring focus gain event.`);
+        return;
+      }
+
+      this.validateWindow({ id: newWindowId } as Windows.Window);
+      await this.handleWindowTransition(newWindowId);
+      await this.processWindowIfValid(newWindowId);
+      this.currentActiveWindowId = newWindowId;
+      await this.notifyFocusGained(newWindowId);
+
+      console.log(`[${this.serviceName}] Browser focus gained, current active window set to:`, newWindowId);
+    
+    } catch (error) {
+      console.error(`[${this.serviceName}] Error handling browser focus gained`, error);
+    }
+  }
+
+  /**
+   * Validates the given window object.
+   * @param window The window object to validate.
+   */
+  private validateWindow(window: Windows.Window): void {
+    if (window.id === undefined) {
+      throw new Error(`[${this.serviceName}] Window ID is undefined`);
+    }
+  }
+
+  /**
+   * Handles the startup window event.
+   * @returns A promise that resolves when the startup window handling is complete.
+   */
+  private async handleStartupWindow(): Promise<void> {
+    console.log(`[${this.serviceName}] Handling startup windows...`);
+
+    try {
+      const windowsList = await windows.getAll();
+      console.log(`[${this.serviceName}] Startup windows detected:`, windowsList.length);
+
+      for (const win of windowsList){
+        if (win.id) {
+          await this.handleWindowCreation(win);
+        }
+      }
+    } catch (error) {
+        console.error(`[${this.serviceName}] Error during startup window handling`, error);
+        throw error;
+      }
+    }
+
+  /**
+   * Tracks a newly created window, preventing immediate transition handling.
+   * @param windowId The ID of the newly created window.
+   */
+  private trackNewWindow(windowId: number): void {
+    this.recentWindowCreation.add(windowId);
+
+    setTimeout(
+      () => this.recentWindowCreation.delete(windowId),
+      this.windowDebounceTime
+    );
+
+  }
+
+  /**
+   * Processes a window transition event.
+   * @param previousId The ID of the previously active window.
+   * @param newId The ID of the newly active window.
+   */
+  private async processWindowTransition(
+    previousId: number | null,
+    newId: number
+  ): Promise<void> {
+    try {
+
+      if (
+        previousId !== null &&
+        previousId !== newId ) {
+          const transitionsStatus = newId === -1
+          ? InfoTypeValues.OnBlurred
+          : InfoTypeValues.OnFocusChanged;
+          await this.windowManager.updateWindow(previousId, transitionsStatus, 'PATCH');
+        }
+    } catch (error) {
+      console.error(`[${this.serviceName}] Error processing window transition`, error);
+    }
+  }
+
+  /**
+   * Processes a window creation event.
+   * @param newId The ID of the newly created window.
+   */
+  private async processWindowCreation(newId: number): Promise<void> {
+    try {
+      const startTime = new Date().toISOString();
+      const window = await windows.get(newId);
+
+      if (window) {
+        const windowData = this.toWindowData(window);
+        await this.windowManager.sendWindow(windowData, InfoTypeValues.OnCreated, 'POST', startTime);
+      }
+
+    } catch (error) {
+      console.error(`[${this.serviceName}] Error processing window creation`, error);
+    }
+  }
+
+  /**
+   * Handles errors related to window events.
+   * @param error The error object.
+   * @param event The name of the window event.
+   * @param windowId The ID of the window associated with the error.
+   */
+  private handleWindowError(error: Error, event: string, windowId: number): void {
+    const errorMessage = `Error in ${event} for window ${windowId}: ${error.message}`;
+    console.error(`[${this.serviceName}] ${errorMessage}`);
+  }
+
+  /**
+   * Handle window removal event
+   * @param windowId The ID of the closed window
+   */
+  private async handleWindowRemoval(windowId: number): Promise<void> {
+    try {
+      console.log(`[${this.serviceName}] Window closed:`, windowId);
+      
+      // Remove window from tracking (if needed)
+      this.recentWindowCreation.delete(windowId);
+
+      // Update window state in the database/backend
+      await this.windowManager.updateWindow(windowId, InfoTypeValues.OnRemoved, 'PATCH');
+    } catch (error) {
+      if (error instanceof Error){
+        this.handleWindowError(error, 'onWindowRemoved', windowId);
+      } else {
+      this.handleWindowError(new Error(String(error)), 'onWindowRemoved', windowId);
+      }
+    }
+  }
+
+  /**
+   * Converts a Windows.Window object to a WindowDataTypes object.
+   * @param win The Windows.Window object.
+   * @returns The corresponding WindowDataTypes object.
+   */
+  private toWindowData(win: Windows.Window): WindowDataTypes {
+
+    if (win.top === undefined) {
+      throw new Error(`[${this.serviceName}] Window top position is undefined`);
+    }
+
+    return {
+      id: win.id,
+      state: win.state,
+      top: win.top,
+      focused: win.focused,
+      incognito: win.incognito,
+      alwaysOnTop: win.alwaysOnTop,
+      width: win.width,
+      height: win.height,
+      left: win.left,
+      type: win.type,
+    };
+  }
+
+  /**
+   * Gets the global session ID for a given window ID.
+   * @param windowId The ID of the window.
+   * @returns A promise that resolves to the global session ID.
+   */
+  public async getGlobalSessionId(windowId: number): Promise<string> {
+    return this.windowManager.globalSessionId(windowId);
+  }
+
+  /**
+   * Handles the window creation event.
+   * @param window The created window object.
+   */
+  public async handleWindowCreation(window: Windows.Window): Promise<void> {
+    try {
+
+      if (window.id === undefined) {
+        console.error(`[${this.serviceName}] Window ID is undefined in onCreated event`);
+        return;
+      }
+
+      this.validateWindow(window);
+      this.trackNewWindow(window.id);
+      await this.processWindowTransition(this.currentActiveWindowId, window.id);
+      await this.processWindowCreation(window.id);
+    
+    } catch (error) {
+
+      if (error instanceof Error){
+        this.handleWindowError(error, 'onWindowCreated', window.id ?? -1);
+      } else {
+        this.handleWindowError(new Error(String(error)), 'onWindowCreated', window.id ?? -1);
+      }
+    }
+  }
+
+}

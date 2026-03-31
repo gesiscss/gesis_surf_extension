@@ -1,3 +1,6 @@
+# Documentation files
+documentation
+
 # Logs
 logs
 *.log
@@ -22,3 +25,25 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Untrack zip files
+*.zip
+
+# Environment files
+.env
+.env.*
+
+# etc
+**/*.turbo
+
+# MD files
+*.md
+
+# Mermaid diagrams
+*.mmd
+
+# PNG files
+*.png
+
+# VSCODE counter
+.VSCodeCounter/
