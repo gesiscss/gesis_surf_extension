@@ -168,7 +168,7 @@ importers:
         version: link:../packages/tsconfig
       '@laynezh/vite-plugin-lib-assets':
         specifier: ^0.5.21
-        version: 0.5.26(vite@5.2.11(@types/node@25.3.3)(sass@1.74.1)(terser@5.46.0))
+        version: 0.5.21
       '@types/webextension-polyfill':
         specifier: ^0.12.1
         version: 0.12.3
@@ -211,7 +211,7 @@ importers:
         version: 4.59.0
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@swc/core@1.5.5)(@types/node@25.3.0)(typescript@5.9.3)
+        version: 10.9.2(@swc/core@1.5.5)(@types/node@25.3.3)(typescript@5.9.3)
 
   packages/shared:
     devDependencies:
@@ -775,10 +775,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
 
-  '@laynezh/vite-plugin-lib-assets@0.5.26':
-    resolution: {integrity: sha512-WObL2hZZyAYHQXOzGs7TyWKJUrIOF9IABEaiwtwIY08/repd14dLfig11LV4EKSIEkfQpITSQoWsjuyhrkldpw==}
-    peerDependencies:
-      vite: ^3.0.0 || ^4.0.0 || ^5.0.0
+  '@laynezh/vite-plugin-lib-assets@0.5.21':
+    resolution: {integrity: sha512-XeOSCwzh0JqMNPchPRX2U/aAcO7S13LAK3GDuBn8T5AuKF5lbeJoUd7iqdlcYfUJjhPwqXoK8UwM1NCoAj1eaA==}
 
   '@mui/core-downloads-tracker@6.1.10':
     resolution: {integrity: sha512-LY5wdiLCBDY7u+Od8UmFINZFGN/5ZU90fhAslf/ZtfP+5RhuY45f679pqYIxe0y54l6Gkv9PFOc8Cs10LDTBYg==}
@@ -1179,9 +1177,6 @@ packages:
 
   '@types/node@20.12.11':
     resolution: {integrity: sha512-vDg9PZ/zi+Nqp6boSOT7plNuthRugEKixDv5sFTIpkE89MmNtEArAShI4mxuX2+UrLEe9pxC1vm2cjm9YlWbJw==}
-
-  '@types/node@25.3.0':
-    resolution: {integrity: sha512-4K3bqJpXpqfg2XKGK9bpDTc6xO/xoUP/RBWS7AtRMug6zZFaRekiLzjVtAoZMquxoAbzBvy5nxQ7veS5eYzf8A==}
 
   '@types/node@25.3.3':
     resolution: {integrity: sha512-DpzbrH7wIcBaJibpKo9nnSQL0MTRdnWttGyE5haGwK86xgMOkFLp7vEyfQPGLOJh5wNYiJ3V9PmUMDhV9u8kkQ==}
@@ -4655,13 +4650,12 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.4.15
 
-  '@laynezh/vite-plugin-lib-assets@0.5.26(vite@5.2.11(@types/node@25.3.3)(sass@1.74.1)(terser@5.46.0))':
+  '@laynezh/vite-plugin-lib-assets@0.5.21':
     dependencies:
       escape-string-regexp: 4.0.0
       loader-utils: 3.3.1
       mrmime: 1.0.1
-      semver: 7.6.2
-      vite: 5.2.11(@types/node@25.3.3)(sass@1.74.1)(terser@5.46.0)
+      semver: 7.7.3
 
   '@mui/core-downloads-tracker@6.1.10': {}
 
@@ -4988,10 +4982,6 @@ snapshots:
   '@types/node@20.12.11':
     dependencies:
       undici-types: 5.26.5
-
-  '@types/node@25.3.0':
-    dependencies:
-      undici-types: 7.18.2
 
   '@types/node@25.3.3':
     dependencies:
@@ -6991,7 +6981,7 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 25.3.3
+      '@types/node': 20.12.11
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
@@ -8087,14 +8077,14 @@ snapshots:
       '@swc/core': 1.5.5
     optional: true
 
-  ts-node@10.9.2(@swc/core@1.5.5)(@types/node@25.3.0)(typescript@5.9.3):
+  ts-node@10.9.2(@swc/core@1.5.5)(@types/node@25.3.3)(typescript@5.9.3):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.9
       '@tsconfig/node12': 1.0.11
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
-      '@types/node': 25.3.0
+      '@types/node': 25.3.3
       acorn: 8.11.3
       acorn-walk: 8.3.2
       arg: 4.1.3
@@ -8347,17 +8337,6 @@ snapshots:
       rollup: 4.59.0
     optionalDependencies:
       '@types/node': 20.12.11
-      fsevents: 2.3.3
-      sass: 1.74.1
-      terser: 5.46.0
-
-  vite@5.2.11(@types/node@25.3.3)(sass@1.74.1)(terser@5.46.0):
-    dependencies:
-      esbuild: 0.20.2
-      postcss: 8.4.38
-      rollup: 4.59.0
-    optionalDependencies:
-      '@types/node': 25.3.3
       fsevents: 2.3.3
       sass: 1.74.1
       terser: 5.46.0

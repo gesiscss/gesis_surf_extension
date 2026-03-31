@@ -24,7 +24,7 @@ export default defineConfig({
       outputPath: outDir,
     }),
     makeManifestPlugin({ outDir }),
-    isDev && watchRebuildPlugin({ reload: true }),
+    ...(isDev ? [watchRebuildPlugin({ reload: true })] : []),
   ],
   publicDir: resolve(rootDir, 'public'),
   build: {
