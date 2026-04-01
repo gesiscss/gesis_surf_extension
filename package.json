@@ -29,7 +29,6 @@
     "eslint-import-resolver-typescript": "^4.4.4",
     "idb": "^8.0.0",
     "lint-staged": "^16.1.6",
-    "pre-commit": "^1.2.2",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-router-dom": "^6.23.1",
@@ -73,11 +72,6 @@
   "config": {
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
-    }
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "npm run lint && npm run type-check && npm run prettier"
     }
   }
 }
