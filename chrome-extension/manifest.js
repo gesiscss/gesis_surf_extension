@@ -14,44 +14,53 @@ const isFirefox = process.env.__FIREFOX__ === 'true';
 //     permissions: !isFirefox ? ['sidePanel'] : [],
 // };
 
-const manifest = Object.assign({
+const manifest = Object.assign(
+  {
     manifest_version: 3,
     // default_locale: 'en',
     /**
      * if you want to support multiple languages, you can use the following reference
      * https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Internationalization
      */
-    name: 'GESIS Surf',
-    version: '2.0.0',
-    description: 'Nehmen Sie mit GESIS Surf an wissenschaftlichen Studien von GESIS – Leibniz-Institut für Sozialwissenschaften teil', 
+    name: packageJson.name,
+    version: packageJson.version,
+    description: packageJson.description,
     permissions: ['storage', 'tabs', 'alarms'], // .concat(sidePanelConfig.permissions),
     // options_page: 'options/index.html',
     background: {
-        service_worker: 'background.iife.js',
-        type: 'module',
+      service_worker: 'background.iife.js',
+      type: 'module',
     },
-    action: { 
-        default_popup: 'popup/index.html',
-        default_icon: 'icon32.png',
+    action: {
+      default_popup: 'popup/index.html',
+      default_icon: 'icon32.png',
     },
     icons: {
-        128: 'icon128.png',
+      128: 'icon128.png',
     },
-    content_scripts: [{
-            matches: ['http://*/*', 'https://*/*', '<all_urls>'],
-            js: ['content/index.iife.js'],
-        },
-        {
-            matches: ['http://*/*', 'https://*/*', '<all_urls>'],
-            css: ['content.css'], // public folder
-        },
+    content_scripts: [
+      {
+        matches: ['http://*/*', 'https://*/*', '<all_urls>'],
+        js: ['content/index.iife.js'],
+      },
+      {
+        matches: ['http://*/*', 'https://*/*', '<all_urls>'],
+        css: ['content.css'], // public folder
+      },
     ],
     // devtools_page: 'devtools/index.html',
-    web_accessible_resources: [{
+    web_accessible_resources: [
+      {
         resources: ['*.js', '*.css', '*.svg', 'icon-128.png', 'icon-34.png'],
         matches: ['*://*/*'],
-    }, ],
-// }, !isFirefox && { side_panel: {...sidePanelConfig.side_panel } }, );
-}, !isFirefox && { /* ...sidePanelConfig */ }, );
+      },
+    ],
+    // }, !isFirefox && { side_panel: {...sidePanelConfig.side_panel } }, );
+  },
+  !isFirefox &&
+    {
+      /* ...sidePanelConfig */
+    },
+);
 
 export default manifest;

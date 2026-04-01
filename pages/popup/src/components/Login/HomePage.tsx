@@ -1,10 +1,9 @@
 import React, { useEffect } from 'react';
-import { Box, Card, CardContent, Typography, CardMedia, Button} from '@mui/material';
+import { Box, Card, CardContent, Typography, CardMedia, Button } from '@mui/material';
 import { CustomSwitch } from '../styles/privacy/PrivateModeToggle.styles';
 import PrivacyTimer from './PrivacyTimer';
 import { togglePrivateMode, getPrivateModeStatus, getRemainingTime } from './PrivacyMode';
 import { runtime } from 'webextension-polyfill';
-
 
 const Home: React.FC = () => {
   console.log('[HomePage] Rendered HomePage component');
@@ -24,7 +23,7 @@ const Home: React.FC = () => {
       console.log(`[HomePage] Initial private mode status: ${status}`);
       setPrivateMode(status);
 
-      if(status) {
+      if (status) {
         const time = await getRemainingTime();
         console.log(`[HomePage] Remaining time for private mode: ${time} seconds`);
         setRemainingTime(time);
@@ -32,8 +31,8 @@ const Home: React.FC = () => {
     };
     checkStatus();
 
-    const handleExpiration = (message: any) => {
-      if (message.type === 'PRIVATE_MODE_EXPIRED') {
+    const handleExpiration = (message: unknown) => {
+      if ((message as { type: string }).type === 'PRIVATE_MODE_EXPIRED') {
         console.log('[HomePage] Received PRIVATE_MODE_EXPIRED message');
         setPrivateMode(false);
         setRemainingTime(null);
@@ -49,8 +48,8 @@ const Home: React.FC = () => {
   }, []);
 
   const handlePrivateModeToggle = async (
-    event: React.ChangeEvent<HTMLInputElement>, 
-    setPrivateMode: React.Dispatch<React.SetStateAction<boolean>>
+    event: React.ChangeEvent<HTMLInputElement>,
+    setPrivateMode: React.Dispatch<React.SetStateAction<boolean>>,
   ) => {
     console.log('[HomePage] Private mode toggle clicked');
     const isEnabled = event.target.checked;
@@ -86,8 +85,7 @@ const Home: React.FC = () => {
         boxSizing: 'border-box',
         borderRadius: 1,
         transition: 'background-color 0.3s ease',
-      }}
-    >
+      }}>
       <Card
         sx={{
           width: '100%',
@@ -95,22 +93,21 @@ const Home: React.FC = () => {
           boxShadow: 3,
           borderRadius: 2,
           textAlign: 'center',
-        }}
-      >
+        }}>
         <CardMedia
           component="img"
           image="https://www.gesis.org/fileadmin/admin/Dateikatalog/Logos/gesis_surf.svg"
           alt="GESIS Surf"
-          sx={{ 
-              position: 'relative',
-              zIndex: 1,
-              padding: 1,
-              objectFit: 'contain',
-              width: '40%',
-              height: '80%',
-              margin: '0 auto',
-              backgroundColor: 'transparent',
-            }}
+          sx={{
+            position: 'relative',
+            zIndex: 1,
+            padding: 1,
+            objectFit: 'contain',
+            width: '40%',
+            height: '80%',
+            margin: '0 auto',
+            backgroundColor: 'transparent',
+          }}
         />
         <CardContent>
           <Typography variant="h5" component="h1" gutterBottom sx={{ fontWeight: 'bold', color: '#003C78' }}>
@@ -122,37 +119,40 @@ const Home: React.FC = () => {
           <Typography variant="body1" color="text.primary" gutterBottom sx={{ mt: 2, fontWeight: 'bold' }}>
             Privaten Modus einschalten.
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5, mx: 'auto', maxWidth: '90%', lineHeight: 1.4 }}>
-            Der private Modus bleibt für 15 Minuten eingeschaltet, Die Zeit wird nur gezählt, wenn Sie aktiv im Browser surfen.
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: 'block', mb: 1.5, mx: 'auto', maxWidth: '90%', lineHeight: 1.4 }}>
+            Der private Modus bleibt für 15 Minuten eingeschaltet, Die Zeit wird nur gezählt, wenn Sie aktiv im Browser
+            surfen.
           </Typography>
         </CardContent>
 
         {/* Toggle for Private Mode */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1, p: 2 }}>
-          <Typography variant="body2" sx={{ mr: 1 }} color="text.secondary">Privater Modus</Typography>
+          <Typography variant="body2" sx={{ mr: 1 }} color="text.secondary">
+            Privater Modus
+          </Typography>
           <CustomSwitch
             checked={privateMode}
-            onChange={ (event) => handlePrivateModeToggle(event, setPrivateMode) }
+            onChange={event => handlePrivateModeToggle(event, setPrivateMode)}
             inputProps={{ 'aria-label': 'controlled' }}
           />
-          <Typography variant="body2" sx={{ ml: 1 }} color="text.secondary">{privateMode ? 'An' : 'Aus'}</Typography>
+          <Typography variant="body2" sx={{ ml: 1 }} color="text.secondary">
+            {privateMode ? 'An' : 'Aus'}
+          </Typography>
         </Box>
 
         {/* Privacy Timer Component */}
-        <PrivacyTimer 
-          isActive={privateMode} 
-          initialTime={remainingTime}
-          onTimerEnd={() => setPrivateMode(false)} 
-        />
+        <PrivacyTimer isActive={privateMode} initialTime={remainingTime} onTimerEnd={() => setPrivateMode(false)} />
 
         {/* Button to redirect to GESIS Surf */}
         <Box sx={{ p: 2 }}>
           <Button
             variant="contained"
             fullWidth
-            sx = {{backgroundColor: '#1E8CC8', color: '#fff'}}
-            onClick={handleRedirect}
-          >
+            sx={{ backgroundColor: '#1E8CC8', color: '#fff' }}
+            onClick={handleRedirect}>
             GESIS Surf
           </Button>
         </Box>

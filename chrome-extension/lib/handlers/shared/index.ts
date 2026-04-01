@@ -1,7 +1,7 @@
 // Export shared constants and types
 
 // Shared types
-export * from "./sharedTypes"
+export * from './sharedTypes';
 
 // Shared constants
-export * from "./sharedConstants"
+export * from './sharedConstants';

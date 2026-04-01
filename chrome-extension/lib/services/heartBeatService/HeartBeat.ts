@@ -1,75 +1,73 @@
-import {alarms, storage} from 'webextension-polyfill';
+import { alarms, storage } from 'webextension-polyfill';
 
 export class HeartbeatService {
-    private heartbeatIntervalId?: NodeJS.Timeout;
-    private alarmIntervalId?: NodeJS.Timeout;
+  private heartbeatIntervalId?: NodeJS.Timeout;
+  private alarmIntervalId?: NodeJS.Timeout;
 
-    /**
-     * Creates a new HeartbeatService instance.
-     */
-    constructor() {}
+  /**
+   * Creates a new HeartbeatService instance.
+   */
+  constructor() {}
 
-    /**
-     * Updates the 'last-heartbeat'timestamps in local storage.
-     */
-    public async runHeartbeat(): Promise<void> {
-        await storage.local.set({ 'last-heartbeat': Date.now() });
+  /**
+   * Updates the 'last-heartbeat'timestamps in local storage.
+   */
+  public async runHeartbeat(): Promise<void> {
+    await storage.local.set({ 'last-heartbeat': Date.now() });
+  }
+
+  /**
+   * Starts the heartbeat by running it immediatly and every 10 seconds.
+   */
+  public async startHeartbeat(): Promise<void> {
+    await this.runHeartbeat();
+    this.heartbeatIntervalId = setInterval(async () => {
+      await this.runHeartbeat();
+    }, 10000);
+  }
+
+  /**
+   * Stops the heartbeat.
+   */
+  public stopHeartbeat(): void {
+    if (this.heartbeatIntervalId !== undefined) {
+      clearInterval(this.heartbeatIntervalId);
+      this.heartbeatIntervalId = undefined;
     }
+  }
 
-    /**
-     * Starts the heartbeat by running it immediatly and every 10 seconds.
-     */
-    public async startHeartbeat(): Promise<void> {
-        await this.runHeartbeat();
-        this.heartbeatIntervalId = setInterval(async () => {
-            await this.runHeartbeat();
-        }, 10000);
-    }
+  /**
+   * Retrieves the last heartbeat timestamp from local storage.
+   */
+  public async getLastHeartbeat(): Promise<number | undefined> {
+    const data = await storage.local.get('last-heartbeat');
+    return data['last-heartbeat'] as number | undefined;
+  }
 
-    /**
-     * Stops the heartbeat.
-     */
-    public stopHeartbeat(): void {
-        if (this.heartbeatIntervalId !== undefined) {
-            clearInterval(this.heartbeatIntervalId);
-            this.heartbeatIntervalId = undefined;
-        }
-    }
+  /**
+   * Schedules an alarm 'heartBeat' to trigger after 1 minute.
+   */
+  public async runAlarmAll(): Promise<void> {
+    alarms.create('heartBeat', { delayInMinutes: 1 });
+  }
 
-    /**
-     * Retrieves the last heartbeat timestamp from local storage.
-     */
-    public async getLastHeartbeat(): Promise<number | undefined> {
-        const data = await storage.local.get('last-heartbeat');
-        return data['last-heartbeat'] as number | undefined;
-    }
+  /**
+   * Starts the alarm scheduling by running it immediatly and every 10 seconds.
+   */
+  public async startAlarmAll(): Promise<void> {
+    await this.runAlarmAll();
+    this.alarmIntervalId = setInterval(async () => {
+      await this.runAlarmAll();
+    }, 10000);
+  }
 
-    /**
-     * Schedules an alarm 'heartBeat' to trigger after 1 minute.
-     */
-    public async runAlarmAll(): Promise<void> {
-        alarms.create('heartBeat', { delayInMinutes: 1 });
+  /**
+   * Stops the alarm internval.
+   */
+  public stopAlarmAll(): void {
+    if (this.alarmIntervalId !== undefined) {
+      clearInterval(this.alarmIntervalId);
+      this.alarmIntervalId = undefined;
     }
-
-    /**
-     * Starts the alarm scheduling by running it immediatly and every 10 seconds.
-     */
-    public async startAlarmAll(): Promise<void> {
-        await this.runAlarmAll();
-        this.alarmIntervalId = setInterval(async () => {
-            await this.runAlarmAll();
-        }, 10000);
-    }
-
-    /**
-     * Stops the alarm internval.
-     */
-    public stopAlarmAll(): void {
-        if (this.alarmIntervalId !== undefined) {
-            clearInterval(this.alarmIntervalId);
-            this.alarmIntervalId = undefined;
-        }
-    }
+  }
 }
-
-

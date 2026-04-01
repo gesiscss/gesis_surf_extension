@@ -1,9 +1,9 @@
 export interface PrivateModeState {
-    mode: boolean;
-    alarm: string;
-    remainingTime: number;
+  mode: boolean;
+  alarm: string;
+  remainingTime: number;
 }
 
 export interface PrivateModeStorage {
-    private: PrivateModeState;
+  private: PrivateModeState;
 }

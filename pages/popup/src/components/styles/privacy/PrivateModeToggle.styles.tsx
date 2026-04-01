@@ -1,7 +1,7 @@
 import { styled, Switch } from '@mui/material';
 
 // Custom styled toggle switch
-export const CustomSwitch = styled(Switch)(({ theme }) => ({
+export const CustomSwitch = styled(Switch)(() => ({
   width: 62,
   height: 34,
   padding: 7,

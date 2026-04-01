@@ -1,1 +1,1 @@
-export * from './sharedContentScriptTypes'
+export * from './sharedContentScriptTypes';
