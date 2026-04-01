@@ -8,15 +8,15 @@ interface PrivacyTimerProps {
   duration?: number;
 }
 
-const PRIVATE_MODE_DURATION = 1 * 60; // 15 minutes in seconds
+const PRIVATE_MODE_DURATION = 15 * 60; // 15 minutes in seconds
 
-export const PrivacyTimer: React.FC<PrivacyTimerProps> = ({ 
-  isActive, 
+export const PrivacyTimer: React.FC<PrivacyTimerProps> = ({
+  isActive,
   onTimerEnd,
   initialTime,
-  duration = PRIVATE_MODE_DURATION 
+  duration = PRIVATE_MODE_DURATION,
 }) => {
-  const [timeLeft, setTimeLeft] = useState(initialTime || PRIVATE_MODE_DURATION);
+  const [timeLeft, setTimeLeft] = useState(initialTime || duration);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onTimeEndRef = useRef(onTimerEnd);
 
@@ -38,6 +38,8 @@ export const PrivacyTimer: React.FC<PrivacyTimerProps> = ({
     const seconds = timeLeft % 60;
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
+
+  const isTimePositive = timeLeft > 0;
 
   useEffect(() => {
     // Clear any existing timer
@@ -62,7 +64,7 @@ export const PrivacyTimer: React.FC<PrivacyTimerProps> = ({
           }
 
           return prevTime - 1;
-        })
+        });
       }, 1000);
     }
     return () => {
@@ -71,21 +73,20 @@ export const PrivacyTimer: React.FC<PrivacyTimerProps> = ({
         clearInterval(timerRef.current);
       }
     };
-  }, [isActive, timeLeft > 0]);
+  }, [isActive, isTimePositive]);
 
   // Only render when active
   if (!isActive) return null;
 
   return (
     <Box sx={{ mb: 1 }}>
-      <Typography 
-        variant="subtitle2" 
-        sx={{ 
-          color: '#E53935', 
+      <Typography
+        variant="subtitle2"
+        sx={{
+          color: '#E53935',
           fontWeight: 'bold',
-          fontSize: '1rem'
-        }}
-      >
+          fontSize: '1rem',
+        }}>
         {formatTimeLeft()}
       </Typography>
     </Box>

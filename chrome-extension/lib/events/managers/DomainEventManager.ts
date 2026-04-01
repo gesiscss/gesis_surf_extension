@@ -16,9 +16,7 @@ class DomainEventManager {
   private readonly serviceName = 'DomainEventManager';
   private currentActiveDomainSessionId: string | null = null;
 
-  constructor(
-    private domainManager: DomainHandler,
-  ) {}
+  constructor(private domainManager: DomainHandler) {}
 
   /**
    * Gets the current active domain session ID.
@@ -35,7 +33,7 @@ class DomainEventManager {
    * @param mapping The tab mapping data
    * @returns void
    */
-  async handleDomainChange(newDomain: string | null, tab: DomainDataTypes , mapping: TabMapping) {
+  async handleDomainChange(newDomain: string | null, tab: DomainDataTypes, mapping: TabMapping) {
     console.log(`[${this.serviceName}] Handle Domain Change to ${newDomain}`);
 
     try {
@@ -63,7 +61,7 @@ class DomainEventManager {
    * @returns void
    */
   public async handleDomainCleanup(): Promise<void> {
-    try{
+    try {
       if (this.currentActiveDomainSessionId) {
         console.log(`[${this.serviceName}] Cleaning up domain session for ${this.currentActiveDomainSessionId}`);
         await this.closePreviousDomainSession();
@@ -81,19 +79,17 @@ class DomainEventManager {
    * @returns A boolean indicating if the domain should be updated.
    */
   private shouldUpdateDomain(newDomain: string | null) {
-
     if (!this.currentActiveDomainSessionId && newDomain) {
       return true;
     }
 
     // New domain detected (not null) and different from the current active domain
-    const isNewDomain = newDomain !== null &&
-                        newDomain !== this.currentActiveDomainSessionId;
+    const isNewDomain = newDomain !== null && newDomain !== this.currentActiveDomainSessionId;
 
     // Close the current domain session if a new domain is detected
-    const shouldCloseDomain = this.currentActiveDomainSessionId !== null &&
-                              this.currentActiveDomainSessionId !== newDomain;
-    
+    const shouldCloseDomain =
+      this.currentActiveDomainSessionId !== null && this.currentActiveDomainSessionId !== newDomain;
+
     return isNewDomain || shouldCloseDomain;
   }
 
@@ -106,11 +102,10 @@ class DomainEventManager {
    */
   private async processDomainTransition(newDomain: string | null, tab: DomainDataTypes, mapping: TabMapping) {
     console.log(`[${this.serviceName}] Processing domain transition to ${newDomain}`);
-    if (this.currentActiveDomainSessionId &&
-        this.currentActiveDomainSessionId !== newDomain) {
-          await this.closePreviousDomainSession();
-        }
-    
+    if (this.currentActiveDomainSessionId && this.currentActiveDomainSessionId !== newDomain) {
+      await this.closePreviousDomainSession();
+    }
+
     // Close previous domain session if it exists and is different from the new domain
     if (newDomain && newDomain !== this.currentActiveDomainSessionId) {
       await this.initializeNewDomainSession(newDomain, tab, mapping);
@@ -123,10 +118,7 @@ class DomainEventManager {
   private async closePreviousDomainSession() {
     console.log(`[${this.serviceName}] Closing domain ${this.currentActiveDomainSessionId}`);
     if (this.currentActiveDomainSessionId) {
-      await this.domainManager.updateDomain(
-        this.currentActiveDomainSessionId,
-        "PATCH"
-      );
+      await this.domainManager.updateDomain(this.currentActiveDomainSessionId, 'PATCH');
       this.currentActiveDomainSessionId = null;
     }
   }
@@ -174,15 +166,18 @@ class DomainEventManager {
 
     this.currentActiveDomainSessionId = newDomain;
 
-    if(mapping.id === undefined){
+    if (mapping.id === undefined) {
       throw new Error('Tab ID is undefined');
     }
-    
+
     if (this.isDomainReadyToSend(tab)) {
       console.log(`[${this.serviceName}] Domain is ready to be sent for ${newDomain}`);
-      const savedDomainSessionId = await this.domainManager.sendDomain(tab, mapping, "PATCH");
+      const savedDomainSessionId = await this.domainManager.sendDomain(tab, mapping, 'PATCH');
       this.currentActiveDomainSessionId = savedDomainSessionId || newDomain;
-      console.log(`[${this.serviceName}] Updated current active domain session ID to:`, this.currentActiveDomainSessionId);
+      console.log(
+        `[${this.serviceName}] Updated current active domain session ID to:`,
+        this.currentActiveDomainSessionId,
+      );
       await this.requestHTMLCapture(tab.id);
     } else {
       console.log(`[${this.serviceName}] Domain is not ready to be sent for ${newDomain}`);
@@ -208,7 +203,6 @@ class DomainEventManager {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[${this.serviceName}] Domain error for ${domain || 'unknown domain'}:`, errorMessage);
   }
-
 }
 
 export default DomainEventManager;

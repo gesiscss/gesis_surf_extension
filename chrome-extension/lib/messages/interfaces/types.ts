@@ -7,63 +7,63 @@ import { ClickData, ScrollData, HTMLSnapshot } from '@chrome-extension-boilerpla
 
 // Message Response Interface
 export interface MessageResponse {
-    status: MessageStatus;
-    message?: string;
-    data?: PrivateModeState | number | boolean  | null; 
+  status: MessageStatus;
+  message?: string;
+  data?: PrivateModeState | number | boolean | null;
 }
 
 export type MessageStatus = 'success' | 'error' | 'blocked';
 
 // Base Message Interface
 export interface BaseMessage {
-    type: string;
+  type: string;
 }
 
 // Auth Messages and Types
 export interface AuthSuccessMessage extends BaseMessage {
-    type: 'AUTH_SUCCESS';
-    token: string;
+  type: 'AUTH_SUCCESS';
+  token: string;
 }
 
 export interface AuthFailureMessage extends BaseMessage {
-    type: 'AUTH_FAILURE';
-    error: string;
+  type: 'AUTH_FAILURE';
+  error: string;
 }
 
-export type ExtensionMessage = AuthSuccessMessage
-    | AuthFailureMessage
-    | PrivateModeMessage
-    | ClickEventMessage
-    | ScrollEventMessage
-    | ScrollFinalEventMessage
-    | HTMLCaptureMessage;
+export type ExtensionMessage =
+  | AuthSuccessMessage
+  | AuthFailureMessage
+  | PrivateModeMessage
+  | ClickEventMessage
+  | ScrollEventMessage
+  | ScrollFinalEventMessage
+  | HTMLCaptureMessage;
 
 // Private Mode Messages and Types
 export type PrivateModeActionType = 'GET_STATE' | 'TOGGLE' | 'GET_TIME' | 'PRIVATE_MODE_EXPIRED';
 
 export interface PrivateModeMessage extends BaseMessage {
-    type: 'PRIVATE_MODE';
-    action: PrivateModeActionType;
-    enable?: boolean;
+  type: 'PRIVATE_MODE';
+  action: PrivateModeActionType;
+  enable?: boolean;
 }
 
 export interface ClickEventMessage extends BaseMessage {
-    type: 'CLICK_EVENT';
-    data: ClickData;
+  type: 'CLICK_EVENT';
+  data: ClickData;
 }
 
 export interface ScrollEventMessage extends BaseMessage {
-    type: 'SCROLL_EVENT';
-    data: ScrollData;
+  type: 'SCROLL_EVENT';
+  data: ScrollData;
 }
 
 export interface ScrollFinalEventMessage extends BaseMessage {
-    type: 'SCROLL_FINAL';
-    data: ScrollData;
+  type: 'SCROLL_FINAL';
+  data: ScrollData;
 }
 
 export interface HTMLCaptureMessage extends BaseMessage {
-    type: 'HTML_CAPTURE';
-    data: HTMLSnapshot;
+  type: 'HTML_CAPTURE';
+  data: HTMLSnapshot;
 }
-
