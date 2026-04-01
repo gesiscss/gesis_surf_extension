@@ -7,7 +7,7 @@ export type InfoType = 'onCreated' | 'onFocusChanged' | 'onRemoved';
  * Matches common fields across Window, Tab and Domain models.
  */
 export type BasePayloadTypes = {
-    id?: number;
-    start_time?: string;
-    closing_time: string;
+  id?: number;
+  start_time?: string;
+  closing_time: string;
 };

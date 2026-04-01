@@ -3,7 +3,7 @@
  * Exports all event manager classes for centralized access
  */
 
-// Window Manager 
+// Window Manager
 export { default as WindowEventManager } from './WindowEventManager';
 
 // Tab Manager

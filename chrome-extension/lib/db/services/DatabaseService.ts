@@ -3,12 +3,12 @@
  * Provides methods to perform CRUD operations on various object stores.
  * @implements {DatabaseService}
  */
-import { openDB, IDBPDatabase } from 'idb';
+import { openDB } from 'idb';
+import type { IDBPDatabase } from 'idb';
 import { DBGesisTypes, ItemTypes } from '../interfaces/types';
 import { DB_CONFIG } from '../constants/dbConfig';
 
-
-type StoreNames = 'winlives' | 'tabslives' | 'domainslives' | 'config' | 'winclose'| 'hostslives';
+type StoreNames = 'winlives' | 'tabslives' | 'domainslives' | 'config' | 'winclose' | 'hostslives';
 
 /**
  * Service for interacting with the IndexedDB database.
@@ -20,7 +20,7 @@ class DatabaseService {
     this.db = this.initializeDB();
   }
 
-  private initializeDB() : Promise<IDBPDatabase<DBGesisTypes>> {
+  private initializeDB(): Promise<IDBPDatabase<DBGesisTypes>> {
     return openDB<DBGesisTypes>(DB_CONFIG.name, DB_CONFIG.version, {
       upgrade(db, oldVersion) {
         if (!db.objectStoreNames.contains('winlives')) {
@@ -64,11 +64,8 @@ class DatabaseService {
    * @param data The data to set in the store.
    * @returns The result of the set operation.
    * @throws An error if the set operation fails.
-  */
-  async setItem<K extends StoreNames>(
-    storeName: K,
-    data: DBGesisTypes[K]['value']
-  ): Promise<IDBValidKey | Error> {
+   */
+  async setItem<K extends StoreNames>(storeName: K, data: DBGesisTypes[K]['value']): Promise<IDBValidKey | Error> {
     try {
       const db = await this.db;
       return await db.put(storeName, data);
@@ -90,7 +87,7 @@ class DatabaseService {
     console.log('Key:', key);
     try {
       const db = await this.db;
-      const item = await db.get(storeName, key) as ItemTypes;
+      const item = (await db.get(storeName, key)) as ItemTypes;
       console.log('Item:', item);
       if (!item) {
         console.warn(`Item with Id ${key} not found in ${storeName}`);
@@ -98,7 +95,7 @@ class DatabaseService {
       }
       return item;
     } catch (error) {
-      console.error(`Error getting item from ${storeName}`, error);                  
+      console.error(`Error getting item from ${storeName}`, error);
       throw error;
     }
   }
@@ -110,7 +107,7 @@ class DatabaseService {
    * @throws An error if the get all operation fails.
    */
   async getAllItems(storeName: StoreNames): Promise<object[] | Error> {
-    try{
+    try {
       const db = await this.db;
       return await db.getAll(storeName);
     } catch (error) {
@@ -130,9 +127,9 @@ class DatabaseService {
     console.log('Store Name:', storeName);
     console.log('Key:', key);
     console.log('Deleting item from store:', storeName, 'with key:', key);
-    try{
+    try {
       const db = await this.db;
-      const item = await db.get(storeName, key) as ItemTypes;
+      const item = (await db.get(storeName, key)) as ItemTypes;
       if (!item) {
         console.warn(`Item with windowSessionId ${key} not found in ${storeName}`);
         return null;

@@ -3,102 +3,101 @@
  * Handles policy decisions for content-level events (clicks, scrolls, HTML).
  */
 
-import { BasePolicyService } from "./basePolicyService";
-import { PolicyClassification, ContentPolicyDecision, ContentEventKind } from "./types";
-import { DatabaseService } from "@root/lib/db";
-import { ClickData, HTMLSnapshot } from "@chrome-extension-boilerplate/shared/lib/types/contentScript";
+import { BasePolicyService } from './basePolicyService';
+import { PolicyClassification, ContentPolicyDecision, ContentEventKind } from './types';
+import { DatabaseService } from '@root/lib/db';
+import { ClickData, HTMLSnapshot } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
 export class ContentPolicyService extends BasePolicyService {
+  constructor(databaseService: DatabaseService) {
+    super(databaseService);
+  }
 
-    constructor(databaseService: DatabaseService) {
-        super(databaseService);
+  protected get serviceName(): string {
+    return 'ContentPolicyService';
+  }
+
+  /**
+   * Evaluates the content policy for a given URL and event kind.
+   * @param url The page URL
+   * @param eventKind The type of content event (click, scroll, html)
+   * @returns ContentPolicyDecision with action and optional mask value
+   */
+  public async evaluate(url: string, eventKind: ContentEventKind): Promise<ContentPolicyDecision> {
+    const classification = await this.resolvePolicy(url);
+    console.log(`[${this.serviceName}] Classification for ${url}: ${classification}, event: ${eventKind}`);
+    return this.decide(classification, eventKind);
+  }
+
+  /**
+   * Maps classification + event kind to a content policy decision.
+   */
+  private decide(classification: PolicyClassification, eventKind: ContentEventKind): ContentPolicyDecision {
+    switch (classification) {
+      case 'full_allow':
+      case 'default':
+        return { action: 'allow' };
+
+      case 'only_host':
+      case 'full_deny':
+        return this.decideRestricted(eventKind, classification);
+
+      case 'private':
+        return { action: 'block', reason: classification };
+
+      default:
+        console.warn(`[${this.serviceName}] Unknown classification: ${classification}`);
+        return { action: 'allow' };
     }
+  }
 
-    protected get serviceName(): string {
-        return 'ContentPolicyService';
+  /**
+   * Handles the restricted decision logic for different event kinds based on classification.
+   * - For 'only_host' and 'full_deny':
+   * - Clicks: masked (referrer + target element)
+   * - Scrolls: allowed (no sensitive content)
+   * - HTML: blocked
+   * @param eventKind The type of content event
+   * @param classification The policy classification
+   * @returns ContentPolicyDecision with action and optional mask value
+   */
+  private decideRestricted(eventKind: ContentEventKind, classification: PolicyClassification): ContentPolicyDecision {
+    switch (eventKind) {
+      case 'click':
+        return { action: 'mask', maskValue: classification };
+      case 'scroll':
+        return { action: 'allow' };
+      case 'html':
+        return { action: 'block', reason: classification };
+      default:
+        return { action: 'allow' };
     }
+  }
 
-    /**
-     * Evaluates the content policy for a given URL and event kind.
-     * @param url The page URL
-     * @param eventKind The type of content event (click, scroll, html)
-     * @returns ContentPolicyDecision with action and optional mask value
-     */
-    public async evaluate(url: string, eventKind: ContentEventKind): Promise<ContentPolicyDecision> {
-        const classification = await this.resolvePolicy(url);
-        console.log(`[${this.serviceName}] Classification for ${url}: ${classification}, event: ${eventKind}`);
-        return this.decide(classification, eventKind);
-    }
+  /**
+   * Applies masking to click data based on a mask value.
+   * @param clickData Original click data
+   * @param maskValue The value to use for masked fields
+   * @returns Masked ClickData
+   */
+  public maskClickData(clickData: ClickData, maskValue: string): ClickData {
+    return {
+      ...clickData,
+      click_referrer: maskValue,
+      click_target_element: maskValue,
+    };
+  }
 
-    /**
-     * Maps classification + event kind to a content policy decision.
-     */
-    private decide(classification: PolicyClassification, eventKind: ContentEventKind): ContentPolicyDecision {
-        switch (classification) {
-            case 'full_allow':
-            case 'default':
-                return { action: 'allow' };
-
-            case 'only_host':
-            case 'full_deny':
-                return this.decideRestricted(eventKind, classification);
-                
-            case 'private':
-                return { action: 'block', reason: classification };
-
-            default:
-                console.warn(`[${this.serviceName}] Unknown classification: ${classification}`);
-                return { action: 'allow' };
-        }
-    }
-
-    /**
-     * Handles the restricted decision logic for different event kinds based on classification.
-     * - For 'only_host' and 'full_deny':
-     * - Clicks: masked (referrer + target element)
-     * - Scrolls: allowed (no sensitive content)
-     * - HTML: blocked
-     * @param eventKind The type of content event
-     * @param classification The policy classification
-     * @returns ContentPolicyDecision with action and optional mask value
-     */
-    private decideRestricted(eventKind: ContentEventKind, classification: PolicyClassification): ContentPolicyDecision {
-        switch (eventKind) {
-            case 'click':
-                return { action: 'mask', maskValue: classification };
-            case 'scroll':
-                return { action: 'allow' };
-            case 'html':
-                return { action: 'block', reason: classification };
-            default:
-                return { action: 'allow' };
-        }
-    }
-
-    /**
-     * Applies masking to click data based on a mask value.
-     * @param clickData Original click data
-     * @param maskValue The value to use for masked fields
-     * @returns Masked ClickData
-     */
-    public maskClickData(clickData: ClickData, maskValue: string): ClickData {
-        return {
-            ...clickData,
-            click_referrer: maskValue,
-            click_target_element: maskValue,
-        };
-    }
-
-    /**
-     * Applies masking to HTML snapshot.
-     * @param htmlData Original HTML snapshot
-     * @param maskValue The value to replace content with
-     * @returns Masked HTMLSnapshot
-     */
-    public maskHTMLSnapshot(htmlData: HTMLSnapshot, maskValue: string): HTMLSnapshot {
-        return {
-            ...htmlData,
-            html_content: maskValue,
-        };
-    }
-}   
+  /**
+   * Applies masking to HTML snapshot.
+   * @param htmlData Original HTML snapshot
+   * @param maskValue The value to replace content with
+   * @returns Masked HTMLSnapshot
+   */
+  public maskHTMLSnapshot(htmlData: HTMLSnapshot, maskValue: string): HTMLSnapshot {
+    return {
+      ...htmlData,
+      html_content: maskValue,
+    };
+  }
+}

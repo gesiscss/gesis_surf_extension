@@ -1,1 +1,1 @@
-export { HeartbeatService } from "./HeartBeat";
+export { HeartbeatService } from './HeartBeat';

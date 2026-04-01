@@ -1,1 +1,1 @@
-export { PrivateModeService } from "./privateMode";
+export { PrivateModeService } from './privateMode';
