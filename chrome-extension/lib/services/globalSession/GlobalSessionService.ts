@@ -87,7 +87,7 @@ class GlobalSessionService {
   public getFromLocalStorage(): Promise<GlobalSessionTypes | null> {
     return new Promise(resolve => {
       chrome.storage.local.get('globalSession', result => {
-        resolve(result.globalSession || null);
+        resolve(result.globalSession as GlobalSessionTypes | null);
       });
     });
   }
