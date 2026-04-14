@@ -73,5 +73,18 @@
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
     }
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{js,jsx,cjs,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,html}": [
+      "prettier --write"
+    ]
   }
 }
