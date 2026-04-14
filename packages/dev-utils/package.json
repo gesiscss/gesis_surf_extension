@@ -20,6 +20,7 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@chrome-extension-boilerplate/tsconfig": "workspace:*"
+    "@chrome-extension-boilerplate/tsconfig": "workspace:*",
+    "vitest": "^1.6.0"
   }
 }
