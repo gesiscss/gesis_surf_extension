@@ -160,7 +160,7 @@ export function createStorage<D = string>(key: string, fallback: D, config?: Sto
   const _getDataFromStorage = async (): Promise<D> => {
     checkStoragePermission(storageType);
     const value = await chrome.storage[storageType].get([key]);
-    return deserialize(value[key]) ?? fallback;
+    return deserialize(value[key] as string) ?? fallback;
   };
 
   const _emitChange = () => {
@@ -195,7 +195,7 @@ export function createStorage<D = string>(key: string, fallback: D, config?: Sto
     // Check if the key we are listening for is in the changes object
     if (changes[key] === undefined) return;
 
-    const valueOrUpdate: ValueOrUpdate<D> = deserialize(changes[key].newValue);
+    const valueOrUpdate: ValueOrUpdate<D> = deserialize(changes[key].newValue as string);
 
     if (cache === valueOrUpdate) return;
 
