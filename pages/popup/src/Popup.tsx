@@ -4,11 +4,9 @@ import { AuthProvider } from './components/Login/AuthContext';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 // import Login from './login/Login';
 // import PrivateRoutes from  '../../utils/PriveteRoutes';
-import Home  from './components/Login/HomePage';
-
+import Home from './components/Login/HomePage';
 
 const Popup = () => {
- 
   return (
     <div id="app-container">
       <AuthProvider>
@@ -24,4 +22,4 @@ const Popup = () => {
   );
 };
 
-export default Popup
+export default Popup;

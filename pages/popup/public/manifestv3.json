@@ -9,20 +9,22 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
+      "matches": ["<all_urls>"],
       "run_at": "document_end",
-      "js": [
-        "./index.global.js"
-      ],
-      "css": [
-        "./style.css"
-      ]
+      "js": ["./index.global.js"],
+      "css": ["./style.css"]
     }
   ],
   "permissions": [
-    "storage","tabs", "activeTab", "scripting", "contextMenus","nativeMessaging","offscreen","background","alarms"
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting",
+    "contextMenus",
+    "nativeMessaging",
+    "offscreen",
+    "background",
+    "alarms"
   ],
   "background": {
     "service_worker": "./background.global.js"
@@ -33,7 +35,5 @@
     "48": "icon48.png",
     "128": "icon128.png"
   },
-  "host_permissions": [
-    "<all_urls>"
-  ]
+  "host_permissions": ["<all_urls>"]
 }

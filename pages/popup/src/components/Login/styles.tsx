@@ -29,7 +29,7 @@ export const styles = {
     width: '100%',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   logo: {
     position: 'relative',
@@ -43,18 +43,18 @@ export const styles = {
   },
   title: {
     fontFamily: 'Cabin, sans-serif',
-    fontWeight: 700
+    fontWeight: 700,
   },
   textField: {
     '& .MuiInputLabel-root': {
       fontFamily: 'Cabin, sans-serif',
-      fontSize: '0.7rem'
-    }
+      fontSize: '0.7rem',
+    },
   },
   submitButton: {
     backgroundColor: '#080074ff',
     color: '#fff',
-    marginTop: 2
+    marginTop: 2,
   },
   loadingContainer: {
     display: 'flex',
@@ -62,5 +62,5 @@ export const styles = {
     alignItems: 'center',
     height: '100vh',
     backgroundColor: '#000',
-  }
+  },
 } as const;

@@ -1,5 +1,5 @@
 import React from 'react';
-import ReactDOM, { createRoot } from 'react-dom/client';
+import ReactDOM from 'react-dom/client';
 import Popup from './Popup';
 
 function init() {
@@ -12,7 +12,7 @@ function init() {
     <React.StrictMode>
       <Popup />
     </React.StrictMode>,
-  )
+  );
 }
 
 init();

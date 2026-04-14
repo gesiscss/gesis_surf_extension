@@ -9,8 +9,8 @@ import { ReactNode } from 'react';
  * setIsAuthenticated - Function to update the authentication status.
  */
 export interface AuthContextType {
-    isAuthenticated: boolean;
-    setIsAuthenticated: (value: boolean) => void;
+  isAuthenticated: boolean;
+  setIsAuthenticated: (value: boolean) => void;
 }
 
 /**
@@ -18,5 +18,5 @@ export interface AuthContextType {
  * children - The child components that will have access to the auth context.
  */
 export interface AuthProviderProps {
-    children: ReactNode;
+  children: ReactNode;
 }
