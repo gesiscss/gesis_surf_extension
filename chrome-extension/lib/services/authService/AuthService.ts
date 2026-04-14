@@ -133,7 +133,7 @@ export class AuthService {
    */
   async checkAuthentication() {
     try {
-      const token = (await chrome.storage.local.get('token')).token;
+      const token = (await chrome.storage.local.get('token')).token as string | undefined;
 
       if (token) {
         const isValid = await this.validateToken(token);
