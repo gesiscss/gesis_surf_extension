@@ -59,8 +59,13 @@
     "rimraf": "^5.0.7",
     "tailwindcss": "^3.4.3",
     "tslib": "^2.8.1",
+<<<<<<< HEAD
     "turbo": "^1.13.3",
     "typedoc": "^0.28.19",
+=======
+    "turbo": "^2.9.6",
+    "typedoc": "^0.28.13",
+>>>>>>> d4502f0 (build(deps-dev): bump turbo from 1.13.3 to 2.9.3)
     "typescript": "5.9.3",
     "vite": "^6.4.2"
   },
