@@ -5,7 +5,6 @@
 //   - readToken      (tokenStorage module)     — replaced with a fake via vi.mock
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ApiError } from '../interfaces/types';
 
 // Replace readToken with a controllable fake.
 // Path is relative to THIS test file → ../../storages/tokenStorage
