@@ -10,7 +10,7 @@
     "build:firefox:watch": "cross-env __DEV__=true __FIREFOX__=true vite build -w --mode development",
     "dev": "pnpm build:watch",
     "dev:firefox": "pnpm build:firefox:watch",
-    "test": "echo 'No tests yet'",
+    "test": "vitest run --config vitest.config.ts",
     "lint": "eslint ./ --ext .ts,.js,.tsx,.jsx",
     "lint:fix": "pnpm lint --fix",
     "prettier": "prettier . --write",

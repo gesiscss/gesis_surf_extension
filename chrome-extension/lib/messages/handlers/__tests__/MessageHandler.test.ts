@@ -15,7 +15,14 @@ import type { Runtime } from 'webextension-polyfill';
 
 // Mock ContentEventManager before MessageHandler is imported so that the constructor
 // call inside MessageHandler gets the mock, not the real class.
-vi.mock('webextension-polyfill', () => ({}));
+vi.mock('webextension-polyfill', () => ({
+  Runtime: {},
+}));
+
+/** Stable spy used by the mocked ContentEventManager instance. */
+const mockHandleContentEvent = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({ status: 'success', message: 'ok' }),
+);
 
 const mockContentEventManagerConstructor = vi.hoisted(() =>
   vi.fn(function (this: { handleContentEvent?: typeof mockHandleContentEvent }) {
@@ -38,16 +45,12 @@ vi.mock('@chrome-extension-boilerplate/shared/lib/storages/tokenStorage', () => 
 }));
 
 import { MessageHandler } from '../MessageHandler';
+import type { AuthService, PrivateModeService } from '@root/lib/services';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** A minimal sender object — MessageHandler only forwards it to ContentEventManager. */
 const fakeSender = {} as Runtime.MessageSender;
-
-/** Stable spy used by the mocked ContentEventManager instance. */
-const mockHandleContentEvent = vi.hoisted(() =>
-  vi.fn().mockResolvedValue({ status: 'success', message: 'ok' }),
-);
 
 // ─── Setup ────────────────────────────────────────────────────────────────────
 
@@ -79,10 +82,8 @@ beforeEach(() => {
 
   // Cast to unknown first — we only need the methods MessageHandler actually calls.
   handler = new MessageHandler(
-    mockAuthService as unknown as Parameters<typeof MessageHandler.prototype.handleMessage>[0] extends never
-      ? never
-      : never,
-    mockPrivateModeService as never,
+    mockAuthService as unknown as AuthService,
+    mockPrivateModeService as unknown as PrivateModeService,
   );
 });
 
