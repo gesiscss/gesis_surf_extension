@@ -7,7 +7,7 @@
 import type { Runtime } from 'webextension-polyfill';
 import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import type { PrivateModeService, AuthService } from '@root/lib/services';
-import { ContentEventType } from '@root/lib/handlers';
+import { ContentEventType } from '@root/lib/handlers/types';
 import { ContentEventManager } from '@root/lib/events/managers';
 import { apiUrl } from '@root/lib/handlers/shared';
 import { ClickData, ScrollData, HTMLSnapshot } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
