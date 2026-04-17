@@ -24,6 +24,6 @@
   "devDependencies": {
     "@chrome-extension-boilerplate/tsconfig": "workspace:*",
     "tsup": "8.0.2",
-    "vitest": "^1.6.0"
+    "vitest": "^3.2.4"
   }
 }
