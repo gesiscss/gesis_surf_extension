@@ -2,7 +2,7 @@
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-VALID_PATTERN="^(feature|bugfix|hotfix|refactor|docs|test)/.+$|^(dev|main|prod)$"
+VALID_PATTERN="^(feature|bugfix|hotfix|refactor|docs|test|dependabot)/.+$|^(dev|main|prod)$"
 
 if ! echo "$BRANCH" | grep -qE "$VALID_PATTERN"; then
   echo ""
