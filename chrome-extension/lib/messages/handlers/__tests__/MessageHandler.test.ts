@@ -18,7 +18,7 @@ import type { Runtime } from 'webextension-polyfill';
 vi.mock('webextension-polyfill', () => ({}));
 
 const mockContentEventManagerConstructor = vi.hoisted(() =>
-  vi.fn(function (this: { handleContentEvent?: typeof mockHandleContentEvent }, apiUrl: string) {
+  vi.fn(function (this: { handleContentEvent?: typeof mockHandleContentEvent }) {
     this.handleContentEvent = mockHandleContentEvent;
   }),
 );
