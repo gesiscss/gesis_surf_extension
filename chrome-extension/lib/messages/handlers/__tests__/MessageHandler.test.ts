@@ -17,10 +17,14 @@ import type { Runtime } from 'webextension-polyfill';
 // call inside MessageHandler gets the mock, not the real class.
 vi.mock('webextension-polyfill', () => ({}));
 
+const mockContentEventManagerConstructor = vi.hoisted(() =>
+  vi.fn(function (this: { handleContentEvent?: typeof mockHandleContentEvent }, apiUrl: string) {
+    this.handleContentEvent = mockHandleContentEvent;
+  }),
+);
+
 vi.mock('@root/lib/events/managers', () => ({
-  ContentEventManager: vi.fn().mockImplementation(() => ({
-    handleContentEvent: vi.fn().mockResolvedValue({ status: 'success', message: 'ok' }),
-  })),
+  ContentEventManager: mockContentEventManagerConstructor,
 }));
 
 // apiUrl comes from a file that uses import.meta.env — mock it to avoid Vite-only globals.
@@ -34,17 +38,16 @@ vi.mock('@chrome-extension-boilerplate/shared/lib/storages/tokenStorage', () => 
 }));
 
 import { MessageHandler } from '../MessageHandler';
-import { ContentEventManager } from '@root/lib/events/managers';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** A minimal sender object — MessageHandler only forwards it to ContentEventManager. */
 const fakeSender = {} as Runtime.MessageSender;
 
-/** Returns the ContentEventManager instance created by the most-recently-built MessageHandler. */
-function getMockManager() {
-  return vi.mocked(ContentEventManager).mock.results[0].value;
-}
+/** Stable spy used by the mocked ContentEventManager instance. */
+const mockHandleContentEvent = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({ status: 'success', message: 'ok' }),
+);
 
 // ─── Setup ────────────────────────────────────────────────────────────────────
 
@@ -59,6 +62,8 @@ let sendResponse: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
+
+  mockHandleContentEvent.mockResolvedValue({ status: 'success', message: 'ok' });
 
   mockAuthService = {
     checkAuthentication: vi.fn().mockResolvedValue(undefined),
@@ -133,25 +138,26 @@ describe('handleMessage routing', () => {
   it('routes CLICK_EVENT → calls ContentEventManager.handleContentEvent', async () => {
     await handler.handleMessage({ type: 'CLICK_EVENT', data: {} }, fakeSender, sendResponse);
 
-    expect(getMockManager().handleContentEvent).toHaveBeenCalled();
+    expect(mockContentEventManagerConstructor).toHaveBeenCalled();
+    expect(mockHandleContentEvent).toHaveBeenCalled();
   });
 
   it('routes SCROLL_EVENT → calls ContentEventManager.handleContentEvent', async () => {
     await handler.handleMessage({ type: 'SCROLL_EVENT', data: {} }, fakeSender, sendResponse);
 
-    expect(getMockManager().handleContentEvent).toHaveBeenCalled();
+    expect(mockHandleContentEvent).toHaveBeenCalled();
   });
 
   it('routes SCROLL_FINAL → calls ContentEventManager.handleContentEvent', async () => {
     await handler.handleMessage({ type: 'SCROLL_FINAL', data: {} }, fakeSender, sendResponse);
 
-    expect(getMockManager().handleContentEvent).toHaveBeenCalled();
+    expect(mockHandleContentEvent).toHaveBeenCalled();
   });
 
   it('routes HTML_CAPTURE → calls ContentEventManager.handleContentEvent', async () => {
     await handler.handleMessage({ type: 'HTML_CAPTURE', data: {} }, fakeSender, sendResponse);
 
-    expect(getMockManager().handleContentEvent).toHaveBeenCalled();
+    expect(mockHandleContentEvent).toHaveBeenCalled();
   });
 
   it('responds with error for an unknown message type', async () => {
