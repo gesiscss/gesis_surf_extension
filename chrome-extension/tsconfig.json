@@ -9,6 +9,6 @@
       "@lib/*": ["lib/*"]
     }
   },
-  "include": ["lib", "utils", "vite.config.ts", "node_modules/@types"],
+  "include": ["lib", "utils", "vite.config.ts", "vitest.config.ts", "node_modules/@types"],
   "exclude": ["**/__tests__/**", "**/*.test.ts", "**/*.spec.ts"]
 }
