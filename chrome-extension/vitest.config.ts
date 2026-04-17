@@ -18,5 +18,12 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     restoreMocks: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['lcov'],
+      reportsDirectory: './coverage',
+      include: ['lib/**/*.ts'],
+      exclude: ['lib/**/__tests__/**', 'lib/**/*.test.ts'],
+    },
   },
 });

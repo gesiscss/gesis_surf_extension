@@ -27,6 +27,11 @@
       "dependsOn": ["^test", "^build"],
       "cache": false
     },
+    "test:coverage": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "cache": false
+    },
     "clean": {
       "cache": false
     }

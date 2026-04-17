@@ -48,3 +48,6 @@ packages/hmr/build
 
 # VSCODE counter
 .VSCodeCounter/
+
+# Coverage reports
+coverage/
