@@ -15,9 +15,6 @@ import type { Runtime } from 'webextension-polyfill';
 
 // Mock ContentEventManager before MessageHandler is imported so that the constructor
 // call inside MessageHandler gets the mock, not the real class.
-vi.mock('webextension-polyfill', () => ({
-  Runtime: {},
-}));
 
 /** Stable spy used by the mocked ContentEventManager instance. */
 const mockHandleContentEvent = vi.hoisted(() => vi.fn().mockResolvedValue({ status: 'success', message: 'ok' }));
