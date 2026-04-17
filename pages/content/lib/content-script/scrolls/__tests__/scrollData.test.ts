@@ -59,6 +59,7 @@ beforeEach(async () => {
   // Get the fresh sendMessage spy created by the re-executed mock factory.
   const polyfill = await import('webextension-polyfill');
   sendMessage = vi.mocked(polyfill.runtime.sendMessage) as ReturnType<typeof vi.fn>;
+  sendMessage.mockClear();
   sendMessage.mockResolvedValue({ status: 'success' });
 
   // With innerHeight=0 and documentHeight=1000: depth = scrollY / 10.
