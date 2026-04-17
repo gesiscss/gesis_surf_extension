@@ -84,6 +84,13 @@ Use the following prefixes:
 | `docs/`     | Documentation updates   | `docs/update-api-guide`      |
 | `test/`     | Test additions          | `test/add-click-tests`       |
 
+### Branch Name Enforcement
+
+Branch naming is **automatically enforced** at two levels:
+
+- **Client-side**: A Husky `pre-push` hook rejects pushes from incorrectly named branches with a clear error message.
+- **Server-side**: GitHub branch protection rules enforce the same pattern on the remote — no bypass possible.
+
 ### Workflow Steps
 
 1. **Create branch** from `dev`
@@ -145,9 +152,7 @@ pnpm install
 git add .
 
 # Use commitizen to create a commit
-npm run cz commit
-# or
-pnpm cz commit
+pnpm cz
 ```
 
 Commitizen will guide you through creating a properly formatted commit:
@@ -169,9 +174,9 @@ We use **Husky** to ensure code quality before commits:
 pnpm run prepare
 
 # Run manually on staged files
-npm run lint
-npm run type-check
-npm run prettier
+pnpm run lint
+pnpm run type-check
+pnpm run prettier
 ```
 
 ---
@@ -313,7 +318,7 @@ git checkout -b feature/your-feature-name
 git add .
 
 # Commit using commitizen
-npm run cz commit
+pnpm cz
 
 # Push your branch
 git push origin feature/your-feature-name
@@ -336,11 +341,11 @@ pnpm run dev
 # Start development server (Firefox)
 pnpm run dev:firefox
 
-# Build for production (Firefox)
+# Build for production (Chrome)
 pnpm run build
 
-# Build for production (Chrome)
-pnpm run build:chrome
+# Build for production (Firefox)
+pnpm run build:firefox
 
 # Run tests
 pnpm run test
@@ -387,8 +392,8 @@ dev ─────────────────────────�
 ## ❓ Questions?
 
 - **Email**: mario.ramirez@gesis.org
-- **GitHub Issues**: [Create an issue](https://github.com/Fersonmx/Gesis-Surf/issues)
-- **GitHub Discussions**: [Start a discussion](https://github.com/Fersonmx/Gesis-Surf/discussions)
+- **GitHub Issues**: [Create an issue](https://github.com/gesiscss/gesis_surf_extension/issues)
+- **GitHub Discussions**: [Start a discussion](https://github.com/gesiscss/gesis_surf_extension/discussions)
 
 ---
 
