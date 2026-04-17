@@ -115,8 +115,8 @@ describe('calculateScrollMetrics — scroll_depth_percentage', () => {
     expect(metrics.scroll_depth_percentage).toBe(0);
   });
 
-  it('is 100% when at the bottom of the page (scrollY = documentHeight)', () => {
-    triggerScroll(1000); // depth = 1000 / 10 = 100%
+  it('is 100% when scrollY + innerHeight equals documentHeight (scrollY = 1000, innerHeight = 0)', () => {
+    triggerScroll(1000); // (1000 + 0) / 1000 * 100 = 100%
     const metrics = sendMessage.mock.calls[0][0].data.scroll_metrics;
     expect(metrics.scroll_depth_percentage).toBe(100);
   });
