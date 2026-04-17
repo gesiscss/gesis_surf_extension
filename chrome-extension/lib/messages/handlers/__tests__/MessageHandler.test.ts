@@ -20,9 +20,7 @@ vi.mock('webextension-polyfill', () => ({
 }));
 
 /** Stable spy used by the mocked ContentEventManager instance. */
-const mockHandleContentEvent = vi.hoisted(() =>
-  vi.fn().mockResolvedValue({ status: 'success', message: 'ok' }),
-);
+const mockHandleContentEvent = vi.hoisted(() => vi.fn().mockResolvedValue({ status: 'success', message: 'ok' }));
 
 const mockContentEventManagerConstructor = vi.hoisted(() =>
   vi.fn(function (this: { handleContentEvent?: typeof mockHandleContentEvent }) {
@@ -74,7 +72,9 @@ beforeEach(() => {
 
   mockPrivateModeService = {
     getPrivateModeState: vi.fn().mockResolvedValue({ mode: false, alarm: '', remainingTime: 0 }),
-    togglePrivateMode: vi.fn().mockResolvedValue({ mode: true, alarm: '2025-01-01T00:00:00.000Z', remainingTime: 3600 }),
+    togglePrivateMode: vi
+      .fn()
+      .mockResolvedValue({ mode: true, alarm: '2025-01-01T00:00:00.000Z', remainingTime: 3600 }),
     getRemainingTime: vi.fn().mockResolvedValue(3600),
   };
 

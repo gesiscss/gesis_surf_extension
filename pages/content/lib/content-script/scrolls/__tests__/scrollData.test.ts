@@ -202,7 +202,7 @@ describe('sendScrollData — message shape', () => {
 
 describe('sendFinalScrollSummary', () => {
   it("sends a 'SCROLL_FINAL' message on beforeunload when scroll events have occurred", () => {
-    triggerScroll(500);     // creates one scroll event
+    triggerScroll(500); // creates one scroll event
     sendMessage.mockClear(); // discard the SCROLL_EVENT call
 
     beforeunloadHandler();
