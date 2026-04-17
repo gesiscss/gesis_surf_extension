@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import { resolve } from 'path';
+import { resolve } from 'node:path';
 
 const rootDir = resolve(__dirname);
 const repoRoot = resolve(rootDir, '..');

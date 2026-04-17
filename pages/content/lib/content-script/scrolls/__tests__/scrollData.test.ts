@@ -34,11 +34,11 @@ let beforeunloadHandler: () => void;
 // ─── DOM property helpers ─────────────────────────────────────────────────────
 
 function setScrollY(value: number) {
-  Object.defineProperty(window, 'scrollY', { value, configurable: true });
+  Object.defineProperty(globalThis, 'scrollY', { value, configurable: true });
 }
 
 function setWindowHeight(value: number) {
-  Object.defineProperty(window, 'innerHeight', { value, configurable: true });
+  Object.defineProperty(globalThis, 'innerHeight', { value, configurable: true });
 }
 
 function setDocumentHeight(value: number) {
@@ -58,7 +58,7 @@ beforeEach(async () => {
 
   // Get the fresh sendMessage spy created by the re-executed mock factory.
   const polyfill = await import('webextension-polyfill');
-  sendMessage = vi.mocked(polyfill.runtime.sendMessage) as ReturnType<typeof vi.fn>;
+  sendMessage = vi.mocked(polyfill.runtime.sendMessage);
   sendMessage.mockClear();
   sendMessage.mockResolvedValue({ status: 'success' });
 
@@ -69,7 +69,7 @@ beforeEach(async () => {
   setDocumentHeight(1000);
 
   // Capture the event handlers registered by initializeScrollListener.
-  const spy = vi.spyOn(window, 'addEventListener');
+  const spy = vi.spyOn(globalThis, 'addEventListener');
   initializeScrollListener();
 
   scrollHandler = spy.mock.calls.find(c => c[0] === 'scroll')![1] as unknown as () => void;
@@ -94,13 +94,13 @@ function triggerScroll(scrollY: number) {
 
 describe('initializeScrollListener', () => {
   it("registers a 'scroll' listener on window with { passive: true }", () => {
-    const spy = vi.spyOn(window, 'addEventListener');
+    const spy = vi.spyOn(globalThis, 'addEventListener');
     initializeScrollListener();
     expect(spy).toHaveBeenCalledWith('scroll', expect.any(Function), { passive: true });
   });
 
   it("registers a 'beforeunload' listener on window", () => {
-    const spy = vi.spyOn(window, 'addEventListener');
+    const spy = vi.spyOn(globalThis, 'addEventListener');
     initializeScrollListener();
     expect(spy).toHaveBeenCalledWith('beforeunload', expect.any(Function));
   });
