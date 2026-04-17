@@ -4,7 +4,7 @@
  * @module handlers/messageHandler
  */
 
-import { Runtime } from 'webextension-polyfill';
+import type { Runtime } from 'webextension-polyfill';
 import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { PrivateModeService, AuthService } from '@root/lib/services';
 import { ContentEventType } from '@root/lib/handlers';
