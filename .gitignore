@@ -13,6 +13,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+packages/hmr/build
 *.local
 
 # Editor directories and files
