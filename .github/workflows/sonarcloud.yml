@@ -22,7 +22,7 @@ jobs:
                   node-version: 20
                   cache: pnpm
             - name: Install dependencies
-              run: pnpm install --frozen-lockfile
+              run: pnpm install --frozen-lockfile --ignore-scripts
             - name: Run tests with coverage
               run: pnpm test:coverage
             - name: SonarCloud Scan
