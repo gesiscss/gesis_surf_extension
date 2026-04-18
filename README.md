@@ -7,12 +7,24 @@
 
 **An Open-Source Infrastructure for Privacy-Preserving Longitudinal Web Browsing Data Collection**
 
-
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D18.12.0-brightgreen.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.2.2-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/react-18.2-61dafb?logo=react&logoColor=white)](https://react.dev/)
 [![pnpm](https://img.shields.io/badge/pnpm-9.1.1-f69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
+
+---
+
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=gesiscss_gesis_surf_extension&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=gesiscss_gesis_surf_extension)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=gesiscss_gesis_surf_extension&metric=coverage)](https://sonarcloud.io/summary/new_code?id=gesiscss_gesis_surf_extension)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=gesiscss_gesis_surf_extension&metric=bugs)](https://sonarcloud.io/summary/new_code?id=gesiscss_gesis_surf_extension)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=gesiscss_gesis_surf_extension&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=gesiscss_gesis_surf_extension)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=gesiscss_gesis_surf_extension&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=gesiscss_gesis_surf_extension)
+[![Duplications](https://sonarcloud.io/api/project_badges/measure?project=gesiscss_gesis_surf_extension&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=gesiscss_gesis_surf_extension)
+
+[![SonarQube Cloud](https://sonarcloud.io/images/project_badges/sonarcloud-highlight.svg)](https://sonarcloud.io/summary/new_code?id=gesiscss_gesis_surf_extension)
+
+---
 
 [Features](#features) •
 [Installation](#installation) •
