@@ -10,7 +10,8 @@
     "build:firefox:watch": "cross-env __DEV__=true __FIREFOX__=true vite build -w --mode development",
     "dev": "pnpm build:watch",
     "dev:firefox": "pnpm build:firefox:watch",
-    "test": "echo 'No tests yet'",
+    "test": "vitest run --config vitest.config.ts",
+    "test:coverage": "vitest run --config vitest.config.ts --coverage",
     "lint": "eslint ./ --ext .ts,.js,.tsx,.jsx",
     "lint:fix": "pnpm lint --fix",
     "prettier": "prettier . --write",
@@ -35,7 +36,9 @@
     "@laynezh/vite-plugin-lib-assets": "^0.5.21",
     "@types/webextension-polyfill": "^0.12.1",
     "@types/ws": "^8.5.10",
+    "@vitest/coverage-v8": "^3.2.4",
     "magic-string": "^0.30.10",
-    "ts-loader": "^9.5.1"
+    "ts-loader": "^9.5.1",
+    "vitest": "^3.2.4"
   }
 }
