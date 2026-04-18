@@ -4,7 +4,7 @@
  * Communicates with the server to create/update tab records and manage sessions.
  */
 
-import { Tabs } from 'webextension-polyfill';
+import type { Tabs } from 'webextension-polyfill';
 import { DatabaseService } from '@root/lib/db';
 import { GlobalSessionService } from '@root/lib/services';
 import DomainManager from './DomainHandler';

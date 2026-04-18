@@ -15,6 +15,7 @@
     "dev": "concurrently --kill-others \"cross-env __DEV__=true turbo dev --concurrency 20 --filter=!./pages/content-ui --filter=!./pages/devtools-panel\" \"pnpm dev-server\"",
     "dev:firefox": "concurrently --kill-others \"cross-env __DEV__=true __FIREFOX__=true turbo dev --concurrency 20\" \"pnpm dev-server\"",
     "test": "turbo test",
+    "test:coverage": "turbo test:coverage",
     "type-check": "turbo type-check",
     "lint": "turbo lint",
     "lint:fix": "turbo lint:fix",
@@ -35,14 +36,16 @@
     "webextension-polyfill": "^0.12.0"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
     "@types/chrome": "^0.1.39",
-    "@types/node": "^20.12.11",
+    "@types/node": "^25.6.0",
     "@types/react": "^18.3.2",
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
-    "@vitejs/plugin-react-swc": "^3.6.0",
     "autoprefixer": "^10.4.19",
+    "commitizen": "^4.3.1",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
     "cz-conventional-changelog": "^3.3.0",
@@ -60,10 +63,10 @@
     "rimraf": "^5.0.7",
     "tailwindcss": "^3.4.3",
     "tslib": "^2.8.1",
-    "turbo": "^1.13.3",
-    "typedoc": "^0.28.13",
+    "turbo": "^2.9.6",
+    "typedoc": "^0.28.19",
     "typescript": "5.9.3",
-    "vite": "^5.2.11"
+    "vite": "^6.4.2"
   },
   "packageManager": "pnpm@9.1.1",
   "engines": {
