@@ -16,6 +16,7 @@ import { XWavelet } from './XWavelet';
 import { TikTokWavelet } from './TikTokWavelet';
 import { TikTokPlayedWavelet } from './TikTokPlayedWavelet';
 import { YouTubeShortsWavelet } from './YouTubeShortsWavelet';
+import { InstagramWavelet } from './InstagramWavelet';
 
 /**
  * Initializes social media tracking by creating instances of all supported platform
@@ -43,5 +44,6 @@ export async function initializeSocialTracking(): Promise<void> {
         new TikTokWavelet(configs['tiktok']),
         new TikTokPlayedWavelet(configs['tiktok']),
         new YouTubeShortsWavelet(configs['youtube_shorts']),
+        new InstagramWavelet(configs['instagram']),
     ].forEach(w => w.initialize());
 }

@@ -9,10 +9,11 @@ import { LLMData, SocialData, SocialMessageType } from '@chrome-extension-boiler
 // LLM: single endpoint — backend routes to the correct index via llm_provider field.
 // TikTok: single endpoint — backend routes to the correct index via signal_type field.
 const SOCIAL_ENDPOINTS: Record<SocialMessageType, string> = {
-    X_POST:         '/x/',
-    TIKTOK_POST:    '/tiktok/',
-    TIKTOK_PLAYED:  '/tiktok/',
-    YOUTUBE_SHORT:  '/youtube-shorts/',
+    X_POST:          '/x/',
+    TIKTOK_POST:     '/tiktok/',
+    TIKTOK_PLAYED:   '/tiktok/',
+    YOUTUBE_SHORT:   '/youtube-shorts/',
+    INSTAGRAM_POST:  '/instagram/',
 };
 
 export default class WaveletScriptHandler {

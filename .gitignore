@@ -1,3 +1,9 @@
+# Coverage reports
+**/coverage/
+
+# Build artifacts
+packages/hmr/build/
+
 # Documentation files
 documentation
 

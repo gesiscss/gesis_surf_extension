@@ -157,11 +157,28 @@ export interface YouTubeShortsData {
     domain_id: string;
 }
 
+// Payload for Instagram post events
+export interface InstagramPostData {
+    id: string;           // post shortcode (e.g. 'DX9zCRllgmV')
+    shortcode: string;
+    author_handle: string;
+    is_verified: boolean;
+    caption: string;
+    post_url: string;
+    post_timestamp: string;  // from <time datetime="">
+    likes: number;
+    comments: number;
+    post_type: 'image' | 'carousel' | 'video';
+    captured_at: string;
+    page_url: string;
+    domain_id: string;
+}
+
 // Union type for all social post data
-export type SocialData = XPostData | TikTokPostData | TikTokPlayedData | YouTubeShortsData;
+export type SocialData = XPostData | TikTokPostData | TikTokPlayedData | YouTubeShortsData | InstagramPostData;
 
 // Social message type identifiers
-export type SocialMessageType = 'X_POST' | 'TIKTOK_POST' | 'TIKTOK_PLAYED' | 'YOUTUBE_SHORT';
+export type SocialMessageType = 'X_POST' | 'TIKTOK_POST' | 'TIKTOK_PLAYED' | 'YOUTUBE_SHORT' | 'INSTAGRAM_POST';
 
 // Configuration for a remote update wavelet selector, used to determine which DOM elements to observe for changes.
 export interface SelectorConfig {
