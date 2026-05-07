@@ -32,6 +32,9 @@ importers:
       react-router-dom:
         specifier: ^6.23.1
         version: 6.26.1(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      uuid:
+        specifier: '14'
+        version: 14.0.0
       webextension-polyfill:
         specifier: ^0.12.0
         version: 0.12.0
@@ -4827,6 +4830,10 @@ packages:
 
   uuid@11.1.0:
     resolution: {integrity: sha512-0/A9rDy9P7cJ+8w1c9WD9V//9Wj15Ce2MPz8Ri6032usz+NfePxx5AcN3bN+r6ZL6jEo066/yNYB3tn4pQEx+A==}
+    hasBin: true
+
+  uuid@14.0.0:
+    resolution: {integrity: sha512-Qo+uWgilfSmAhXCMav1uYFynlQO7fMFiMVZsQqZRMIXp0O7rR7qjkj+cPvBHLgBqi960QCoo/PH2/6ZtVqKvrg==}
     hasBin: true
 
   v8-compile-cache-lib@3.0.1:
@@ -9991,6 +9998,8 @@ snapshots:
   util-deprecate@1.0.2: {}
 
   uuid@11.1.0: {}
+
+  uuid@14.0.0: {}
 
   v8-compile-cache-lib@3.0.1: {}
 
