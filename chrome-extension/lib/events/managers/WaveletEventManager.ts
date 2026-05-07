@@ -1,4 +1,4 @@
-import { Runtime, Tabs } from 'webextension-polyfill';
+import type { Runtime, Tabs } from 'webextension-polyfill';
 import { DatabaseService } from '@root/lib/db';
 import DomainManager from '@root/lib/handlers/clients/DomainHandler';
 import { DomainPolicyService } from '@root/lib/services/policyService';

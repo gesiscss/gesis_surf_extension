@@ -27,6 +27,7 @@ const mockContentEventManagerConstructor = vi.hoisted(() =>
 
 vi.mock('@root/lib/events/managers', () => ({
   ContentEventManager: mockContentEventManagerConstructor,
+  WaveletEventManager: vi.fn(function () {}),
 }));
 
 // apiUrl comes from a file that uses import.meta.env — mock it to avoid Vite-only globals.
