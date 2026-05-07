@@ -1,0 +1,8 @@
+// Re-export social data types from shared package (single source of truth)
+export type {
+  XPostData,
+  TikTokPostData,
+  TikTokPlayedData,
+  YouTubeShortsData,
+  InstagramPostData,
+} from '@chrome-extension-boilerplate/shared/lib/types/contentScript';

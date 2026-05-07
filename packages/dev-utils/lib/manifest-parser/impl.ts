@@ -18,9 +18,7 @@ function convertToFirefoxCompatibleManifest(manifest: Manifest) {
     scripts: [manifest.background?.service_worker],
     type: 'module',
   };
-  manifestCopy.content_security_policy = {
-    extension_pages: "script-src 'self'; object-src 'self'",
-  };
+
   if (manifest.options_page) {
     manifestCopy.options_ui = {
       page: manifest.options_page,
@@ -28,5 +26,10 @@ function convertToFirefoxCompatibleManifest(manifest: Manifest) {
     };
     delete manifestCopy.options_page;
   }
+
+  manifestCopy.content_security_policy = {
+    extension_pages: "script-src 'self'; object-src 'self'",
+  };
+
   return manifestCopy as Manifest;
 }

@@ -9,5 +9,6 @@ export const DB_CONFIG = {
     config: 'id',
     winclose: 'id',
     hostslives: 'hostname',
+    selectors: 'provider',
   } as const,
 };

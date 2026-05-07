@@ -138,7 +138,7 @@ const Login: React.FC<LoginProps> = () => {
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        height: '100%',
+        minHeight: '100%',
         width: '100%',
         backgroundColor: '#003C78',
         padding: 1,

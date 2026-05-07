@@ -1,9 +1,17 @@
 /**
+ * @fileoverview Shared types and interfaces for messages sent between content scripts and background scripts in the Chrome extension.
  * Message Interfaces and Types for Chrome Extension
  * Handles communication between content scripts and background scripts
  */
 import { PrivateModeState } from '@root/lib/services/privateModeService/types';
-import { ClickData, ScrollData, HTMLSnapshot } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
+import {
+  ClickData,
+  ScrollData,
+  HTMLSnapshot,
+  LLMData,
+  SocialData,
+  SocialMessageType,
+} from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
 // Message Response Interface
 export interface MessageResponse {
@@ -30,6 +38,18 @@ export interface AuthFailureMessage extends BaseMessage {
   error: string;
 }
 
+// Types for LLM Event Messages
+export interface LLMEventMessage extends BaseMessage {
+  type: 'LLM_MESSAGE';
+  data: LLMData;
+}
+
+// Types for Social Event Messages
+export interface SocialEventMessage extends BaseMessage {
+  type: SocialMessageType;
+  data: SocialData;
+}
+
 export type ExtensionMessage =
   | AuthSuccessMessage
   | AuthFailureMessage
@@ -37,7 +57,9 @@ export type ExtensionMessage =
   | ClickEventMessage
   | ScrollEventMessage
   | ScrollFinalEventMessage
-  | HTMLCaptureMessage;
+  | HTMLCaptureMessage
+  | LLMEventMessage
+  | SocialEventMessage;
 
 // Private Mode Messages and Types
 export type PrivateModeActionType = 'GET_STATE' | 'TOGGLE' | 'GET_TIME' | 'PRIVATE_MODE_EXPIRED';

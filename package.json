@@ -12,7 +12,7 @@
     "build": "turbo build",
     "build:firefox": "cross-env __FIREFOX__=true turbo build",
     "dev-server": "pnpm -F hmr build && pnpm -F hmr dev-server",
-    "dev": "concurrently --kill-others \"cross-env __DEV__=true turbo dev --concurrency 20 --filter=!./pages/content-ui --filter=!./pages/devtools-panel\" \"pnpm dev-server\"",
+    "dev": "concurrently --kill-others \"cross-env __DEV__=true turbo dev --concurrency 20\" \"pnpm dev-server\"",
     "dev:firefox": "concurrently --kill-others \"cross-env __DEV__=true __FIREFOX__=true turbo dev --concurrency 20\" \"pnpm dev-server\"",
     "test": "turbo test",
     "test:coverage": "turbo test:coverage",

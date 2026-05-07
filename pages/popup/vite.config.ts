@@ -27,6 +27,9 @@ export default defineConfig({
       external: ['chrome'],
     },
   },
+  esbuild: {
+    drop: isProduction ? ['console', 'debugger'] : [],
+  },
   define: {
     'process.env.NODE_ENV': isDev ? `"development"` : `"production"`,
   },
