@@ -58,9 +58,11 @@ export const apiRequest = async (
  * Validates an authentication token.
  * @param token - The token to validated.
  * @param url -The validation endpoint URL.
- * @returns A promise that resolves to a boolean indicating whether the token is valid.
+ * @returns A promise that resolves to a TokenValidationResult.
  */
-export const validateToken = async (token: string, url: string): Promise<boolean> => {
+export type TokenValidationResult = 'valid' | 'invalid' | 'unreachable' | 'server_error' | 'forbidden';
+
+export const validateToken = async (token: string, url: string): Promise<TokenValidationResult> => {
   try {
     const response = await fetch(url, {
       method: 'GET',
@@ -70,16 +72,18 @@ export const validateToken = async (token: string, url: string): Promise<boolean
       },
     });
 
-    if (!response.ok) {
-      console.warn(`Token validation failed with status: ${response.status}`);
-      return false;
+    if (response.ok) {
+      const data = (await response.json()) as AuthResponse;
+      return data && data.user_id ? 'valid' : 'invalid';
     }
 
-    const data = (await response.json()) as AuthResponse;
-    const isValid = Boolean(data && data.user_id);
-    return isValid;
+    if (response.status === 401) return 'invalid';
+    if (response.status === 403) return 'forbidden';
+
+    console.warn(`[validateToken] Unexpected status ${response.status} — keeping token`);
+    return 'server_error';
   } catch (error) {
-    console.error('Error validating token:', error);
-    return false;
+    console.warn('[validateToken] Server unreachable — keeping token:', error);
+    return 'unreachable';
   }
 };
