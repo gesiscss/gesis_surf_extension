@@ -136,7 +136,7 @@ class DomainEventManager {
     return false;
   }
 
-  private async requestHTMLCapture(tabId: number): Promise<void> {
+  public async requestHTMLCapture(tabId: number): Promise<void> {
     try {
       console.log(`[${this.serviceName}] Requesting HTML capture for tab ID: ${tabId}`);
       await browserTabs.sendMessage(tabId, { type: 'REQUEST_HTML_CAPTURE' });
@@ -178,7 +178,6 @@ class DomainEventManager {
         `[${this.serviceName}] Updated current active domain session ID to:`,
         this.currentActiveDomainSessionId,
       );
-      await this.requestHTMLCapture(tab.id);
     } else {
       console.log(`[${this.serviceName}] Domain is not ready to be sent for ${newDomain}`);
       this.currentActiveDomainSessionId = newDomain;

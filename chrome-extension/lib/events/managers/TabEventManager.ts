@@ -162,7 +162,14 @@ class TabEventManager {
         return;
       }
 
-      await this.handleTabUpdate(tabId, { status: 'complete' }, await tabs.get(tabId));
+      const tab = await tabs.get(tabId);
+      await this.handleTabUpdate(tabId, { status: 'complete' }, tab);
+
+      // Only trigger HTML capture for re-activation (tab already loaded).
+      // Fresh page loads are handled by the content script's own load+1s capture (Path B).
+      if (tab.status === 'complete') {
+        await this.domainEventManager.requestHTMLCapture(tabId);
+      }
     } catch (error) {
       console.error(`[${this.serviceName}] Error processing tab activation`, error);
       this.handleTabError(error, 'activation');
