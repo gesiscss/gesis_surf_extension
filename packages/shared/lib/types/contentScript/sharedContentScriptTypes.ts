@@ -86,7 +86,7 @@ export interface LLMData {
 export interface SocialPostData {
   // Core identity
   id: string;
-  platform: 'x' | 'tiktok' | 'youtube_shorts' | 'instagram' | 'facebook';
+  platform: 'x' | 'tiktok' | 'youtube_shorts' | 'instagram' | 'facebook' | 'linkedin';
   signal_type?: 'feed' | 'played';
 
   // Author
@@ -108,7 +108,7 @@ export interface SocialPostData {
   replies?: number;
 
   // Media metadata
-  post_type?: 'image' | 'carousel' | 'video' | 'text';
+  post_type?: 'image' | 'carousel' | 'video' | 'text' | 'external_link';
   video_id?: string;
   shortcode?: string;
   music_id?: string;
@@ -129,6 +129,14 @@ export interface SocialPostData {
 
   // Ad / sponsored content flag
   is_ad?: boolean;
+
+  // LinkedIn feed context (actor who triggered the feed item vs actual author)
+  feed_context_type?: string;
+  feed_context_actor?: string;
+  feed_context_action?: string;
+
+  // LinkedIn group name
+  group_name?: string;
 }
 
 // Payload for X (Twitter) post events
@@ -176,7 +184,8 @@ export type SocialMessageType =
   | 'TIKTOK_PLAYED'
   | 'YOUTUBE_SHORT'
   | 'INSTAGRAM_POST'
-  | 'FACEBOOK_POST';
+  | 'FACEBOOK_POST'
+  | 'LINKEDIN_POST';
 
 // Configuration for a remote update wavelet selector, used to determine which DOM elements to observe for changes.
 export interface SelectorConfig {

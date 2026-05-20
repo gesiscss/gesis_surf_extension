@@ -6,6 +6,9 @@
  *  - TikTokWavelet      → TikTok feed videos (DOM insertion / feed exposure)
  *  - TikTokPlayedWavelet → TikTok videos the user actually played (play event)
  *  - YouTubeShortsWavelet → YouTube Shorts (yt-navigate-finish SPA event)
+ *  - FacebookFeedWavelet → Facebook feed posts (DOM insertion)
+ *  - InstagramWavelet   → Instagram feed posts (DOM insertion)
+ *  - LinkedInFeedWavelet → LinkedIn feed posts (DOM insertion)
  *
  * This mirrors the LLMRegistry pattern — add new wavelets here as new platforms are supported.
  */
@@ -18,6 +21,7 @@ import { TikTokPlayedWavelet } from './TikTokPlayedWavelet';
 import { YouTubeShortsWavelet } from './YouTubeShortsWavelet';
 import { FacebookFeedWavelet } from './FacebookFeedWavelet';
 import { InstagramWavelet } from './InstagramWavelet';
+import { LinkedInFeedWavelet } from './LinkedInFeedWavelet';
 
 /**
  * Initializes social media tracking by creating instances of all supported platform
@@ -47,5 +51,6 @@ export async function initializeSocialTracking(): Promise<void> {
     new YouTubeShortsWavelet(configs['youtube_shorts']),
     new InstagramWavelet(configs['instagram']),
     new FacebookFeedWavelet(configs['facebook']),
+    new LinkedInFeedWavelet(configs['linkedin']),
   ].forEach(w => w.initialize());
 }
