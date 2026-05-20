@@ -1,5 +1,5 @@
 import { XPostData } from './types';
-import { BaseSocialWavelet, SocialPostData } from './BaseSocialWavelet';
+import { BaseSocialWavelet } from './BaseSocialWavelet';
 import { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
 function parseMetric(label: string, keyword: string): number {
@@ -35,7 +35,7 @@ export class XWavelet extends BaseSocialWavelet {
     return !XWavelet.EXCLUDED_PATHS.some(p => window.location.pathname.startsWith(p));
   }
 
-  extractPost(article: HTMLElement): (XPostData & SocialPostData) | null {
+  extractPost(article: HTMLElement): XPostData | null {
     try {
       const statusLink = article.querySelector<HTMLAnchorElement>(
         this.sel(article, 'status_link', 'a[href*="/status/"]'),
@@ -64,18 +64,19 @@ export class XWavelet extends BaseSocialWavelet {
 
       return {
         id: tweetId,
-        tweet_id: tweetId,
+        platform: 'x' as const,
         author_handle: `@${authorHandle}`,
         author_display_name: displayName,
-        tweet_text: tweetText.substring(0, 5000),
-        tweet_url: `https://x.com/${authorHandle}/status/${tweetId}`,
-        tweet_timestamp: tweetTimestamp,
+        content_text: tweetText.substring(0, 5000),
+        permalink: `https://x.com/${authorHandle}/status/${tweetId}`,
+        post_timestamp: tweetTimestamp,
         captured_at: new Date().toISOString(),
         replies: parseMetric(ariaLabel, 'repl'),
         reposts: parseMetric(ariaLabel, 'repost'),
         likes: parseMetric(ariaLabel, 'like'),
         bookmarks: parseMetric(ariaLabel, 'bookmark'),
         views: parseMetric(ariaLabel, 'view'),
+        comments: parseMetric(ariaLabel, 'repl'),
         page_url: window.location.href,
         domain_id: '',
       };
@@ -95,8 +96,8 @@ export class XWavelet extends BaseSocialWavelet {
     for (const article of articles) {
       const data = this.extractPost(article);
       if (!data) continue;
-      if (this.capturedIds.has(data.tweet_id)) continue;
-      this.capturedIds.add(data.tweet_id);
+      if (this.capturedIds.has(data.id)) continue;
+      this.capturedIds.add(data.id);
       this.sendData(data);
     }
   }

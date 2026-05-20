@@ -16,6 +16,7 @@ import { XWavelet } from './XWavelet';
 import { TikTokWavelet } from './TikTokWavelet';
 import { TikTokPlayedWavelet } from './TikTokPlayedWavelet';
 import { YouTubeShortsWavelet } from './YouTubeShortsWavelet';
+import { FacebookFeedWavelet } from './FacebookFeedWavelet';
 import { InstagramWavelet } from './InstagramWavelet';
 
 /**
@@ -45,5 +46,6 @@ export async function initializeSocialTracking(): Promise<void> {
     new TikTokPlayedWavelet(configs['tiktok']),
     new YouTubeShortsWavelet(configs['youtube_shorts']),
     new InstagramWavelet(configs['instagram']),
+    new FacebookFeedWavelet(configs['facebook']),
   ].forEach(w => w.initialize());
 }

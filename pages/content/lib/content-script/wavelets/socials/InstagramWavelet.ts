@@ -1,5 +1,5 @@
 import { InstagramPostData } from './types';
-import { BaseSocialWavelet, SocialPostData } from './BaseSocialWavelet';
+import { BaseSocialWavelet } from './BaseSocialWavelet';
 import { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
 /**
@@ -39,6 +39,106 @@ function getCountAfterAction(section: Element, svgLabel: string): number {
   return 0;
 }
 
+// ── Embedded-JSON extraction (primary source) ──────────────────────────────
+
+/**
+ * Recursively searches a JSON value for Instagram post objects.
+ * A post is identified by having both `code` (shortcode) and `like_count`.
+ */
+function findPostsInJSON(obj: unknown): Array<Record<string, unknown>> {
+  const posts: Array<Record<string, unknown>> = [];
+  if (!obj || typeof obj !== 'object') return posts;
+
+  if (Array.isArray(obj)) {
+    for (const item of obj) posts.push(...findPostsInJSON(item));
+    return posts;
+  }
+
+  const o = obj as Record<string, unknown>;
+  if (typeof o.code === 'string' && typeof o.like_count === 'number') {
+    posts.push(o);
+  }
+
+  for (const key in o) {
+    if (Object.prototype.hasOwnProperty.call(o, key)) {
+      posts.push(...findPostsInJSON(o[key]));
+    }
+  }
+  return posts;
+}
+
+/**
+ * Builds a post object from Instagram's embedded JSON payload.
+ */
+function buildPostFromJSON(o: Record<string, unknown>): InstagramPostData | null {
+  const code = o.code as string;
+  const user = (o.user || o.owner) as Record<string, unknown> | undefined;
+  const captionObj = o.caption as Record<string, unknown> | null;
+  const caption = (captionObj?.text as string) ?? '';
+
+  if (!code || !user?.username) return null;
+
+  const takenAt = o.taken_at ?? o.taken_at_timestamp;
+  const timestamp = takenAt ? new Date((takenAt as number) * 1000).toISOString() : new Date().toISOString();
+
+  const postType: 'image' | 'carousel' | 'video' = o.carousel_media ? 'carousel' : o.video_versions ? 'video' : 'image';
+
+  return {
+    id: code,
+    platform: 'instagram',
+    is_ad: false,
+    shortcode: code,
+    author_handle: user.username as string,
+    is_verified: !!user.is_verified,
+    content_text: caption,
+    permalink: `https://www.instagram.com/p/${code}/`,
+    post_timestamp: timestamp,
+    likes: (o.like_count as number) ?? 0,
+    comments: (o.comment_count as number) ?? 0,
+    post_type: postType,
+    captured_at: new Date().toISOString(),
+    page_url: window.location.href,
+    domain_id: '',
+  };
+}
+
+/**
+ * Extracts all posts found in Instagram's server-rendered JSON <script> tags.
+ */
+function extractPostsFromEmbeddedJSON(): InstagramPostData[] {
+  const results: InstagramPostData[] = [];
+  const scripts = Array.from(document.querySelectorAll('script[type="application/json"]'));
+
+  for (const script of scripts) {
+    try {
+      const data = JSON.parse(script.textContent || '');
+      const rawPosts = findPostsInJSON(data);
+      for (const raw of rawPosts) {
+        const post = buildPostFromJSON(raw);
+        if (post) results.push(post);
+      }
+    } catch {
+      // ignore non-JSON or malformed scripts
+    }
+  }
+
+  return results;
+}
+
+// ── Module-level cache for JSON-extracted posts ───────────────────────────
+let _jsonPostsCache: InstagramPostData[] | null = null;
+
+function getCachedJSONPosts(): InstagramPostData[] {
+  if (_jsonPostsCache === null) {
+    _jsonPostsCache = extractPostsFromEmbeddedJSON();
+  }
+  return _jsonPostsCache;
+}
+
+export function clearJSONPostsCache(): void {
+  _jsonPostsCache = null;
+}
+
 export class InstagramWavelet extends BaseSocialWavelet {
   protected readonly messageType = 'INSTAGRAM_POST';
   protected readonly label = '📸[Instagram]';
@@ -51,25 +151,37 @@ export class InstagramWavelet extends BaseSocialWavelet {
     if (this.selectorConfig?.hostname_patterns?.length) {
       return this.selectorConfig.hostname_patterns.some(p => window.location.hostname.includes(p));
     }
-    return window.location.hostname === 'www.instagram.com';
+    return window.location.hostname.includes('instagram.com');
   }
 
-  extractPost(article: HTMLElement): (InstagramPostData & SocialPostData) | null {
+  extractPost(article: HTMLElement): InstagramPostData | null {
     try {
-      // Skip sponsored / ad posts
-      const adSpan = article.querySelector('span.x1fhwpqd.x132q4wb');
-      if (adSpan?.textContent?.trim() === 'Ad') return null;
-
-      // Post shortcode — lives in the /p/SHORTCODE/ link
-      const postLink = article.querySelector<HTMLAnchorElement>(this.sel(article, 'post_link', 'a._a6hd[href^="/p/"]'));
+      // ── 1. Get shortcode from the article link ─────────────────────────
+      const postLink = article.querySelector<HTMLAnchorElement>(this.sel(article, 'post_link', 'a[href*="/p/"]'));
       const shortcode = postLink?.pathname.match(/\/p\/([^/]+)\//)?.[1] ?? null;
+      console.log('[📸Instagram] extractPost — shortcode:', shortcode, '| href:', postLink?.href ?? 'none');
       if (!shortcode) return null;
 
-      // Author handle — the span with class _aacw holds the username text
-      const authorHandle =
-        article
-          .querySelector<HTMLElement>(this.sel(article, 'author_handle', 'span._ap3a._aacw'))
-          ?.textContent?.trim() ?? '';
+      // ── 2. Try embedded JSON first (reliable likes/comments) ───────────
+      const jsonPosts = getCachedJSONPosts();
+      const jsonMatch = jsonPosts.find(p => p.shortcode === shortcode);
+      if (jsonMatch) {
+        console.log('[📸Instagram] extractPost — using embedded JSON for', shortcode);
+        return jsonMatch;
+      }
+
+      // ── 3. Fallback to DOM scraping ────────────────────────────────────
+      // Skip sponsored / ad posts
+      const adSpan = article.querySelector(this.sel(article, 'ad_marker', 'span.x1fhwpqd.x132q4wb'));
+      const isAd = adSpan?.textContent?.trim() === 'Ad';
+      if (isAd) {
+        console.log('[📸Instagram] extractPost — capturing ad post');
+      }
+
+      // Author handle
+      const authorEl = article.querySelector<HTMLElement>(this.sel(article, 'author_handle', 'span._ap3a._aacw'));
+      const authorHandle = authorEl?.textContent?.trim() ?? '';
+      console.log('[📸Instagram] extractPost — author:', authorHandle || '(empty)');
       if (!authorHandle) return null;
 
       // Post timestamp
@@ -78,8 +190,10 @@ export class InstagramWavelet extends BaseSocialWavelet {
           .querySelector<HTMLTimeElement>(this.sel(article, 'timestamp', 'time[datetime]'))
           ?.getAttribute('datetime') ?? new Date().toISOString();
 
-      // Caption — the outer span with _aacu wraps a div[style*="inline"] with the text
-      const captionOuter = article.querySelector<HTMLElement>(this.sel(article, 'caption', 'span._ap3a._aacu._aad7'));
+      // Caption
+      const captionOuter = article.querySelector<HTMLElement>(
+        this.sel(article, 'caption', '[data-testid="caption"] span, span._ap3a._aacu._aad7'),
+      );
       const caption =
         captionOuter?.querySelector('div')?.textContent?.trim() ?? captionOuter?.textContent?.trim() ?? '';
 
@@ -91,18 +205,20 @@ export class InstagramWavelet extends BaseSocialWavelet {
       // Verified badge
       const isVerified = !!article.querySelector('svg[aria-label="Verified"]');
 
-      // Post type — carousel has a <ul> inside the media container
+      // Post type
       let postType: 'image' | 'carousel' | 'video' = 'image';
-      if (article.querySelector('._aagu ul')) postType = 'carousel';
+      if (article.querySelector(this.sel(article, 'carousel_list', '._aagu ul'))) postType = 'carousel';
       else if (article.querySelector('video')) postType = 'video';
 
-      return {
+      const result = {
         id: shortcode,
+        platform: 'instagram' as const,
+        is_ad: isAd,
         shortcode,
         author_handle: authorHandle,
         is_verified: isVerified,
-        caption,
-        post_url: `https://www.instagram.com/p/${shortcode}/`,
+        content_text: caption,
+        permalink: `https://www.instagram.com/p/${shortcode}/`,
         post_timestamp: timestamp,
         likes,
         comments,
@@ -111,22 +227,34 @@ export class InstagramWavelet extends BaseSocialWavelet {
         page_url: window.location.href,
         domain_id: '',
       };
-    } catch {
+      console.log('[📸Instagram] extractPost — DOM fallback result:', result);
+      return result;
+    } catch (err) {
+      console.error('[📸Instagram] extractPost — error:', err);
       return null;
     }
   }
 
   protected processAddedNode(el: HTMLElement): void {
+    // New nodes may mean new JSON payloads were injected (infinite scroll).
+    // Clear the cache so the next extractPost call re-parses fresh data.
+    clearJSONPostsCache();
+
     const articleSel = this.sel(document.body, 'post_article', 'article');
     const articles: HTMLElement[] = el.matches?.(articleSel)
       ? [el]
       : Array.from(el.querySelectorAll<HTMLElement>(articleSel));
 
+    if (articles.length > 0) {
+      console.log(`[📸Instagram] processAddedNode — found ${articles.length} article(s)`);
+    }
+
     for (const article of articles) {
       const data = this.extractPost(article);
       if (!data) continue;
-      if (this.capturedIds.has(data.shortcode)) continue;
-      this.capturedIds.add(data.shortcode);
+      if (this.capturedIds.has(data.id)) continue; // fixed: use data.id (was data.shortcode)
+      this.capturedIds.add(data.id); // fixed: use data.id
+      console.log('[📸Instagram] processAddedNode — sending:', data.id);
       this.sendData(data);
     }
   }

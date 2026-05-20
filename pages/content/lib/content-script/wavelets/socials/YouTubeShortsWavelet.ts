@@ -1,6 +1,6 @@
 import { YouTubeShortsData } from './types';
 import { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
-import { BaseSocialWavelet, SocialPostData } from './BaseSocialWavelet';
+import { BaseSocialWavelet } from './BaseSocialWavelet';
 
 function parseLikesFromAriaLabel(label: string): number {
   // "46,278 likes" or "46k likes"
@@ -29,7 +29,7 @@ export class YouTubeShortsWavelet extends BaseSocialWavelet {
     return window.location.hostname.includes('youtube.com');
   }
 
-  extractPost(overlay: HTMLElement): (YouTubeShortsData & SocialPostData) | null {
+  extractPost(overlay: HTMLElement): YouTubeShortsData | null {
     try {
       // Video ID comes from the URL (accurate after yt-navigate-finish)
       const videoId = window.location.pathname.split('/shorts/')[1]?.split('/')[0];
@@ -64,12 +64,13 @@ export class YouTubeShortsWavelet extends BaseSocialWavelet {
 
       return {
         id: videoId,
-        video_id: videoId,
+        platform: 'youtube_shorts' as const,
+        author_handle: channelHandle,
         channel_handle: channelHandle,
-        title,
+        content_text: title,
         likes: parseLikesFromAriaLabel(likeLabel),
         comments: parseCommentsFromAriaLabel(commentLabel),
-        video_url: `https://www.youtube.com/shorts/${videoId}`,
+        permalink: `https://www.youtube.com/shorts/${videoId}`,
         captured_at: new Date().toISOString(),
         page_url: window.location.href,
         domain_id: '',
@@ -97,8 +98,8 @@ export class YouTubeShortsWavelet extends BaseSocialWavelet {
 
       const data = this.extractPost(overlay);
       if (!data) return;
-      if (this.capturedIds.has(data.video_id)) return;
-      this.capturedIds.add(data.video_id);
+      if (this.capturedIds.has(data.id)) return;
+      this.capturedIds.add(data.id);
       this.sendData(data);
     }, 400);
   }

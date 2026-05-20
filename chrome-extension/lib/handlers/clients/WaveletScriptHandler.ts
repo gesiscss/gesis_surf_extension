@@ -5,16 +5,9 @@
 import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { LLMData, SocialData, SocialMessageType } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
-// Endpoints for different Wavelets.
-// LLM: single endpoint — backend routes to the correct index via llm_provider field.
-// TikTok: single endpoint — backend routes to the correct index via signal_type field.
-const SOCIAL_ENDPOINTS: Record<SocialMessageType, string> = {
-  X_POST: '/x/',
-  TIKTOK_POST: '/tiktok/',
-  TIKTOK_PLAYED: '/tiktok/',
-  YOUTUBE_SHORT: '/youtube-shorts/',
-  INSTAGRAM_POST: '/instagram/',
-};
+// Phase 2: unified social endpoint — backend routes to the correct index via
+// the `platform` field inside the payload (mirrors LLM /llm/ pattern).
+const SOCIAL_ENDPOINT = '/social/';
 
 export default class WaveletScriptHandler {
   private readonly serviceName = 'WaveletScriptHandler';
@@ -54,16 +47,18 @@ export default class WaveletScriptHandler {
   }
 
   /**
-   * Sends social post data to the appropriate endpoint based on the message type.
-   * @param messageType The social message type (X_POST, TIKTOK_POST, etc.).
+   * Sends social post data to the unified /social/ endpoint.
+   * Backend routes to the correct index via the `platform` field in the payload.
+   * @param messageType The social message type (X_POST, TIKTOK_POST, etc.) — kept for logging.
    * @param data The social post data to be sent.
    */
   public async sendSocialData(messageType: SocialMessageType, data: SocialData): Promise<void> {
-    const endpoint = SOCIAL_ENDPOINTS[messageType];
-    if (!endpoint) throw new Error(`Unknown social message type: ${messageType}`);
+    // Align with backend serializer: backend expects `post_id`, frontend uses `id`
+    const payload = { ...data, post_id: data.id };
+    delete (payload as Record<string, unknown>).id;
 
-    const options = await this.requestOptions(data, 'POST');
-    const response = await fetch(`${this.apiUrl}${endpoint}`, options);
+    const options = await this.requestOptions(payload, 'POST');
+    const response = await fetch(`${this.apiUrl}${SOCIAL_ENDPOINT}`, options);
 
     if (!response.ok) {
       const body = await response.text();

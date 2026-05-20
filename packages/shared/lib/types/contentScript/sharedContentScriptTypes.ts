@@ -80,105 +80,103 @@ export interface LLMData {
   turn_index: number; // 1-based index of the message in the conversation
 }
 
-// Payload for X (Twitter) post events
-export interface XPostData {
+// ── Unified base interface for all social post events ──────────────────────
+// Phase 1: introduced as a common foundation. Existing per-platform interfaces
+// extend this so wavelets can gradually migrate to the unified contract.
+export interface SocialPostData {
+  // Core identity
   id: string;
-  tweet_id: string;
-  author_handle: string;
-  author_display_name: string;
-  tweet_text: string;
-  tweet_url: string;
-  tweet_timestamp: string; // from <time datetime="">
-  captured_at: string; // when extractor fired
-  replies: number;
-  reposts: number;
-  likes: number;
-  bookmarks: number;
-  views: number;
-  page_url: string;
-  domain_id: string;
-}
+  platform: 'x' | 'tiktok' | 'youtube_shorts' | 'instagram' | 'facebook';
+  signal_type?: 'feed' | 'played';
 
-// Payload for TikTok post events
-export interface TikTokPostData {
-  id: string;
-  video_id: string;
-  feed_position: number; // 1-based insertion order within the session
+  // Author
   author_handle: string;
-  author_display_name: string;
-  is_verified: boolean;
-  caption: string;
-  video_url: string;
-  music_id: string;
-  music_name: string;
+  author_display_name?: string;
+  is_verified?: boolean;
+
+  // Content (unified vocabulary)
+  content_text: string;
+
+  // Engagement
   likes: number;
   comments: number;
-  shares: number;
-  favorites: number;
+  shares?: number;
+  favorites?: number;
+  bookmarks?: number;
+  views?: number;
+  reposts?: number;
+  replies?: number;
+
+  // Media metadata
+  post_type?: 'image' | 'carousel' | 'video' | 'text';
+  video_id?: string;
+  shortcode?: string;
+  music_id?: string;
+  music_name?: string;
+  channel_handle?: string;
+
+  // URLs
+  permalink: string;
+
+  // Timestamps
+  post_timestamp?: string;
   captured_at: string;
+
+  // Context
   page_url: string;
   domain_id: string;
-  signal_type: 'feed'; // discriminator: video appeared in the feed (DOM insertion)
+  feed_position?: number;
+
+  // Ad / sponsored content flag
+  is_ad?: boolean;
+}
+
+// Payload for X (Twitter) post events
+export interface XPostData extends SocialPostData {}
+
+// Payload for TikTok post events
+export interface TikTokPostData extends SocialPostData {
+  feed_position: number;
+  music_id: string;
+  music_name: string;
+  shares: number;
+  favorites: number;
+  signal_type: 'feed';
 }
 
 // Payload for TikTok played events — same shape but different signal
-export interface TikTokPlayedData {
-  id: string;
-  video_id: string;
-  feed_position: number; // 1-based play order within the session
-  author_handle: string;
-  author_display_name: string;
-  is_verified: boolean;
-  caption: string;
-  video_url: string;
+export interface TikTokPlayedData extends SocialPostData {
+  feed_position: number;
   music_id: string;
   music_name: string;
-  likes: number;
-  comments: number;
   shares: number;
   favorites: number;
-  captured_at: string;
-  page_url: string;
-  domain_id: string;
-  signal_type: 'played'; // discriminator: video was actually played by the user
+  signal_type: 'played';
 }
 
 // Payload for YouTube Shorts events
-export interface YouTubeShortsData {
-  id: string;
-  video_id: string;
+export interface YouTubeShortsData extends SocialPostData {
   channel_handle: string;
-  title: string;
-  likes: number;
-  comments: number;
-  video_url: string;
-  captured_at: string;
-  page_url: string;
-  domain_id: string;
 }
 
 // Payload for Instagram post events
-export interface InstagramPostData {
-  id: string; // post shortcode (e.g. 'DX9zCRllgmV')
+export interface InstagramPostData extends SocialPostData {
   shortcode: string;
-  author_handle: string;
-  is_verified: boolean;
-  caption: string;
-  post_url: string;
-  post_timestamp: string; // from <time datetime="">
-  likes: number;
-  comments: number;
+  post_timestamp: string;
   post_type: 'image' | 'carousel' | 'video';
-  captured_at: string;
-  page_url: string;
-  domain_id: string;
 }
 
 // Union type for all social post data
 export type SocialData = XPostData | TikTokPostData | TikTokPlayedData | YouTubeShortsData | InstagramPostData;
 
 // Social message type identifiers
-export type SocialMessageType = 'X_POST' | 'TIKTOK_POST' | 'TIKTOK_PLAYED' | 'YOUTUBE_SHORT' | 'INSTAGRAM_POST';
+export type SocialMessageType =
+  | 'X_POST'
+  | 'TIKTOK_POST'
+  | 'TIKTOK_PLAYED'
+  | 'YOUTUBE_SHORT'
+  | 'INSTAGRAM_POST'
+  | 'FACEBOOK_POST';
 
 // Configuration for a remote update wavelet selector, used to determine which DOM elements to observe for changes.
 export interface SelectorConfig {

@@ -6,12 +6,7 @@
  * Captured posts are sent to the background script for processing.
  */
 import { runtime } from 'webextension-polyfill';
-import { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
-
-export interface SocialPostData {
-  id: string;
-  [key: string]: unknown;
-}
+import { SelectorConfig, SocialPostData } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
 /**
  * Abstract base class for social media platform extractors.
@@ -101,6 +96,18 @@ export abstract class BaseSocialWavelet {
       attributeFilter: ['data-testid', 'data-e2e'],
     });
     console.log(`[${this.label}] Observer active`);
+    // Scan posts already in the DOM before the observer started
+    console.log(`[${this.label}] Initial scan (t=0)`);
+    this.processAddedNode(document.body as HTMLElement);
+    // Retry after SPA finishes its initial data fetch and renders the first batch
+    setTimeout(() => {
+      console.log(`[${this.label}] Initial scan (t=1500)`);
+      this.processAddedNode(document.body as HTMLElement);
+    }, 1500);
+    setTimeout(() => {
+      console.log(`[${this.label}] Initial scan (t=4000)`);
+      this.processAddedNode(document.body as HTMLElement);
+    }, 4000);
   }
 
   /**

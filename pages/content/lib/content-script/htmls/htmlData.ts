@@ -67,14 +67,35 @@ function listenForCaptureRequest(): void {
  * @returns void
  */
 export function initializeHTMLCapture(): void {
-  const captureWithDelay = () => {
-    setTimeout(captureHTML, 1000);
+  const captureOnQuiescence = () => {
+    const DEBOUNCE_MS = 1000;
+    const HARD_CAP_MS = 5000;
+    let captured = false;
+
+    const capture = () => {
+      if (captured) return;
+      captured = true;
+      clearTimeout(hardCapTimer);
+      clearTimeout(debounceTimer);
+      observer.disconnect();
+      captureHTML();
+    };
+
+    const hardCapTimer = setTimeout(capture, HARD_CAP_MS);
+    let debounceTimer = setTimeout(capture, DEBOUNCE_MS);
+
+    const observer = new MutationObserver(() => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(capture, DEBOUNCE_MS);
+    });
+
+    observer.observe(document.documentElement, { childList: true, subtree: true });
   };
 
   if (document.readyState === 'complete') {
-    captureWithDelay();
+    captureOnQuiescence();
   } else {
-    window.addEventListener('load', captureWithDelay);
+    window.addEventListener('load', captureOnQuiescence);
   }
 
   listenForCaptureRequest();

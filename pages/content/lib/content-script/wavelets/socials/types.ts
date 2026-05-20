@@ -1,5 +1,6 @@
 // Re-export social data types from shared package (single source of truth)
 export type {
+  SocialPostData,
   XPostData,
   TikTokPostData,
   TikTokPlayedData,

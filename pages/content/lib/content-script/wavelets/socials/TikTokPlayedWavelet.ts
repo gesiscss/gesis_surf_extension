@@ -43,8 +43,8 @@ export class TikTokPlayedWavelet extends TikTokWavelet {
 
         const data = this.extractPost(container);
         if (!data) return;
-        if (this.capturedIds.has(data.video_id)) return;
-        this.capturedIds.add(data.video_id);
+        if (this.capturedIds.has(data.id)) return;
+        this.capturedIds.add(data.id);
         data.feed_position = ++this.feedPosition;
         // Override signal_type: base extractPost sets 'feed', played wavelet sends 'played'
         this.sendData({ ...data, signal_type: 'played' as const });

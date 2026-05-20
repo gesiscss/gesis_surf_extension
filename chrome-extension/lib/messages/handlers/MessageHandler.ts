@@ -196,7 +196,7 @@ export class MessageHandler {
   }
 
   /**
-   * Handle social event messages (X_POST, TIKTOK_POST, TIKTOK_PLAYED, YOUTUBE_SHORT)
+   * Handle social event messages (X_POST, TIKTOK_POST, TIKTOK_PLAYED, YOUTUBE_SHORT, INSTAGRAM_POST)
    * @param message The incoming social event message
    * @param sender The message sender
    * @param sendResponse Function to send response back
@@ -267,6 +267,7 @@ export class MessageHandler {
         case 'TIKTOK_POST':
         case 'TIKTOK_PLAYED':
         case 'YOUTUBE_SHORT':
+        case 'INSTAGRAM_POST':
           return this.handleSocialMessage(typedMessage as SocialEventMessage, sender, sendResponse);
 
         default:

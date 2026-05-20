@@ -1,5 +1,5 @@
 import { TikTokPostData } from './types';
-import { BaseSocialWavelet, SocialPostData } from './BaseSocialWavelet';
+import { BaseSocialWavelet } from './BaseSocialWavelet';
 import { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
 function parseAbbreviatedMetric(text: string): number {
@@ -41,7 +41,7 @@ export class TikTokWavelet extends BaseSocialWavelet {
     return !TikTokWavelet.EXCLUDED_PATHS.some(p => window.location.pathname.startsWith(p));
   }
 
-  extractPost(container: HTMLElement): (TikTokPostData & SocialPostData) | null {
+  extractPost(container: HTMLElement): TikTokPostData | null {
     try {
       // Video ID from xgwrapper-0-{videoId}
       const playerWrapper = container.querySelector<HTMLElement>(
@@ -113,13 +113,13 @@ export class TikTokWavelet extends BaseSocialWavelet {
 
       return {
         id: videoId,
-        video_id: videoId,
+        platform: 'tiktok' as const,
         feed_position: 0, // overwritten by processAddedNode / play handler
         author_handle: `@${authorHandle}`,
         author_display_name: displayName,
         is_verified: isVerified,
-        caption,
-        video_url: `https://www.tiktok.com/@${authorHandle}/video/${videoId}`,
+        content_text: caption,
+        permalink: `https://www.tiktok.com/@${authorHandle}/video/${videoId}`,
         music_id: musicId,
         music_name: musicName,
         likes: parseAbbreviatedMetric(likesText),
@@ -153,8 +153,8 @@ export class TikTokWavelet extends BaseSocialWavelet {
 
       const data = this.extractPost(container);
       if (!data) continue;
-      if (this.capturedIds.has(data.video_id)) continue;
-      this.capturedIds.add(data.video_id);
+      if (this.capturedIds.has(data.id)) continue;
+      this.capturedIds.add(data.id);
       data.feed_position = ++this.feedPosition;
       this.sendData(data);
     }
