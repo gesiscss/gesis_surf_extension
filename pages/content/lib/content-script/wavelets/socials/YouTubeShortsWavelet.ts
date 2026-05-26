@@ -37,11 +37,9 @@ export class YouTubeShortsWavelet extends BaseSocialWavelet {
 
       // Channel handle from the channel link inside the overlay
       // href format: "/@handle/shorts"
-      const handleLink = overlay.querySelector<HTMLAnchorElement>(
-        this.sel(overlay, 'channel_link', 'yt-reel-channel-bar-view-model .yt-core-attributed-string a'),
-      );
+      const handleLink = overlay.querySelector<HTMLAnchorElement>(this.sel(overlay, 'channel_link', 'a[href^="/@"]'));
       const handleHref = handleLink?.getAttribute('href') ?? '';
-      const channelHandle = handleHref.split('/').filter(Boolean)[0] ?? ''; // "@handle"
+      const channelHandle = handleHref.split('/').filter(Boolean)[0]?.replace(/^@/, '') ?? '';
 
       // Title / caption from the shorts title element
       const title =
@@ -65,6 +63,7 @@ export class YouTubeShortsWavelet extends BaseSocialWavelet {
       return {
         id: videoId,
         platform: 'youtube_shorts' as const,
+        signal_type: 'feed' as const,
         author_handle: channelHandle,
         channel_handle: channelHandle,
         content_text: title,
@@ -108,6 +107,15 @@ export class YouTubeShortsWavelet extends BaseSocialWavelet {
   initialize(): void {
     if (!this.isSite()) return;
     console.log(`[${this.label}] Initializing`);
+
+    console.log('------------------------------------');
+    if (this.selectorConfig) {
+      console.log(`[${this.label}] selectorConfig.provider:`, this.selectorConfig.provider);
+      console.log(`[${this.label}] selectorConfig.version:`, this.selectorConfig.version);
+      console.log(`[${this.label}] selectorConfig.selectors:`, JSON.stringify(this.selectorConfig.selectors, null, 2));
+    } else {
+      console.log(`[${this.label}] No selectorConfig — using hardcoded fallbacks only`);
+    }
 
     // yt-navigate-finish fires on every SPA navigation (swipe to next short, or any YT nav)
     window.addEventListener('yt-navigate-finish', () => this.extractCurrent());
