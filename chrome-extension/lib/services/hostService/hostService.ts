@@ -36,10 +36,12 @@ export class HostService {
     if (!hasAnyHosts || local !== remoteVersion) {
       console.log('[HostService] Syncing hosts from remote API...');
       const hosts = await this.fetchHostsFromApi();
-      if (hosts.length) {
-        await this.syncHosts(hosts);
-        await storage.local.set({ [HOST_VERSION_KEY]: remoteVersion });
+      if (!hosts.length) {
+        console.error('[HostService] Fetch returned empty list — aborting sync.');
+        return false;
       }
+      await this.syncHosts(hosts);
+      await storage.local.set({ [HOST_VERSION_KEY]: remoteVersion });
       return true;
     }
     return false;
