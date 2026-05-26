@@ -213,6 +213,7 @@ export class InstagramWavelet extends BaseSocialWavelet {
       const result = {
         id: shortcode,
         platform: 'instagram' as const,
+        signal_type: 'feed' as const,
         is_ad: isAd,
         shortcode,
         author_handle: authorHandle,
@@ -233,6 +234,26 @@ export class InstagramWavelet extends BaseSocialWavelet {
       console.error('[📸Instagram] extractPost — error:', err);
       return null;
     }
+  }
+
+  initialize(): void {
+    if (!this.isSite()) return;
+    console.log('[📸Instagram] Initializing');
+    super.initialize();
+
+    // Instagram infinite scroll: rescan on scroll (debounced)
+    let scrollTimer: ReturnType<typeof setTimeout>;
+    window.addEventListener(
+      'scroll',
+      () => {
+        clearTimeout(scrollTimer);
+        scrollTimer = setTimeout(() => {
+          clearJSONPostsCache();
+          this.processAddedNode(document.body);
+        }, 500);
+      },
+      { passive: true },
+    );
   }
 
   protected processAddedNode(el: HTMLElement): void {

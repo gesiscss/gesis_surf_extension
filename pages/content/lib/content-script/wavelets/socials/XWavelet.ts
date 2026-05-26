@@ -65,6 +65,7 @@ export class XWavelet extends BaseSocialWavelet {
       return {
         id: tweetId,
         platform: 'x' as const,
+        signal_type: 'feed' as const,
         author_handle: `@${authorHandle}`,
         author_display_name: displayName,
         content_text: tweetText.substring(0, 5000),

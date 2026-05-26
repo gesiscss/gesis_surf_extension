@@ -1,14 +1,19 @@
-import { SocialPostData } from './types';
+import { FacebookPostData } from './types';
 import { BaseSocialWavelet } from './BaseSocialWavelet';
 import { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
 function parseEngagementCount(button: Element | null): number {
   if (!button) return 0;
-  const countSpan = button.querySelector('span');
-  return countSpan ? parseInt(countSpan.textContent ?? '0', 10) : 0;
+  const countSpan = button.querySelector('span[dir="auto"]');
+  const value = parseInt(countSpan?.textContent || '0', 10);
+  return Number.isFinite(value) ? value : 0;
 }
 
 function extractPostIdFromUrl(url: string): string | null {
+  // New format: /posts/pfbid...
+  const pfbidMatch = url.match(/\/posts\/(pfbid\w+)/);
+  if (pfbidMatch) return pfbidMatch[1];
+  // Old format: /posts/12345
   const postMatch = url.match(/\/posts\/(\d+)/);
   if (postMatch) return postMatch[1];
   const videoMatch = url.match(/[?&]v=(\d+)/);
@@ -33,7 +38,7 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
     return window.location.hostname.includes('facebook.com');
   }
 
-  extractPost(article: HTMLElement): SocialPostData | null {
+  extractPost(article: HTMLElement): FacebookPostData | null {
     try {
       // ── Ad detection ───────────────────────────────────────────────────
       const adLink = article.querySelector<HTMLAnchorElement>(
@@ -46,15 +51,13 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
         this.sel(article, 'profile_link', '[data-ad-rendering-role="profile_name"] a'),
       );
       const profileUrl = profileLink?.href ?? '';
-      const authorHandle = profileUrl.split('/').filter(Boolean).pop() ?? '';
+      const authorHandle = profileUrl.split('/').filter(Boolean).pop()?.split('?')[0] ?? '';
       const authorName = profileLink?.querySelector('span')?.textContent?.trim() ?? '';
 
       if (!authorHandle) return null;
 
       // ── Timestamp / Permalink ──────────────────────────────────────────
-      const timeLink = article.querySelector<HTMLAnchorElement>(
-        this.sel(article, 'time_link', 'a[aria-label]:not([aria-label="Publicidad"])'),
-      );
+      const timeLink = article.querySelector<HTMLAnchorElement>(this.sel(article, 'time_link', 'a[href*="/posts/"]'));
       const permalink = timeLink?.href ?? '';
       const postId = extractPostIdFromUrl(permalink);
       if (!postId) return null;
@@ -81,13 +84,14 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
         this.sel(
           article,
           'share_button',
-          'div[aria-label="Enviar la publicación"], div[aria-label="Compartir"], div[aria-label="Share"]',
+          'div[aria-label^="Envía"], div[aria-label^="Enviar"], div[aria-label^="Compartir"], div[aria-label^="Share"]',
         ),
       );
 
       return {
         id: postId,
         platform: 'facebook' as const,
+        signal_type: 'feed' as const,
         is_ad: isAd,
         author_handle: authorHandle,
         author_display_name: authorName,

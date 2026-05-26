@@ -6,9 +6,14 @@
  *  - TikTokWavelet      → TikTok feed videos (DOM insertion / feed exposure)
  *  - TikTokPlayedWavelet → TikTok videos the user actually played (play event)
  *  - YouTubeShortsWavelet → YouTube Shorts (yt-navigate-finish SPA event)
- *  - FacebookFeedWavelet → Facebook feed posts (DOM insertion)
- *  - InstagramWavelet   → Instagram feed posts (DOM insertion)
- *  - LinkedInFeedWavelet → LinkedIn feed posts (DOM insertion)
+ *  - YouTubeFeedWavelet → YouTube main feed videos (DOM insertion)
+ *  - YouTubeWatchWavelet  → YouTube watch page videos (yt-navigate-finish SPA event)
+ *  - FacebookFeedWavelet  → Facebook feed posts (DOM insertion)
+ *  - InstagramWavelet     → Instagram feed posts (DOM insertion)
+ *  - LinkedInFeedWavelet  → LinkedIn feed posts (DOM insertion)
+ *  - RedditFeedWavelet    → Reddit feed posts (DOM insertion)
+ *  - TwitchFeedWavelet    → Twitch directory stream cards (DOM insertion)
+ *  - ThreadsFeedWavelet   → Threads feed posts (DOM insertion)
  *
  * This mirrors the LLMRegistry pattern — add new wavelets here as new platforms are supported.
  */
@@ -21,7 +26,13 @@ import { TikTokPlayedWavelet } from './TikTokPlayedWavelet';
 import { YouTubeShortsWavelet } from './YouTubeShortsWavelet';
 import { FacebookFeedWavelet } from './FacebookFeedWavelet';
 import { InstagramWavelet } from './InstagramWavelet';
+import { YouTubeFeedWavelet } from './YouTubeFeedWavelet';
+import { YouTubeWatchWavelet } from './YouTubeWatchWavelet';
 import { LinkedInFeedWavelet } from './LinkedInFeedWavelet';
+import { RedditFeedWavelet } from './RedditFeedWavelet';
+import { TwitchFeedWavelet } from './TwitchFeedWavelet';
+import { TwitchStreamWavelet } from './TwitchStreamWavelet';
+import { ThreadsFeedWavelet } from './ThreadsFeedWavelet';
 
 /**
  * Initializes social media tracking by creating instances of all supported platform
@@ -44,13 +55,24 @@ export async function initializeSocialTracking(): Promise<void> {
   } catch {
     // storage unavailable — wavelets will fall back to hardcoded selectors
   }
+  console.log(
+    '[SocialRegistry] Loaded selector configs:',
+    Object.keys(configs).length ? Object.keys(configs) : 'NONE (fallback to hardcoded)',
+  );
+  console.log('[SocialRegistry] instagram config:', configs['instagram'] ?? 'NOT FOUND');
   [
     new XWavelet(configs['x']),
     new TikTokWavelet(configs['tiktok']),
     new TikTokPlayedWavelet(configs['tiktok']),
     new YouTubeShortsWavelet(configs['youtube_shorts']),
+    new YouTubeFeedWavelet(configs['youtube_feed']),
+    new YouTubeWatchWavelet(configs['youtube_watch']),
     new InstagramWavelet(configs['instagram']),
     new FacebookFeedWavelet(configs['facebook']),
     new LinkedInFeedWavelet(configs['linkedin']),
+    new RedditFeedWavelet(configs['reddit']),
+    new TwitchFeedWavelet(configs['twitch_feed']),
+    new TwitchStreamWavelet(configs['twitch_stream']),
+    new ThreadsFeedWavelet(configs['threads']),
   ].forEach(w => w.initialize());
 }

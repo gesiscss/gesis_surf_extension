@@ -129,7 +129,7 @@ export class TikTokWavelet extends BaseSocialWavelet {
         captured_at: new Date().toISOString(),
         page_url: window.location.href,
         domain_id: '',
-        signal_type: 'feed',
+        signal_type: 'feed' as const,
       };
     } catch {
       return null;

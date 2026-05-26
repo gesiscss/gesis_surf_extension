@@ -1,4 +1,4 @@
-import { SocialPostData } from './types';
+import { LinkedInPostData } from './types';
 import { BaseSocialWavelet } from './BaseSocialWavelet';
 import { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 
@@ -25,12 +25,6 @@ function parseLinkedInReactionCount(text: string): number {
   return 0;
 }
 
-// ── Helper: extract timestamp ─────────────────────────────────────────────
-function extractLinkedInTimestamp(text: string): string | undefined {
-  const match = text.match(/\b\d+\s*(m|h|d|w|mo|yr)\b(?:\s+•\s+Edited)?/i);
-  return match?.[0];
-}
-
 // ── Helper: derive stable post ID ───────────────────────────────────────────
 function deriveLinkedInId(article: HTMLElement): string {
   const html = article.innerHTML;
@@ -51,6 +45,41 @@ function deriveLinkedInPermalink(article: HTMLElement): string {
     a => a.href.includes('activity') || a.href.includes('highlightedUpdateUrn') || a.href.includes('/feed/update/'),
   );
   return activityLink?.href || window.location.href;
+}
+
+// ── Helper: parse relative LinkedIn timestamp → ISO ──────────────────────
+function parseLinkedInRelativeTime(text: string): string | undefined {
+  const match = text.match(/\b(\d+)\s*(m|h|d|w|mo|yr)\b/i);
+  if (!match) return undefined;
+
+  const value = parseInt(match[1], 10);
+  const unit = match[2].toLowerCase();
+  const now = new Date();
+
+  switch (unit) {
+    case 'm':
+      now.setMinutes(now.getMinutes() - value);
+      break;
+    case 'h':
+      now.setHours(now.getHours() - value);
+      break;
+    case 'd':
+      now.setDate(now.getDate() - value);
+      break;
+    case 'w':
+      now.setDate(now.getDate() - value * 7);
+      break;
+    case 'mo':
+      now.setMonth(now.getMonth() - value);
+      break;
+    case 'yr':
+      now.setFullYear(now.getFullYear() - value);
+      break;
+    default:
+      return undefined;
+  }
+
+  return now.toISOString();
 }
 
 // ── Classification logic ──────────────────────────────────────────────────
@@ -113,7 +142,7 @@ export class LinkedInFeedWavelet extends BaseSocialWavelet {
     return window.location.hostname.includes('linkedin.com');
   }
 
-  extractPost(article: HTMLElement): SocialPostData | null {
+  extractPost(article: HTMLElement): LinkedInPostData | null {
     try {
       const text = article.innerText || '';
       const context = classifyLinkedInPost(article);
@@ -159,16 +188,16 @@ export class LinkedInFeedWavelet extends BaseSocialWavelet {
       return {
         id: deriveLinkedInId(article),
         platform: 'linkedin' as const,
-        signal_type: 'feed',
+        signal_type: 'feed' as const,
         author_handle: authorHandle,
         author_display_name: authorName,
         content_text: postText.substring(0, 5000),
         permalink: deriveLinkedInPermalink(article),
-        post_timestamp: extractLinkedInTimestamp(text),
+        post_timestamp: parseLinkedInRelativeTime(text),
         likes,
         comments,
         reposts,
-        post_type: postType as 'image' | 'text' | 'video',
+        post_type: postType,
         captured_at: new Date().toISOString(),
         page_url: window.location.href,
         domain_id: '',

@@ -5,5 +5,13 @@ export type {
   TikTokPostData,
   TikTokPlayedData,
   YouTubeShortsData,
+  YouTubePostData,
+  YouTubeWatchData,
+  FacebookPostData,
+  LinkedInPostData,
   InstagramPostData,
+  RedditPostData,
+  TwitchFeedData,
+  TwitchStreamData,
+  ThreadsPostData,
 } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
