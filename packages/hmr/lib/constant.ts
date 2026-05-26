@@ -25,7 +25,7 @@ export const API_CONFIG = {
     DOMAIN: '/domain/domains/',
     HOST: '/host/hosts/',
     HOST_TASK: '/host/task-result/',
-    SELECTORS: '/selectors/',
+    SELECTORS: '/selectors/selectors/async_selectors/',
     SELECTORS_TASK: '/selectors/task-result/',
   },
 } as const;
