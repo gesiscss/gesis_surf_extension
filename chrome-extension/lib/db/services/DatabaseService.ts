@@ -28,6 +28,7 @@ class DatabaseService {
           db.createObjectStore('tabslives', { keyPath: 'tab_session_id' });
           db.createObjectStore('domainslives', { keyPath: 'domain_session_id' });
           db.createObjectStore('hostslives', { keyPath: 'hostname' });
+          db.createObjectStore('selectors', { keyPath: 'provider' });
         } else if (oldVersion < 2) {
           db.deleteObjectStore('winlives');
           db.createObjectStore('winlives', { keyPath: 'window_session_id' });

@@ -1,7 +1,7 @@
 // Database configuration for IndexedDB
 export const DB_CONFIG = {
   name: 'GESISSurfdb',
-  version: 2,
+  version: 3,
   stores: {
     winlives: 'window_session_id',
     tabslives: 'tab_session_id',

@@ -86,7 +86,17 @@ export interface LLMData {
 export interface SocialPostData {
   // Core identity
   id: string;
-  platform: 'x' | 'tiktok' | 'youtube_shorts' | 'instagram' | 'facebook' | 'linkedin';
+  platform:
+    | 'x'
+    | 'tiktok'
+    | 'youtube_shorts'
+    | 'youtube'
+    | 'instagram'
+    | 'facebook'
+    | 'linkedin'
+    | 'reddit'
+    | 'twitch'
+    | 'threads';
   signal_type?: 'feed' | 'played';
 
   // Author
@@ -174,8 +184,73 @@ export interface InstagramPostData extends SocialPostData {
   post_type: 'image' | 'carousel' | 'video';
 }
 
+// Payload for Reddit post events
+export interface RedditPostData extends SocialPostData {
+  subreddit: string;
+  awards: number;
+}
+
+// Payload for Twitch feed events (directory exposure)
+export interface TwitchFeedData extends SocialPostData {
+  viewer_count: number;
+  is_live: boolean;
+  game_name: string;
+  tags: string[];
+  is_verified: boolean;
+}
+
+// Payload for Twitch stream events (user entered stream)
+export interface TwitchStreamData extends SocialPostData {
+  viewer_count: number;
+  is_live: boolean;
+  game_name: string;
+  tags: string[];
+  stream_duration?: string;
+  is_verified: boolean;
+}
+
+// Payload for Threads feed events
+export interface ThreadsPostData extends SocialPostData {
+  reposts: number;
+  replies: number;
+}
+
+// Payload for YouTube feed card events
+export interface YouTubePostData extends SocialPostData {
+  video_id: string;
+  channel_handle: string;
+}
+
+// Payload for YouTube watch page events
+export interface YouTubeWatchData extends SocialPostData {
+  video_id: string;
+  channel_handle: string;
+  signal_type: 'played';
+}
+
+// Payload for Facebook feed events
+export interface FacebookPostData extends SocialPostData {}
+
+// Payload for LinkedIn feed events
+export interface LinkedInPostData extends SocialPostData {
+  feed_context_type: string;
+}
+
 // Union type for all social post data
-export type SocialData = XPostData | TikTokPostData | TikTokPlayedData | YouTubeShortsData | InstagramPostData;
+export type SocialData =
+  | XPostData
+  | TikTokPostData
+  | TikTokPlayedData
+  | YouTubeShortsData
+  | YouTubePostData
+  | YouTubeWatchData
+  | InstagramPostData
+  | FacebookPostData
+  | LinkedInPostData
+  | RedditPostData
+  | TwitchFeedData
+  | TwitchStreamData
+  | ThreadsPostData;
 
 // Social message type identifiers
 export type SocialMessageType =
@@ -183,9 +258,15 @@ export type SocialMessageType =
   | 'TIKTOK_POST'
   | 'TIKTOK_PLAYED'
   | 'YOUTUBE_SHORT'
+  | 'YOUTUBE_POST'
+  | 'YOUTUBE_WATCH'
   | 'INSTAGRAM_POST'
   | 'FACEBOOK_POST'
-  | 'LINKEDIN_POST';
+  | 'LINKEDIN_POST'
+  | 'REDDIT_POST'
+  | 'TWITCH_FEED'
+  | 'TWITCH_STREAM'
+  | 'THREADS_POST';
 
 // Configuration for a remote update wavelet selector, used to determine which DOM elements to observe for changes.
 export interface SelectorConfig {
