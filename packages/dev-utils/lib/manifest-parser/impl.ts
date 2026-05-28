@@ -16,7 +16,16 @@ function convertToFirefoxCompatibleManifest(manifest: Manifest) {
 
   manifestCopy.background = {
     scripts: [manifest.background?.service_worker],
-    type: 'module',
+  };
+
+  manifestCopy.browser_specific_settings = {
+    gecko: {
+      id: 'sebastian.stier@gesis.org',
+      data_collection_permissions: {
+        required: [],
+        optional: [],
+      },
+    },
   };
 
   if (manifest.options_page) {

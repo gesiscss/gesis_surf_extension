@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["__FIREFOX__", "__DEV__"],
   "tasks": {
     "dev": {
       "dependsOn": ["^build"],
