@@ -3,7 +3,7 @@ import { Box, Card, CardContent, Typography, CardMedia, Button } from '@mui/mate
 import { CustomSwitch } from '../styles/privacy/PrivateModeToggle.styles';
 import PrivacyTimer from './PrivacyTimer';
 import { togglePrivateMode, getPrivateModeStatus, getRemainingTime } from './PrivacyMode';
-import { runtime } from 'webextension-polyfill';
+import { runtime, tabs } from 'webextension-polyfill';
 
 const Home: React.FC = () => {
   console.log('[HomePage] Rendered HomePage component');
@@ -12,7 +12,7 @@ const Home: React.FC = () => {
   const [remainingTime, setRemainingTime] = React.useState<number | null>(null);
 
   const handleRedirect = () => {
-    chrome.tabs.create({ url: 'https://www.gesis.org/info/surf' });
+    tabs.create({ url: 'https://www.gesis.org/info/surf' });
   };
 
   useEffect(() => {

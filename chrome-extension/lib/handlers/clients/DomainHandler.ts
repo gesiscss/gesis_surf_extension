@@ -12,11 +12,18 @@ import { apiUrl } from '../shared';
 import { TabMapping } from '../types';
 import { DomainPolicyService } from '@root/lib/services/policyService';
 
+type DomainCreationDeferred = {
+  promise: Promise<void>;
+  resolve: () => void;
+  reject: (reason?: unknown) => void;
+};
+
 class DomainManager {
   private readonly serviceName = 'DomainManager';
-  private dbService: DatabaseService;
-  private globalSessionService: GlobalSessionService;
-  private domainPolicyService: DomainPolicyService;
+  private static readonly pendingDomainCreations = new Map<string, DomainCreationDeferred>();
+  private readonly dbService: DatabaseService;
+  private readonly globalSessionService: GlobalSessionService;
+  private readonly domainPolicyService: DomainPolicyService;
 
   constructor() {
     this.dbService = new DatabaseService();
@@ -33,8 +40,68 @@ class DomainManager {
    */
   async generateDomainSession(windowId: number, tabId: number, domainUrl: string, maskUrl?: string): Promise<string> {
     const windowSessionId = await this.globalSessionService.getGlobalSessionId(windowId, 'window');
-    const urlPart = maskUrl ? maskUrl : domainUrl;
+    const urlPart = maskUrl || domainUrl;
     return `${windowSessionId}-tabId-${tabId}-domain-${urlPart}`;
+  }
+
+  private createDeferred(): DomainCreationDeferred {
+    let resolve!: () => void;
+    let reject!: (reason?: unknown) => void;
+
+    const promise = new Promise<void>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+
+    return { promise, resolve, reject };
+  }
+
+  private beginDomainCreation(domainSessionId: string): DomainCreationDeferred {
+    const existing = DomainManager.pendingDomainCreations.get(domainSessionId);
+    if (existing) return existing;
+
+    const deferred = this.createDeferred();
+    DomainManager.pendingDomainCreations.set(domainSessionId, deferred);
+    return deferred;
+  }
+
+  private finishDomainCreation(domainSessionId: string): void {
+    const deferred = DomainManager.pendingDomainCreations.get(domainSessionId);
+    if (!deferred) return;
+
+    deferred.resolve();
+    DomainManager.pendingDomainCreations.delete(domainSessionId);
+  }
+
+  private failDomainCreation(domainSessionId: string, reason?: unknown): void {
+    const deferred = DomainManager.pendingDomainCreations.get(domainSessionId);
+    if (!deferred) return;
+
+    deferred.reject(reason);
+    DomainManager.pendingDomainCreations.delete(domainSessionId);
+  }
+
+  private clearDomainCreation(domainSessionId: string): void {
+    DomainManager.pendingDomainCreations.delete(domainSessionId);
+  }
+
+  public registerPendingDomain(domainSessionId: string): void {
+    this.beginDomainCreation(domainSessionId);
+  }
+
+  public cancelPendingDomain(domainSessionId: string): void {
+    this.clearDomainCreation(domainSessionId);
+  }
+
+  public async waitForDomainReady(domainSessionId: string, timeoutMs: number = 1000): Promise<void> {
+    const pending = DomainManager.pendingDomainCreations.get(domainSessionId);
+    if (!pending) return;
+
+    try {
+      await Promise.race([pending.promise, new Promise<void>(resolve => setTimeout(resolve, timeoutMs))]);
+    } catch {
+      // Fall back to the DB re-read path when domain creation fails.
+    }
   }
 
   /**
@@ -128,6 +195,14 @@ class DomainManager {
       return undefined;
     }
 
+    const domainSessionId = payloadDomain.domain_session_id;
+    if (!domainSessionId) {
+      console.error(`[${this.serviceName}] Missing domain_session_id in domain payload`);
+      return undefined;
+    }
+
+    this.beginDomainCreation(domainSessionId);
+
     // Create the payload inside domains
     const payload = {
       domains: [payloadDomain],
@@ -137,6 +212,7 @@ class DomainManager {
     const requestOptions = await this.requestOptions(payload, method);
     if (!requestOptions) {
       console.error(`[${this.serviceName}] Error building request options`);
+      this.failDomainCreation(domainSessionId, new Error('Error building request options'));
       return undefined;
     }
 
@@ -181,8 +257,11 @@ class DomainManager {
         await this.dbService.setItem('domainslives', createdDomain);
       }
 
+      this.finishDomainCreation(domainSessionId);
+
       return createdDomain?.domain_session_id || payloadDomain.domain_session_id;
     } catch (error) {
+      this.failDomainCreation(domainSessionId, error);
       console.error(`[${this.serviceName}] Error:`, error);
       return undefined;
     }

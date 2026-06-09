@@ -13,10 +13,10 @@ import WaveletScriptHandler from '@root/lib/handlers/clients/WaveletScriptHandle
 
 export default class WaveletEventManager {
   private readonly serviceName = 'WaveletEventManager';
-  private dbService: DatabaseService;
-  private domainManager: DomainManager;
-  private domainPolicyService: DomainPolicyService;
-  private apiClient: WaveletScriptHandler;
+  private readonly dbService: DatabaseService;
+  private readonly domainManager: DomainManager;
+  private readonly domainPolicyService: DomainPolicyService;
+  private readonly apiClient: WaveletScriptHandler;
 
   constructor(apiUrl: string) {
     this.dbService = new DatabaseService();
@@ -81,7 +81,11 @@ export default class WaveletEventManager {
     try {
       const maskUrl = await this.domainPolicyService.getMaskedUrl(tab.url);
       const domainSessionId = await this.domainManager.generateDomainSession(tab.windowId, tab.id, tab.url, maskUrl);
-      const stored = await this.dbService.getItem('domainslives', domainSessionId);
+      let stored = await this.dbService.getItem('domainslives', domainSessionId);
+      if (!stored || stored instanceof Error) {
+        await this.domainManager.waitForDomainReady(domainSessionId);
+        stored = await this.dbService.getItem('domainslives', domainSessionId);
+      }
       if (!stored || stored instanceof Error) return '';
       return String((stored as unknown as DomainResponseTypes).id);
     } catch {

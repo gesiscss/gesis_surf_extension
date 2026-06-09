@@ -2,12 +2,12 @@
  * @fileoverview Data collection service for managing data storage and transmission
  * @implements {DataCollectionService}
  */
-import { storage } from 'webextension-polyfill';
 import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
 import { DatabaseService } from '@root/lib/db';
+import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 
 class DataCollectionService {
-  private dbService: DatabaseService;
+  private readonly dbService: DatabaseService;
   private isDataCollectionActive: boolean = false;
 
   constructor() {
@@ -37,8 +37,7 @@ class DataCollectionService {
    */
   private async checkDataCollectionFlag(): Promise<boolean> {
     try {
-      const storageData = await storage.local.get('token');
-      const token = storageData.token;
+      const token = await readToken();
 
       if (!token) {
         console.log('[DataCollectionService] Token not found in storage, disabling data collection.');

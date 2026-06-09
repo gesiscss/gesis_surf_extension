@@ -16,7 +16,7 @@ class DomainEventManager {
   private readonly serviceName = 'DomainEventManager';
   private currentActiveDomainSessionId: string | null = null;
 
-  constructor(private domainManager: DomainHandler) {}
+  constructor(private readonly domainManager: DomainHandler) {}
 
   /**
    * Gets the current active domain session ID.
@@ -137,18 +137,21 @@ class DomainEventManager {
   }
 
   public async requestHTMLCapture(tabId: number): Promise<void> {
+    console.log(`[${this.serviceName}] Requesting HTML capture for tab ID: ${tabId}`);
+
     try {
-      console.log(`[${this.serviceName}] Requesting HTML capture for tab ID: ${tabId}`);
       await browserTabs.sendMessage(tabId, { type: 'REQUEST_HTML_CAPTURE' });
-    } catch (error) {
-      console.warn(`[${this.serviceName}] First HTML capture attempt failed for tab ${tabId}, retrying in 1s...`);
-      setTimeout(async () => {
-        try {
-          await browserTabs.sendMessage(tabId, { type: 'REQUEST_HTML_CAPTURE' });
-        } catch (retryError) {
-          console.error(`[${this.serviceName}] Retry HTML capture also failed for tab ${tabId}:`, retryError);
-        }
-      }, 1000);
+      return;
+    } catch {
+      console.warn(`[${this.serviceName}] HTML capture attempt failed for tab ${tabId}, retrying in 1s...`);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    try {
+      await browserTabs.sendMessage(tabId, { type: 'REQUEST_HTML_CAPTURE' });
+    } catch (retryError) {
+      console.error(`[${this.serviceName}] Retry HTML capture also failed for tab ${tabId}:`, retryError);
     }
   }
 
@@ -165,22 +168,29 @@ class DomainEventManager {
     console.log(`[${this.serviceName}] Type if mapping.id:`, typeof mapping.id);
 
     this.currentActiveDomainSessionId = newDomain;
+    this.domainManager.registerPendingDomain(newDomain);
 
-    if (mapping.id === undefined) {
-      throw new Error('Tab ID is undefined');
-    }
+    try {
+      if (mapping.id === undefined) {
+        throw new Error('Tab ID is undefined');
+      }
 
-    if (this.isDomainReadyToSend(tab)) {
-      console.log(`[${this.serviceName}] Domain is ready to be sent for ${newDomain}`);
-      const savedDomainSessionId = await this.domainManager.sendDomain(tab, mapping, 'PATCH');
-      this.currentActiveDomainSessionId = savedDomainSessionId || newDomain;
-      console.log(
-        `[${this.serviceName}] Updated current active domain session ID to:`,
-        this.currentActiveDomainSessionId,
-      );
-    } else {
-      console.log(`[${this.serviceName}] Domain is not ready to be sent for ${newDomain}`);
+      if (this.isDomainReadyToSend(tab)) {
+        console.log(`[${this.serviceName}] Domain is ready to be sent for ${newDomain}`);
+        const savedDomainSessionId = await this.domainManager.sendDomain(tab, mapping, 'PATCH');
+        this.currentActiveDomainSessionId = savedDomainSessionId || newDomain;
+        console.log(
+          `[${this.serviceName}] Updated current active domain session ID to:`,
+          this.currentActiveDomainSessionId,
+        );
+        return;
+      }
+      console.log(`[${this.serviceName}] Domain is not ready to be sent for ${newDomain}, waiting for completion...`);
+      this.domainManager.cancelPendingDomain(newDomain);
       this.currentActiveDomainSessionId = newDomain;
+    } catch (error) {
+      this.domainManager.cancelPendingDomain(newDomain);
+      throw error;
     }
   }
 

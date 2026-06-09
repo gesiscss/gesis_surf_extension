@@ -2,11 +2,11 @@ import { DatabaseService } from '../../db';
 import { v4 as uuidv4 } from 'uuid';
 import { GlobalSessionTypes, SessionType } from './types';
 import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
-// import { apiUrl } from '@root/lib/handlers/shared';
+import { storage } from 'webextension-polyfill';
 
 class GlobalSessionService {
   dbService: DatabaseService;
-  private apiUrl: string;
+  private readonly apiUrl: string;
   private lastCreatedSessionId: string | null = null;
   private sessionBeingClosed: string | null = null;
 
@@ -74,22 +74,17 @@ class GlobalSessionService {
    * @param globalSession The global session to save.
    * @returns The global session saved.
    */
-  private saveToLocalStorage(globalSession: GlobalSessionTypes): Promise<void> {
-    return new Promise(resolve => {
-      chrome.storage.local.set({ globalSession: globalSession }, resolve);
-    });
+  private async saveToLocalStorage(globalSession: GlobalSessionTypes): Promise<void> {
+    await storage.local.set({ globalSession: globalSession });
   }
 
   /**
    * Get session from local storage
    * @returns The global session saved.
    */
-  public getFromLocalStorage(): Promise<GlobalSessionTypes | null> {
-    return new Promise(resolve => {
-      chrome.storage.local.get('globalSession', result => {
-        resolve(result.globalSession as GlobalSessionTypes | null);
-      });
-    });
+  public async getFromLocalStorage(): Promise<GlobalSessionTypes | null> {
+    const result = await storage.local.get('globalSession');
+    return result.globalSession as GlobalSessionTypes | null;
   }
 
   /**

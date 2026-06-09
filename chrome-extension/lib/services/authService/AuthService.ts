@@ -15,6 +15,7 @@ import { runtime, Runtime } from 'webextension-polyfill';
 import { DataCollectionService } from '../dataCollectionService';
 import { HostService } from '../hostService';
 import { SelectorService } from '../selectorService';
+import { readToken, writeToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 
 /**
  * Class to manage the authentication service.
@@ -137,7 +138,7 @@ export class AuthService {
    */
   async checkAuthentication() {
     try {
-      const token = (await chrome.storage.local.get('token')).token as string | undefined;
+      const token = await readToken();
 
       if (token) {
         const isValid = await this.validateToken(token);
@@ -147,7 +148,7 @@ export class AuthService {
           await this.initializeServices();
         } else {
           console.log('[background AuthService] User is not authenticated');
-          await chrome.storage.local.remove('token');
+          await writeToken(null);
           this.isAuthenticated = false;
         }
       } else {
