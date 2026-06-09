@@ -16,6 +16,7 @@ import { DataCollectionService } from '../dataCollectionService';
 import { HostService } from '../hostService';
 import { SelectorService } from '../selectorService';
 import { readToken, writeToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
+import { AuthValidationResult } from '@chrome-extension-boilerplate/shared/lib/services/interfaces/types';
 
 /**
  * Class to manage the authentication service.
@@ -104,11 +105,11 @@ export class AuthService {
   }
 
   /**
-   *
-   * @param token The token to retrive user information
-   * @returns The boolean value of the user authentication status
+   * Validates the stored token against the user info endpoint.
+   * @param token The token used to retrieve user information.
+   * @returns The token validation result.
    */
-  async validateToken(token: string): Promise<boolean> {
+  async validateToken(token: string): Promise<AuthValidationResult> {
     try {
       const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`, {
         method: 'GET',
@@ -117,16 +118,38 @@ export class AuthService {
           Authorization: `Token ${token}`,
         },
       });
-      console.log('Token validation response:', response);
-      if (response.ok) {
-        return true;
-      } else {
-        console.warn('Token invalid:', response.status, response.statusText);
-        return false;
+
+      if (response.status === 401) {
+        console.warn('Token is invalid:', response.status, response.statusText);
+        return 'invalid_token';
       }
+
+      if (response.status >= 500) {
+        console.warn('Server is unavailable:', response.status, response.statusText);
+        return 'server_unavailable';
+      }
+
+      if (!response.ok) {
+        console.warn(`Token validation failed with status: ${response.status}`);
+        return 'unexpected_response';
+      }
+
+      let data: unknown;
+      try {
+        data = await response.json();
+      } catch (error) {
+        console.error('Failed to parse token validation response as JSON:', error);
+        return 'unexpected_response';
+      }
+
+      if (typeof data === 'object' && data !== null && 'user_id' in data && typeof data.user_id === 'string') {
+        return 'valid';
+      }
+
+      return 'unexpected_response';
     } catch (error) {
       console.error('Error validating token:', error);
-      return false;
+      return 'network_unavailable';
     }
   }
 
@@ -140,20 +163,33 @@ export class AuthService {
     try {
       const token = await readToken();
 
-      if (token) {
-        const isValid = await this.validateToken(token);
-        if (isValid) {
+      if (!token) {
+        console.log('[background AuthService] No token found. User is not authenticated');
+        this.isAuthenticated = false;
+        return;
+      }
+
+      const validationResult = await this.validateToken(token);
+
+      switch (validationResult) {
+        case 'valid':
           console.log('[background AuthService] User is authenticated');
           this.isAuthenticated = true;
           await this.initializeServices();
-        } else {
+          return;
+
+        case 'invalid_token':
           console.log('[background AuthService] User is not authenticated');
           await writeToken(null);
           this.isAuthenticated = false;
-        }
-      } else {
-        console.log('[background AuthService] User is not authenticated');
-        this.isAuthenticated = false;
+          return;
+
+        case 'server_unavailable':
+        case 'unexpected_response':
+        case 'network_unavailable':
+          console.warn('[background AuthService] Token validation deferred due to:', validationResult);
+          this.isAuthenticated = false;
+          return;
       }
     } catch (error) {
       console.error('[background AuthService] Error checking authentication:', error);

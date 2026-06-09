@@ -49,31 +49,31 @@ describe('validateToken', () => {
   const TOKEN = 'test-token-abc';
   const VALIDATE_URL = 'https://api.example.com/user/me';
 
-  it('returns false when the response is not ok (e.g. 401 Unauthorized)', async () => {
+  it('returns "invalid_token" when the response is 401 Unauthorized', async () => {
     vi.mocked(fetch).mockResolvedValue(fakeResponse(false, null, 401, 'Unauthorized'));
 
-    expect(await validateToken(TOKEN, VALIDATE_URL)).toBe(false);
+    expect(await validateToken(TOKEN, VALIDATE_URL)).toBe('invalid_token');
   });
 
-  it('returns false when response is ok but user_id is missing from the body', async () => {
+  it('returns "unexpected_response" when response is ok but user_id is missing from the body', async () => {
     // Server returns 200 but the body has no user_id field
     vi.mocked(fetch).mockResolvedValue(fakeResponse(true, { waves: [] }));
 
-    expect(await validateToken(TOKEN, VALIDATE_URL)).toBe(false);
+    expect(await validateToken(TOKEN, VALIDATE_URL)).toBe('unexpected_response');
   });
 
-  it('returns true when response is ok and user_id is present in the body', async () => {
+  it('returns "valid" when response is ok and user_id is present in the body', async () => {
     vi.mocked(fetch).mockResolvedValue(
       fakeResponse(true, { user_id: 'user-42', waves: [], privacy: null, extension: null }),
     );
 
-    expect(await validateToken(TOKEN, VALIDATE_URL)).toBe(true);
+    expect(await validateToken(TOKEN, VALIDATE_URL)).toBe('valid');
   });
 
-  it('returns false when fetch throws a network error', async () => {
+  it('returns "network_unavailable" when fetch throws a network error', async () => {
     vi.mocked(fetch).mockRejectedValue(new Error('Network failure'));
 
-    expect(await validateToken(TOKEN, VALIDATE_URL)).toBe(false);
+    expect(await validateToken(TOKEN, VALIDATE_URL)).toBe('network_unavailable');
   });
 
   it('sends the token in the Authorization header', async () => {

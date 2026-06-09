@@ -21,6 +21,7 @@ const Login: React.FC<LoginProps> = () => {
   useEffect(() => {
     const checkAuthentication = async () => {
       setLoading(true);
+
       try {
         const data = await readToken();
         const storedToken = data || null;
@@ -29,20 +30,39 @@ const Login: React.FC<LoginProps> = () => {
 
         if (storedToken) {
           console.log('Validating token ...');
-          const isValid = await validateToken(storedToken, `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`);
-          console.log('Token is valid:', isValid);
-          if (isValid) {
-            setIsAuthenticated(true);
-            navigate('/home');
-          } else {
-            // Remove it from storage
-            await writeToken(null);
-            setIsAuthenticated(false);
+          const validationResult = await validateToken(
+            storedToken,
+            `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`,
+          );
+
+          switch (validationResult) {
+            case 'valid':
+              setIsAuthenticated(true);
+              navigate('/home');
+              console.log('Token is valid. User is authenticated.');
+              break;
+
+            case 'invalid_token':
+              // Remove it from storage
+              await writeToken(null);
+              setIsAuthenticated(false);
+              break;
+
+            case 'server_unavailable':
+            case 'unexpected_response':
+            case 'network_unavailable':
+              console.warn('Token validation deferred due to:', validationResult);
+              setIsAuthenticated(true);
+              navigate('/home');
+              break;
           }
+        } else {
+          console.log('No token found. User is not authenticated');
+          setIsAuthenticated(false);
         }
       } catch (error) {
-        console.error('Error reading token:', error);
-        setErrorMessage('Failed to read authentication token.');
+        console.error('Error checking authentication:', error);
+        setIsAuthenticated(false);
       } finally {
         setLoading(false);
       }

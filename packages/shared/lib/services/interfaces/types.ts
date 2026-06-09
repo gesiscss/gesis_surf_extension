@@ -43,3 +43,10 @@ export class ApiError extends Error {
     this.name = 'ApiError';
   }
 }
+
+export type AuthValidationResult =
+  | 'valid'
+  | 'invalid_token'
+  | 'server_unavailable'
+  | 'network_unavailable'
+  | 'unexpected_response';

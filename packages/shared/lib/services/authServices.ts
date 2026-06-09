@@ -1,5 +1,5 @@
 import { readToken } from '../storages/tokenStorage';
-import { AuthResponse, ApiError } from './interfaces/types';
+import { ApiError, AuthValidationResult } from './interfaces/types';
 
 /**
  *  Makes an authenticated API request
@@ -56,11 +56,11 @@ export const apiRequest = async (
 
 /**
  * Validates an authentication token.
- * @param token - The token to validated.
- * @param url -The validation endpoint URL.
- * @returns A promise that resolves to a boolean indicating whether the token is valid.
+ * @param token - The token used to retrieve user information.
+ * @param url - The validation endpoint URL.
+ * @returns A promise that resolves to an AuthValidationResult indicating the validation outcome.
  */
-export const validateToken = async (token: string, url: string): Promise<boolean> => {
+export const validateToken = async (token: string, url: string): Promise<AuthValidationResult> => {
   try {
     const response = await fetch(url, {
       method: 'GET',
@@ -70,16 +70,36 @@ export const validateToken = async (token: string, url: string): Promise<boolean
       },
     });
 
-    if (!response.ok) {
-      console.warn(`Token validation failed with status: ${response.status}`);
-      return false;
+    if (response.status === 401) {
+      console.warn('Token is invalid:', response.status, response.statusText);
+      return 'invalid_token';
     }
 
-    const data = (await response.json()) as AuthResponse;
-    const isValid = Boolean(data && data.user_id);
-    return isValid;
+    if (response.status >= 500) {
+      console.warn('Server is unavailable:', response.status, response.statusText);
+      return 'server_unavailable';
+    }
+
+    if (!response.ok) {
+      console.warn(`Token validation failed with status: ${response.status}`);
+      return 'unexpected_response';
+    }
+
+    let data: unknown;
+    try {
+      data = await response.json();
+    } catch (error) {
+      console.error('Failed to parse token validation response as JSON:', error);
+      return 'unexpected_response';
+    }
+
+    if (typeof data === 'object' && data !== null && 'user_id' in data && typeof data.user_id === 'string') {
+      console.log('Token is valid. User ID:', data.user_id);
+      return 'valid';
+    }
+    return 'unexpected_response';
   } catch (error) {
-    console.error('Error validating token:', error);
-    return false;
+    console.error('Network error during token validation:', error);
+    return 'network_unavailable';
   }
 };
