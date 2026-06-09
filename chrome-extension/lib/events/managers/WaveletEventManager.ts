@@ -1,7 +1,7 @@
 import type { Runtime, Tabs } from 'webextension-polyfill';
 import { DatabaseService } from '@root/lib/db';
 import DomainManager from '@root/lib/handlers/clients/DomainHandler';
-import { DomainPolicyService } from '@root/lib/services/policyService';
+import { DomainPolicyService, WaveletPolicyService } from '@root/lib/services/policyService';
 import { DomainResponseTypes } from '@root/lib/handlers/types/domainTypes';
 import {
   LLMData,
@@ -16,12 +16,14 @@ export default class WaveletEventManager {
   private readonly dbService: DatabaseService;
   private readonly domainManager: DomainManager;
   private readonly domainPolicyService: DomainPolicyService;
+  private readonly waveletPolicyService: WaveletPolicyService;
   private readonly apiClient: WaveletScriptHandler;
 
   constructor(apiUrl: string) {
     this.dbService = new DatabaseService();
     this.domainManager = new DomainManager();
     this.domainPolicyService = new DomainPolicyService(this.dbService);
+    this.waveletPolicyService = new WaveletPolicyService(this.dbService);
     this.apiClient = new WaveletScriptHandler(apiUrl);
   }
 
@@ -33,8 +35,20 @@ export default class WaveletEventManager {
    */
   public async handleLLMEvent(data: LLMData, sender: Runtime.MessageSender): Promise<EventResult> {
     try {
+      const url = sender.tab?.url || data.url || '';
+      const decision = await this.waveletPolicyService.evaluate(url, 'llm');
+
+      if (decision.action === 'block') {
+        console.log(`[${this.serviceName}] LLM event blocked for ${url} due to policy decision: ${decision.reason}`);
+        return {
+          status: 'blocked',
+          message: `LLM event blocked due to policy decision: ${decision.reason}`,
+        };
+      }
+
       const domainId = await this.resolveDomainId(sender.tab);
       await this.apiClient.sendLLMData({ ...data, domain_id: domainId });
+
       return { status: 'success', message: 'LLM wavelet processed' };
     } catch (error) {
       console.error(`[${this.serviceName}] Error handling LLM event:`, error);
@@ -58,6 +72,17 @@ export default class WaveletEventManager {
     sender: Runtime.MessageSender,
   ): Promise<EventResult> {
     try {
+      const url = sender.tab?.url || data.page_url || '';
+      const decision = await this.waveletPolicyService.evaluate(url, 'social');
+
+      if (decision.action === 'block') {
+        console.log(`[${this.serviceName}] Social event blocked for ${url} due to policy decision: ${decision.reason}`);
+        return {
+          status: 'blocked',
+          message: `Social event blocked due to policy decision: ${decision.reason}`,
+        };
+      }
+
       const domainId = await this.resolveDomainId(sender.tab);
       const enrichedData = { ...data, domain_id: domainId };
       await this.apiClient.sendSocialData(messageType, enrichedData);

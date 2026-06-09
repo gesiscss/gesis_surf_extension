@@ -34,3 +34,16 @@ export interface ContentPolicyDecision {
   reason?: string;
   maskValue?: string;
 }
+
+/**
+ * Types for wavelet policy service
+ */
+export type WaveletKind = 'llm' | 'social';
+
+/**
+ * The structure of the wavelet policy decision returned by the service.
+ */
+export interface WaveletPolicyDecision {
+  action: 'allow' | 'block';
+  reason?: string;
+}
