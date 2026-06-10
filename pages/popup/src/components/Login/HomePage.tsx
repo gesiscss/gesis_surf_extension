@@ -58,7 +58,7 @@ const Home: React.FC = () => {
     setPrivateMode(isEnabled);
 
     if (isEnabled) {
-      setRemainingTime(60);
+      setRemainingTime(15 * 60);
     } else {
       setRemainingTime(null);
     }

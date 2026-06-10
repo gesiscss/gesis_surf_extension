@@ -4,7 +4,7 @@ import { PrivateModeState } from './types';
 export class PrivateModeService {
   private static readonly ALARM_NAME = 'privatemode';
   private static readonly STORAGE_KEY = 'private';
-  private static readonly DURATION_MINUTES = 1;
+  private static readonly DURATION_MINUTES = 15;
   private initialized: boolean = false;
 
   constructor() {}
