@@ -212,6 +212,67 @@ class TabEventManager {
   }
 
   /**
+   * Registers the domain session early when the tab starts loading.
+   * This closes any previous domain and marks the new one as pending so that
+   * wavelets and content events that fire while the page is still loading can
+   * wait for the domain instead of getting an empty domain_id.
+   * @param tab The tab data.
+   * @returns void
+   */
+  private async processTabLoading(tab: Tabs.Tab): Promise<void> {
+    try {
+      if (typeof tab.windowId !== 'number') {
+        throw new Error('Tab window ID is not a number');
+      }
+      if (typeof tab.id !== 'number') {
+        throw new Error('Tab ID is not a number');
+      }
+      if (typeof tab.url !== 'string') {
+        throw new Error('Tab URL is not a string');
+      }
+
+      const tabSessionId = await this.tabManager.generateTabSession(tab, tab.windowId);
+      const mapping = await this.dbService.getItem('tabslives', tabSessionId);
+
+      // If the tab has not been persisted yet (new tab), we cannot register a domain
+      // session early because we lack the backend tab ID. Fall back to the complete flow.
+      if (mapping === null || mapping instanceof Error) {
+        return;
+      }
+
+      const domainSessionId = await this.generateMaskedDomainSessionId(tab.windowId, tab.id, tab.url);
+
+      const tabMapping = {
+        ...mapping,
+        id: mapping.id.toString(),
+        url: tab.url,
+        windowId: tab.windowId,
+        domainSessionId: domainSessionId,
+        index: tab.index,
+        highlighted: tab.highlighted,
+        active: tab.active,
+        pinned: tab.pinned,
+        incognito: tab.incognito,
+      };
+
+      const domainData: DomainDataTypes = {
+        id: tab.id,
+        favIconUrl: tab.favIconUrl || '',
+        url: tab.url,
+        title: tab.title || '',
+        lastAccessed: tab.lastAccessed || 0,
+        windowId: tab.windowId,
+        status: 'loading',
+      };
+
+      console.log(`[${this.serviceName}] Early domain registration for loading tab:`, domainSessionId);
+      await this.domainEventManager.handleDomainChange(domainSessionId, domainData, tabMapping);
+    } catch (error) {
+      this.handleTabError(error, 'loading', tab.id);
+    }
+  }
+
+  /**
    * Handles the tab update event to check if the tab is new or not.
    * @param tabId The id of the tab.
    * @param changeInfo The change information of the tab.
@@ -219,7 +280,9 @@ class TabEventManager {
    * @returns void
    */
   private handleTabUpdate = async (tabId: number, changeInfo: Tabs.OnUpdatedChangeInfoType, tab: Tabs.Tab) => {
-    if (this.shouldProcessTabUpdate(changeInfo)) {
+    if (changeInfo.status === 'loading') {
+      await this.processTabLoading(tab);
+    } else if (this.shouldProcessTabUpdate(changeInfo)) {
       await this.processTabUpdate(tab);
     }
   };
