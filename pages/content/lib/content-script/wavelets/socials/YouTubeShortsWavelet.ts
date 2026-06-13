@@ -83,7 +83,7 @@ export class YouTubeShortsWavelet extends BaseSocialWavelet {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected processAddedNode(): void {}
 
-  private extractCurrent(): void {
+  private extractCurrent(attempt = 0, maxAttempts = 5): void {
     if (!window.location.pathname.startsWith('/shorts/')) return;
 
     const videoId = window.location.pathname.split('/shorts/')[1]?.split('/')[0];
@@ -93,7 +93,17 @@ export class YouTubeShortsWavelet extends BaseSocialWavelet {
     setTimeout(() => {
       const reelOverlaySel = this.selectorConfig?.selectors['reel_overlay']?.[0] ?? 'ytd-reel-player-overlay-renderer';
       const overlay = document.querySelector<HTMLElement>(reelOverlaySel);
-      if (!overlay) return;
+
+      if (!overlay && attempt < maxAttempts) {
+        console.log(`[${this.label}] Overlay not ready for ${videoId}, retrying (${attempt + 1}/${maxAttempts})`);
+        this.extractCurrent(attempt + 1, maxAttempts);
+        return;
+      }
+
+      if (!overlay) {
+        console.warn(`[${this.label}] Overlay not found for ${videoId} after ${maxAttempts} attempts`);
+        return;
+      }
 
       const data = this.extractPost(overlay);
       if (!data) return;
