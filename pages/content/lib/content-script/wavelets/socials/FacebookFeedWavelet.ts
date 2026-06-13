@@ -117,6 +117,10 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
       ? [el]
       : Array.from(el.querySelectorAll<HTMLElement>(articleSel));
 
+    if (articles.length > 0) {
+      console.log(`[📘Facebook] Processing ${articles.length} articles...`);
+    }
+
     for (const article of articles) {
       const data = this.extractPost(article);
       if (!data) continue;

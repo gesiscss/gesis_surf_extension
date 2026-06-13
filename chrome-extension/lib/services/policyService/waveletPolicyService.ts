@@ -20,11 +20,11 @@ export class WaveletPolicyService extends BasePolicyService {
   private decide(classification: PolicyClassification): WaveletPolicyDecision {
     switch (classification) {
       case 'full_allow':
+      case 'only_host':
       case 'default':
         return { action: 'allow' };
 
       case 'private':
-      case 'only_host':
       case 'full_deny':
         return { action: 'block', reason: classification };
 
