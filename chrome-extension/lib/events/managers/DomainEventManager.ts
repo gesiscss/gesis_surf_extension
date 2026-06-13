@@ -15,6 +15,12 @@ import { tabs as browserTabs } from 'webextension-polyfill';
 class DomainEventManager {
   private readonly serviceName = 'DomainEventManager';
   private currentActiveDomainSessionId: string | null = null;
+  /**
+   * Tracks a domain session that was registered as pending but not yet sent to the backend.
+   * This happens when a domain change is detected while the tab is still loading.
+   * When the same domain later reports status === 'complete', we finish sending it.
+   */
+  private pendingDomainSessionId: string | null = null;
 
   constructor(private readonly domainManager: DomainHandler) {}
 
@@ -39,6 +45,16 @@ class DomainEventManager {
     try {
       if (this.shouldUpdateDomain(newDomain)) {
         await this.processDomainTransition(newDomain, tab, mapping);
+      } else if (
+        newDomain &&
+        newDomain === this.currentActiveDomainSessionId &&
+        newDomain === this.pendingDomainSessionId &&
+        this.isDomainReadyToSend(tab)
+      ) {
+        // The same domain is now complete; finish sending the pending domain session so
+        // waiting wavelets can resolve their domain_id and the backend receives the domain.
+        console.log(`[${this.serviceName}] Pending domain ${newDomain} is now complete, sending it`);
+        await this.initializeNewDomainSession(newDomain, tab, mapping);
       } else {
         this.logDomainNoChange(newDomain);
       }
@@ -54,6 +70,7 @@ class DomainEventManager {
   public resetDomainSession(): void {
     console.log(`[${this.serviceName}] Resetting current active domain session ID`);
     this.currentActiveDomainSessionId = null;
+    this.pendingDomainSessionId = null;
   }
 
   /**
@@ -168,6 +185,7 @@ class DomainEventManager {
     console.log(`[${this.serviceName}] Type if mapping.id:`, typeof mapping.id);
 
     this.currentActiveDomainSessionId = newDomain;
+    this.pendingDomainSessionId = newDomain;
     this.domainManager.registerPendingDomain(newDomain);
 
     try {
@@ -179,6 +197,7 @@ class DomainEventManager {
         console.log(`[${this.serviceName}] Domain is ready to be sent for ${newDomain}`);
         const savedDomainSessionId = await this.domainManager.sendDomain(tab, mapping, 'PATCH');
         this.currentActiveDomainSessionId = savedDomainSessionId || newDomain;
+        this.pendingDomainSessionId = null;
         console.log(
           `[${this.serviceName}] Updated current active domain session ID to:`,
           this.currentActiveDomainSessionId,
@@ -186,10 +205,12 @@ class DomainEventManager {
         return;
       }
       console.log(`[${this.serviceName}] Domain is not ready to be sent for ${newDomain}, waiting for completion...`);
-      this.domainManager.cancelPendingDomain(newDomain);
+      // Keep the pending registration alive so wavelets that arrive while the tab is still
+      // loading can wait for the domain to be persisted once the tab completes.
       this.currentActiveDomainSessionId = newDomain;
     } catch (error) {
       this.domainManager.cancelPendingDomain(newDomain);
+      this.pendingDomainSessionId = null;
       throw error;
     }
   }

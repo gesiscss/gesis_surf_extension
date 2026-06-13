@@ -22,6 +22,12 @@ import { Runtime, Tabs } from 'webextension-polyfill';
  */
 export default class ContentEventHandler {
   private readonly serviceName = 'ContentEventHandler';
+  /**
+   * Maximum time a content event (click, scroll, html) will wait for the background
+   * domain session to be persisted. Matches the wavelet timeout so all content events
+   * are resilient to the domain-loading race condition.
+   */
+  private readonly DOMAIN_READY_TIMEOUT_MS = 5000;
   private domainManager: DomainManager;
   private dbService: DatabaseService;
   private apiClient: ContentScriptHandler;
@@ -111,7 +117,14 @@ export default class ContentEventHandler {
       throw new Error('Failed to get domain session ID');
     }
 
-    const domainInfo = await this.dbService.getItem('domainslives', domainSessionId);
+    let domainInfo = await this.dbService.getItem('domainslives', domainSessionId);
+
+    if (!domainInfo || domainInfo instanceof Error) {
+      // The domain session may still be pending if the tab is loading. Wait for it to be
+      // persisted before giving up, just like wavelets do.
+      await this.domainManager.waitForDomainReady(domainSessionId, this.DOMAIN_READY_TIMEOUT_MS);
+      domainInfo = await this.dbService.getItem('domainslives', domainSessionId);
+    }
 
     console.log(`[${this.serviceName}] Retrieved domain info from DB:`, domainInfo);
 

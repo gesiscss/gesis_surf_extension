@@ -13,6 +13,12 @@ import WaveletScriptHandler from '@root/lib/handlers/clients/WaveletScriptHandle
 
 export default class WaveletEventManager {
   private readonly serviceName = 'WaveletEventManager';
+  /**
+   * Maximum time a wavelet will wait for the background domain session to be persisted.
+   * Pages with heavy JS (e.g. YouTube Shorts direct navigation) can take several seconds
+   * before the tab reaches 'complete' and the domain is sent to the backend.
+   */
+  private readonly DOMAIN_READY_TIMEOUT_MS = 5000;
   private readonly dbService: DatabaseService;
   private readonly domainManager: DomainManager;
   private readonly domainPolicyService: DomainPolicyService;
@@ -108,7 +114,7 @@ export default class WaveletEventManager {
       const domainSessionId = await this.domainManager.generateDomainSession(tab.windowId, tab.id, tab.url, maskUrl);
       let stored = await this.dbService.getItem('domainslives', domainSessionId);
       if (!stored || stored instanceof Error) {
-        await this.domainManager.waitForDomainReady(domainSessionId);
+        await this.domainManager.waitForDomainReady(domainSessionId, this.DOMAIN_READY_TIMEOUT_MS);
         stored = await this.dbService.getItem('domainslives', domainSessionId);
       }
       if (!stored || stored instanceof Error) return '';
