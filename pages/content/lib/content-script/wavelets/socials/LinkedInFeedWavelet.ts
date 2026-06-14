@@ -11,6 +11,26 @@ function parseCountFromText(text: string, regex: RegExp): number {
   return Number.isFinite(value) ? value : 0;
 }
 
+// ── Helper: find a count element inside an article by keyword ─────────────
+function findCountByLabel(article: HTMLElement, label: string): number {
+  const reTest = new RegExp(`\\d+\\s*${label}`, 'i');
+  const reParse = new RegExp(`([\\d,.]+)\\s*([KMB]?)\\s*${label}`, 'i');
+  const elements = Array.from(article.querySelectorAll('*'));
+  for (const el of elements) {
+    const text = el.textContent || '';
+    if (!reTest.test(text)) continue;
+    const match = text.match(reParse);
+    if (!match) continue;
+    const raw = match[1].replace(/,/g, '');
+    const value = Number(raw);
+    if (!Number.isFinite(value)) continue;
+    const suffix = match[2].toUpperCase();
+    const multiplier = suffix === 'K' ? 1_000 : suffix === 'M' ? 1_000_000 : suffix === 'B' ? 1_000_000_000 : 1;
+    return Math.floor(value * multiplier);
+  }
+  return 0;
+}
+
 // ── Helper: parse LinkedIn reaction count ─────────────────────────────────
 function parseLinkedInReactionCount(text: string): number {
   const direct = text.match(/([\d,.]+)\s+reactions?/i);
@@ -179,8 +199,8 @@ export class LinkedInFeedWavelet extends BaseSocialWavelet {
 
       // ── Engagement ───────────────────────────────────────────────────
       const likes = parseLinkedInReactionCount(text);
-      const comments = parseCountFromText(text, /([\d,.]+)\s+comments?/i);
-      const reposts = parseCountFromText(text, /([\d,.]+)\s+reposts?/i);
+      const comments = parseCountFromText(text, /([\d,.]+)\s+comments?/i) || findCountByLabel(article, 'comments?');
+      const reposts = parseCountFromText(text, /([\d,.]+)\s+reposts?/i) || findCountByLabel(article, 'reposts?');
 
       // ── Flags ──────────────────────────────────────────────────────────
       const isPromoted = text.includes('Promoted');
