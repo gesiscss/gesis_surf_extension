@@ -5,7 +5,9 @@ import { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/c
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 function parseLikesFromAriaLabel(label: string): number {
-  const match = label.match(/([\d,.]+)\s+(?:other\s+)?people?/i);
+  // "I like this" (no count), "like this video along with 1,234 other people",
+  // "1,234" shorthand, or "1.2K"
+  const match = label.match(/([\d,.]+)\s*(?:[KMB]?(?:\s+other)?\s+people?|other\s+people?)/i);
   if (!match) return 0;
   const raw = match[1].replace(/,/g, '');
   const value = parseInt(raw, 10);
@@ -13,16 +15,29 @@ function parseLikesFromAriaLabel(label: string): number {
 }
 
 function parseCommentsFromAriaLabel(label: string): number {
-  const match = label.match(/(\d+)\s+comments?/i);
-  return match ? parseInt(match[1], 10) : 0;
+  // Match "1,176 Comments", "305 comments", "1.2K Comments", "1M comments"
+  const match = label.match(/([\d,.]+)\s*([KMB]?)\s+comments?/i);
+  if (!match) return 0;
+  const raw = match[1].replace(/,/g, '');
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value > 9_999_999_999_999) return 0;
+
+  const suffix = match[2].toUpperCase();
+  const multiplier = suffix === 'K' ? 1_000 : suffix === 'M' ? 1_000_000 : suffix === 'B' ? 1_000_000_000 : 1;
+  return Math.floor(value * multiplier);
 }
 
 function parseViewCount(text: string): number {
-  const match = text.match(/([\d,.]+)\s+views?/i);
+  // "1,162 views", "1.2M views", "1,234,567 views", "79k views", "80K views"
+  const match = text.match(/([\d,.]+)\s*([KMB]?)\s+views?/i);
   if (!match) return 0;
-  const raw = match[1].replace(/,/g, '').replace(/\./g, '');
+  const raw = match[1].replace(/,/g, '');
   const value = Number(raw);
-  return Number.isFinite(value) ? value : 0;
+  if (!Number.isFinite(value) || value > 9_999_999_999_999) return 0;
+
+  const suffix = match[2].toUpperCase();
+  const multiplier = suffix === 'K' ? 1_000 : suffix === 'M' ? 1_000_000 : suffix === 'B' ? 1_000_000_000 : 1;
+  return Math.floor(value * multiplier);
 }
 
 function parseUploadDate(text: string): string | undefined {
@@ -52,7 +67,7 @@ export class YouTubeWatchWavelet extends BaseSocialWavelet {
     return window.location.hostname.includes('youtube.com');
   }
 
-  extractPost(watchFlexy: HTMLElement): YouTubeWatchData | null {
+  extractPost(watchFlexy: HTMLElement, attempt = 0, maxAttempts = 5): YouTubeWatchData | null {
     try {
       const videoId = extractVideoIdFromUrl();
       if (!videoId) return null;
@@ -71,20 +86,50 @@ export class YouTubeWatchWavelet extends BaseSocialWavelet {
 
       // ── Channel handle ─────────────────────────────────────────────
       const channelLink = watchFlexy.querySelector<HTMLAnchorElement>(
-        this.sel(watchFlexy, 'channel_link', 'ytd-video-owner-renderer a[href^="/@"], ytd-channel-name a[href^="/@"]'),
-      );
-      const channelHandle = channelLink?.href?.split('/@')[1]?.split('/')[0]?.split('?')[0] || '';
-      const channelName = channelLink?.textContent?.trim() || '';
-
-      // ── Views ──────────────────────────────────────────────────────
-      const viewCountEl = watchFlexy.querySelector(
         this.sel(
           watchFlexy,
-          'view_count',
-          'ytd-video-view-count-renderer .view-count, ytd-watch-info-text #view-count',
+          'channel_link',
+          'ytd-channel-name a[href^="/@"], ytd-video-owner-renderer a[href^="/@"], #upload-info a[href^="/@"]',
         ),
       );
-      const views = parseViewCount(viewCountEl?.textContent || '');
+      const channelHandle = channelLink?.href?.split('/@')[1]?.split('/')[0]?.split('?')[0] || '';
+      const channelName =
+        watchFlexy
+          .querySelector(
+            this.sel(
+              watchFlexy,
+              'channel_name',
+              'ytd-channel-name #text, ytd-video-owner-renderer #text, #upload-info #channel-name #text',
+            ),
+          )
+          ?.textContent?.trim() ||
+        channelLink?.textContent?.trim() ||
+        '';
+
+      // ── Views ──────────────────────────────────────────────────────
+      // Scan all candidate selectors and pick the one whose text actually
+      // contains "views". This avoids sel() returning an empty matched element.
+      const viewCandidates = this.selectorConfig?.selectors['view_count'] ?? [
+        'ytd-watch-info-text #info',
+        'ytd-watch-info-text yt-formatted-string',
+        'ytd-video-view-count-renderer .view-count',
+        'ytd-watch-info-text #view-count',
+        '#info-container #view-count',
+      ];
+      let views = 0;
+      for (const selector of viewCandidates) {
+        try {
+          const el = watchFlexy.querySelector(selector);
+          const text = el?.textContent || '';
+          const parsed = parseViewCount(text);
+          if (parsed > 0) {
+            views = parsed;
+            break;
+          }
+        } catch {
+          /* invalid selector - try next */
+        }
+      }
 
       // ── Upload date ──────────────────────────────────────────────────
       const dateText =
@@ -104,22 +149,44 @@ export class YouTubeWatchWavelet extends BaseSocialWavelet {
         this.sel(
           watchFlexy,
           'like_button',
-          'like-button-view-model button[aria-label*="like" i], ytd-menu-renderer like-button-view-model button',
+          'like-button-view-model button[aria-label*="like" i], ytd-menu-renderer like-button-view-model button, ytd-toggle-button-renderer[aria-label*="like" i] button',
         ),
       );
       const likeLabel = likeBtn?.getAttribute('aria-label') || '';
       const likes = parseLikesFromAriaLabel(likeLabel);
 
       // ── Comments ─────────────────────────────────────────────────────
-      const commentsHeader = watchFlexy.querySelector(
-        this.sel(
-          watchFlexy,
-          'comments_header',
-          'ytd-comments-header-renderer #count, ytd-engagement-panel-title-header-renderer #title',
-        ),
-      );
-      const commentsLabel = commentsHeader?.getAttribute('aria-label') || commentsHeader?.textContent || '';
-      const comments = parseCommentsFromAriaLabel(commentsLabel);
+      // The comments header lives outside ytd-watch-flexy, so scan the whole
+      // document. Try the formatted-string count first, then fall back to
+      // aria-label/text matching. Comments are lazy-loaded, so this may be 0.
+      const commentsCandidates = this.selectorConfig?.selectors['comments_header'] ?? [
+        'ytd-comments-header-renderer #count yt-formatted-string',
+        'ytd-comments-header-renderer #count',
+        'ytd-comments-header-renderer #title',
+        'ytd-engagement-panel-title-header-renderer #title',
+        'ytd-comments-entry-point-header-renderer #header #count',
+      ];
+      let comments = 0;
+      for (const selector of commentsCandidates) {
+        try {
+          const el = document.querySelector(selector);
+          const text = el?.getAttribute('aria-label') || el?.textContent || '';
+          const parsed = parseCommentsFromAriaLabel(text);
+          if (parsed > 0) {
+            comments = parsed;
+            break;
+          }
+        } catch {
+          /* invalid selector - try next */
+        }
+      }
+
+      // If the watch page metadata hasn't fully rendered yet, signal not-ready
+      // so extractCurrent can retry. Views should always be present on a watch page.
+      if (views === 0 && attempt < maxAttempts) return null;
+
+      // Comments are lazy-loaded; if not found yet we still send the event.
+      // A missing header is different from 0 comments.
 
       // ── Description ──────────────────────────────────────────────────
       const description =
@@ -162,7 +229,7 @@ export class YouTubeWatchWavelet extends BaseSocialWavelet {
   // Override: use yt-navigate-finish for SPA navigation instead of MutationObserver
   protected processAddedNode(): void {}
 
-  private extractCurrent(): void {
+  private extractCurrent(attempt = 0, maxAttempts = 5): void {
     if (!window.location.pathname.startsWith('/watch')) return;
 
     const videoId = extractVideoIdFromUrl();
@@ -172,10 +239,26 @@ export class YouTubeWatchWavelet extends BaseSocialWavelet {
     setTimeout(() => {
       const watchFlexySel = this.selectorConfig?.selectors['watch_flexy']?.[0] ?? 'ytd-watch-flexy';
       const watchFlexy = document.querySelector<HTMLElement>(watchFlexySel);
-      if (!watchFlexy) return;
 
-      const data = this.extractPost(watchFlexy);
-      if (!data) return;
+      if (!watchFlexy && attempt < maxAttempts) {
+        console.log(`[${this.label}] Watch flexy not ready for ${videoId}, retrying (${attempt + 1}/${maxAttempts})`);
+        this.extractCurrent(attempt + 1, maxAttempts);
+        return;
+      }
+
+      if (!watchFlexy) {
+        console.warn(`[${this.label}] Watch flexy not found for ${videoId} after ${maxAttempts} attempts`);
+        return;
+      }
+
+      const data = this.extractPost(watchFlexy, attempt, maxAttempts);
+      if (!data) {
+        if (attempt < maxAttempts) {
+          console.log(`[${this.label}] Data not ready for ${videoId}, retrying (${attempt + 1}/${maxAttempts})`);
+          this.extractCurrent(attempt + 1, maxAttempts);
+        }
+        return;
+      }
       if (this.capturedIds.has(data.id)) return;
       this.capturedIds.add(data.id);
       this.sendData(data);

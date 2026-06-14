@@ -4,11 +4,16 @@ import { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/c
 
 // ── Helper: parse view count ─────────────────────────────────────────────
 function parseViewCount(text: string): number {
-  const match = text.match(/([\d,.]+)\s+views?/i);
+  // "1,162 views", "1.2M views", "79k views", or live "527 watching"
+  const match = text.match(/([\d,.]+)\s*([KMB]?)\s+(views?|watching)/i);
   if (!match) return 0;
-  const raw = match[1].replace(/,/g, '').replace(/\./g, '');
+  const raw = match[1].replace(/,/g, '');
   const value = Number(raw);
-  return Number.isFinite(value) ? value : 0;
+  if (!Number.isFinite(value) || value > 9_999_999_999_999) return 0;
+
+  const suffix = match[2].toUpperCase();
+  const multiplier = suffix === 'K' ? 1_000 : suffix === 'M' ? 1_000_000 : suffix === 'B' ? 1_000_000_000 : 1;
+  return Math.floor(value * multiplier);
 }
 
 // ── Helper: parse relative YouTube timestamp → ISO ───────────────────────

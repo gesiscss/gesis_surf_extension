@@ -20,17 +20,20 @@ export abstract class BaseSocialWavelet {
 
   /**
    * Tries each selector in the config list against parent.querySelector.
-   * Returns the first selector that matches an element, or the fallback if none match.
+   * Returns the first selector that matches an element and passes the optional
+   * validator, or the fallback if none match.
    * @param parent The parent element to query within.
    * @param key The key in the selectorConfig to look up.
    * @param fallback A default CSS selector string to use if config is missing or no matches found.
+   * @param validate Optional function to confirm the matched element has useful content.
    */
-  protected sel(parent: Element, key: string, fallback: string): string {
+  protected sel(parent: Element, key: string, fallback: string, validate?: (el: Element) => boolean): string {
     const candidates = this.selectorConfig?.selectors[key];
     if (!candidates?.length) return fallback;
     for (const selector of candidates) {
       try {
-        if (parent.querySelector(selector) !== null) return selector;
+        const el = parent.querySelector(selector);
+        if (el !== null && (!validate || validate(el))) return selector;
       } catch {
         /* invalid CSS - try next */
       }
