@@ -79,23 +79,32 @@ export class ThreadsFeedWavelet extends BaseSocialWavelet {
       const postTimestamp = timeEl?.getAttribute('datetime') ?? undefined;
 
       // ── Engagement ─────────────────────────────────────────────────
-      // Threads UFI buttons have aria-labels like "1 like", "2 comments", "3 reposts"
+      // Threads UFI buttons contain an SVG with aria-label="Like"/"Comment"/"Repost".
+      // The numeric count lives in a child/sibling <span> inside the same button.
       let likes = 0;
       let comments = 0;
       let reposts = 0;
       let replies = 0;
 
-      const buttons = postEl.querySelectorAll('div[role="button"], button');
-      for (const btn of Array.from(buttons)) {
-        const ariaLabel = btn.getAttribute('aria-label') ?? '';
-        const likeMatch = ariaLabel.match(/(\d+)\s+like/i);
-        const commentMatch = ariaLabel.match(/(\d+)\s+comment/i);
-        const repostMatch = ariaLabel.match(/(\d+)\s+repost/i);
-        const replyMatch = ariaLabel.match(/(\d+)\s+repl/i);
-        if (likeMatch) likes = parseInt(likeMatch[1], 10);
-        if (commentMatch) comments = parseInt(commentMatch[1], 10);
-        if (repostMatch) reposts = parseInt(repostMatch[1], 10);
-        if (replyMatch) replies = parseInt(replyMatch[1], 10);
+      const svgs = postEl.querySelectorAll('svg[aria-label]');
+      for (const svg of Array.from(svgs)) {
+        const ariaLabel = (svg.getAttribute('aria-label') ?? '').toLowerCase();
+        const button = svg.closest('div[role="button"], button');
+        if (!button) continue;
+
+        // The count is the first numeric text node inside the button.
+        const countMatch = button.textContent?.match(/\d+/) ?? null;
+        const count = countMatch ? parseInt(countMatch[0], 10) : 0;
+
+        if (ariaLabel.includes('like')) {
+          likes = count;
+        } else if (ariaLabel.includes('comment')) {
+          comments = count;
+        } else if (ariaLabel.includes('repost')) {
+          reposts = count;
+        } else if (ariaLabel.includes('reply')) {
+          replies = count;
+        }
       }
 
       // ── Ad detection ─────────────────────────────────────────────────

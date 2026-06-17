@@ -122,16 +122,27 @@ export class TwitchStreamWavelet extends BaseSocialWavelet {
     if (this.capturedIds.has(channelHandle)) return;
     this.capturedIds.add(channelHandle); // claim slot before async delay
 
-    // Small delay to let Twitch render the stream info DOM
+    // Delay to let Twitch render the stream info DOM, then retry once if viewer count is still 0.
+    this.tryExtract(channelHandle, 1000);
+  }
+
+  private tryExtract(channelHandle: string, delay: number, isRetry = false): void {
     setTimeout(() => {
       const streamInfoSel = this.selectorConfig?.selectors['stream_info']?.[0] ?? '#live-channel-stream-information';
-      const streamInfo = document.querySelector<HTMLElement>(streamInfoSel);
-      if (!streamInfo) return;
+      const streamInfo = document.querySelector<HTMLElement>(streamInfoSel) ?? document.body;
 
       const data = this.extractPost(streamInfo);
       if (!data) return;
+
+      if (!isRetry && data.views === 0) {
+        // Viewer count may still be loading; retry once after another second.
+        this.capturedIds.delete(channelHandle);
+        this.tryExtract(channelHandle, 1000, true);
+        return;
+      }
+
       this.sendData(data);
-    }, 800);
+    }, delay);
   }
 
   // Override: use URL change detection for SPA navigation

@@ -231,20 +231,19 @@ class TabEventManager {
         throw new Error('Tab URL is not a string');
       }
 
-      const tabSessionId = await this.tabManager.generateTabSession(tab, tab.windowId);
-      const mapping = await this.dbService.getItem('tabslives', tabSessionId);
-
-      // If the tab has not been persisted yet (new tab), we cannot register a domain
-      // session early because we lack the backend tab ID. Fall back to the complete flow.
-      if (mapping === null || mapping instanceof Error) {
-        return;
-      }
-
       const domainSessionId = await this.generateMaskedDomainSessionId(tab.windowId, tab.id, tab.url);
 
+      // Try to reuse the persisted tab mapping if it already exists. For brand-new tabs
+      // the backend tab ID is not available yet, but we can still register the domain
+      // session early so that wavelets and content events that fire while the page is
+      // loading have a pending promise to wait on.
+      const tabSessionId = await this.tabManager.generateTabSession(tab, tab.windowId);
+      const mapping = await this.dbService.getItem('tabslives', tabSessionId);
+      const hasMapping = mapping !== null && !(mapping instanceof Error);
+
       const tabMapping = {
-        ...mapping,
-        id: mapping.id.toString(),
+        ...(hasMapping ? mapping : {}),
+        id: hasMapping ? mapping.id.toString() : String(tab.id),
         url: tab.url,
         windowId: tab.windowId,
         domainSessionId: domainSessionId,
