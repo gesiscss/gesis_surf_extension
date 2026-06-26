@@ -151,7 +151,7 @@ export class HostService {
         const status =
           typeof result === 'object' && result !== null ? (result as { status?: string }).status : undefined;
 
-        if (status === 'PENDING' || status === 'STARTED') {
+        if (status === 'PENDING' || status === 'STARTED' || status === 'Processing') {
           delay = Math.min(delay * 2, MAX_DELAY);
           continue;
         }

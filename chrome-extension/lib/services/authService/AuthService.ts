@@ -65,8 +65,8 @@ export class AuthService {
     console.log('[AuthService] Initializing services');
     try {
       await this.dataCollectionService.initialize();
-      await this.hostService.checkAndSyncVersion();
-      await this.selectorService.checkAndSyncVersion();
+      void this.hostService.checkAndSyncVersion();
+      void this.selectorService.checkAndSyncVersion();
 
       if (!this.dataCollectionService.shouldCollectData()) {
         console.log('[AuthService] Data collection is disabled. Skipping service initialization.');
