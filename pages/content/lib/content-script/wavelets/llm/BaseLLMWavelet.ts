@@ -130,6 +130,10 @@ export abstract class BaseLLMWavelet {
 
   /** Entry point. Checks site, waits for DOM ready, starts observer. */
   initialize(): void {
+    if (this.selectorConfig !== undefined && this.selectorConfig.is_active === false) {
+      console.log(`🤖[LLM] ${this.constructor.name} disabled by backend (is_active=false), skipping`);
+      return;
+    }
     if (!this.isSite()) return;
 
     console.log(`🤖[LLM] Initializing ${this.constructor.name}`);

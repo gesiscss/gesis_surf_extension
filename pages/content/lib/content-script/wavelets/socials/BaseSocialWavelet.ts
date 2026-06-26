@@ -117,6 +117,10 @@ export abstract class BaseSocialWavelet {
    * Initializes the wavelet by checking if the current site matches and setting up the observer.
    */
   initialize(): void {
+    if (this.selectorConfig !== undefined && this.selectorConfig.is_active === false) {
+      console.log(`[${this.label}] Disabled by backend (is_active=false), skipping`);
+      return;
+    }
     if (!this.isSite()) return;
     console.log(`[${this.label}] Initializing`);
     if (document.readyState === 'loading') {
