@@ -202,8 +202,17 @@ export class LinkedInFeedWavelet extends BaseSocialWavelet {
       const comments = parseCountFromText(text, /([\d,.]+)\s+comments?/i) || findCountByLabel(article, 'comments?');
       const reposts = parseCountFromText(text, /([\d,.]+)\s+reposts?/i) || findCountByLabel(article, 'reposts?');
 
+      // ── Visibility ────────────────────────────────────────────────────
+      const visibilityEl = article.querySelector(
+        this.sel(article, 'visibility_icon', 'svg[aria-label^="Visibility:"]'),
+      );
+      const visibility = visibilityEl?.getAttribute('aria-label')?.replace('Visibility: ', '') ?? 'Unknown';
+      const isPublic = visibility === 'Global';
+
       // ── Flags ──────────────────────────────────────────────────────────
       const isPromoted = text.includes('Promoted');
+      const isMarketing = context.type === 'promoted_post' || context.type === 'suggested_post';
+      const shouldCaptureContent = isPublic || isMarketing;
 
       return {
         id: deriveLinkedInId(article),
@@ -211,7 +220,9 @@ export class LinkedInFeedWavelet extends BaseSocialWavelet {
         signal_type: 'feed' as const,
         author_handle: authorHandle,
         author_display_name: authorName,
-        content_text: postText.substring(0, 5000),
+        content_text: shouldCaptureContent ? postText.substring(0, 5000) : '[private]',
+        visibility,
+        is_public: isPublic,
         permalink: deriveLinkedInPermalink(article),
         post_timestamp: parseLinkedInRelativeTime(text),
         likes,

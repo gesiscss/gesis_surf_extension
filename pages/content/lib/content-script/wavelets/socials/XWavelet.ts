@@ -50,7 +50,14 @@ export class XWavelet extends BaseSocialWavelet {
 
       const tweetText =
         article.querySelector(this.sel(article, 'tweet_text', '[data-testid="tweetText"]'))?.textContent?.trim() ?? '';
-      if (!tweetText) return null;
+
+      // ── Protected account detection ──────────────────────────────────
+      const retweetSel = this.sel(article, 'retweet_btn', '[data-testid="retweet"]');
+      const retweetBtn = article.querySelector(retweetSel);
+      const isProtected = retweetBtn?.hasAttribute('disabled') ?? false;
+      const isPublic = !isProtected;
+
+      if (!tweetText && isPublic) return null;
 
       const displayName =
         article
@@ -68,7 +75,7 @@ export class XWavelet extends BaseSocialWavelet {
         signal_type: 'feed' as const,
         author_handle: `@${authorHandle}`,
         author_display_name: displayName,
-        content_text: tweetText.substring(0, 5000),
+        content_text: isPublic ? tweetText.substring(0, 5000) : '[private]',
         permalink: `https://x.com/${authorHandle}/status/${tweetId}`,
         post_timestamp: tweetTimestamp,
         captured_at: new Date().toISOString(),
@@ -80,6 +87,8 @@ export class XWavelet extends BaseSocialWavelet {
         comments: parseMetric(ariaLabel, 'repl'),
         page_url: window.location.href,
         domain_id: '',
+        is_public: isPublic,
+        is_protected: isProtected,
       };
     } catch {
       return null;

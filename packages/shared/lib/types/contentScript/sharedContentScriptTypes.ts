@@ -150,7 +150,10 @@ export interface SocialPostData {
 }
 
 // Payload for X (Twitter) post events
-export interface XPostData extends SocialPostData {}
+export interface XPostData extends SocialPostData {
+  is_public: boolean;
+  is_protected: boolean;
+}
 
 // Payload for TikTok post events
 export interface TikTokPostData extends SocialPostData {
@@ -234,6 +237,8 @@ export interface FacebookPostData extends SocialPostData {}
 // Payload for LinkedIn feed events
 export interface LinkedInPostData extends SocialPostData {
   feed_context_type: string;
+  visibility: string;
+  is_public: boolean;
 }
 
 // Union type for all social post data
