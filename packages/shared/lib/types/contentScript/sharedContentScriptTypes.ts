@@ -97,7 +97,7 @@ export interface SocialPostData {
     | 'reddit'
     | 'twitch'
     | 'threads';
-  signal_type?: 'feed' | 'played';
+  signal_type?: 'feed' | 'played' | 'reel';
 
   // Author
   author_handle: string;
@@ -182,9 +182,7 @@ export interface YouTubeShortsData extends SocialPostData {
 
 // Payload for Instagram post events
 export interface InstagramPostData extends SocialPostData {
-  shortcode: string;
-  post_timestamp: string;
-  post_type: 'image' | 'carousel' | 'video';
+  is_public: boolean;
 }
 
 // Payload for Reddit post events
@@ -232,7 +230,15 @@ export interface YouTubeWatchData extends SocialPostData {
 }
 
 // Payload for Facebook feed events
-export interface FacebookPostData extends SocialPostData {}
+export interface FacebookPostData extends SocialPostData {
+  is_public: boolean;
+}
+
+// Payload for Facebook Reel events
+export interface FacebookReelData extends SocialPostData {
+  thumbnail_url: string;
+  is_public: boolean;
+}
 
 // Payload for LinkedIn feed events
 export interface LinkedInPostData extends SocialPostData {
@@ -251,6 +257,7 @@ export type SocialData =
   | YouTubeWatchData
   | InstagramPostData
   | FacebookPostData
+  | FacebookReelData
   | LinkedInPostData
   | RedditPostData
   | TwitchFeedData
@@ -267,6 +274,7 @@ export type SocialMessageType =
   | 'YOUTUBE_WATCH'
   | 'INSTAGRAM_POST'
   | 'FACEBOOK_POST'
+  | 'FACEBOOK_REEL'
   | 'LINKEDIN_POST'
   | 'REDDIT_POST'
   | 'TWITCH_FEED'

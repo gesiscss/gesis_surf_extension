@@ -78,6 +78,9 @@ function buildPostFromJSON(o: Record<string, unknown>): InstagramPostData | null
 
   if (!code || !user?.username) return null;
 
+  const isPrivate = user.is_private === true;
+  const isPublic = !isPrivate;
+
   const takenAt = o.taken_at ?? o.taken_at_timestamp;
   const timestamp = takenAt ? new Date((takenAt as number) * 1000).toISOString() : new Date().toISOString();
 
@@ -90,7 +93,7 @@ function buildPostFromJSON(o: Record<string, unknown>): InstagramPostData | null
     shortcode: code,
     author_handle: user.username as string,
     is_verified: !!user.is_verified,
-    content_text: caption,
+    content_text: isPublic ? caption : '[private]',
     permalink: `https://www.instagram.com/p/${code}/`,
     post_timestamp: timestamp,
     likes: (o.like_count as number) ?? 0,
@@ -99,6 +102,7 @@ function buildPostFromJSON(o: Record<string, unknown>): InstagramPostData | null
     captured_at: new Date().toISOString(),
     page_url: window.location.href,
     domain_id: '',
+    is_public: isPublic,
   };
 }
 
@@ -227,6 +231,7 @@ export class InstagramWavelet extends BaseSocialWavelet {
         captured_at: new Date().toISOString(),
         page_url: window.location.href,
         domain_id: '',
+        is_public: true, // DOM fallback: post is visible in feed, assume public
       };
       console.log('[📸Instagram] extractPost — DOM fallback result:', result);
       return result;

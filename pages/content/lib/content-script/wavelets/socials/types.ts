@@ -8,6 +8,7 @@ export type {
   YouTubePostData,
   YouTubeWatchData,
   FacebookPostData,
+  FacebookReelData,
   LinkedInPostData,
   InstagramPostData,
   RedditPostData,

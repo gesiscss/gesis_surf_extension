@@ -271,6 +271,7 @@ export class MessageHandler {
         case 'YOUTUBE_WATCH':
         case 'INSTAGRAM_POST':
         case 'FACEBOOK_POST':
+        case 'FACEBOOK_REEL':
         case 'LINKEDIN_POST':
         case 'REDDIT_POST':
         case 'TWITCH_FEED':

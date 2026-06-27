@@ -9,6 +9,7 @@
  *  - YouTubeFeedWavelet → YouTube main feed videos (DOM insertion)
  *  - YouTubeWatchWavelet  → YouTube watch page videos (yt-navigate-finish SPA event)
  *  - FacebookFeedWavelet  → Facebook feed posts (DOM insertion)
+ *  - FacebookReelWavelet  → Facebook Reels carousel cards (DOM insertion)
  *  - InstagramWavelet     → Instagram feed posts (DOM insertion)
  *  - LinkedInFeedWavelet  → LinkedIn feed posts (DOM insertion)
  *  - RedditFeedWavelet    → Reddit feed posts (DOM insertion)
@@ -25,6 +26,7 @@ import { TikTokWavelet } from './TikTokWavelet';
 import { TikTokPlayedWavelet } from './TikTokPlayedWavelet';
 import { YouTubeShortsWavelet } from './YouTubeShortsWavelet';
 import { FacebookFeedWavelet } from './FacebookFeedWavelet';
+import { FacebookReelWavelet } from './FacebookReelWavelet';
 import { InstagramWavelet } from './InstagramWavelet';
 import { YouTubeFeedWavelet } from './YouTubeFeedWavelet';
 import { YouTubeWatchWavelet } from './YouTubeWatchWavelet';
@@ -69,6 +71,7 @@ export async function initializeSocialTracking(): Promise<void> {
     new YouTubeWatchWavelet(configs['youtube_watch']),
     new InstagramWavelet(configs['instagram']),
     new FacebookFeedWavelet(configs['facebook']),
+    new FacebookReelWavelet(configs['facebook_reels']),
     new LinkedInFeedWavelet(configs['linkedin']),
     new RedditFeedWavelet(configs['reddit']),
     new TwitchFeedWavelet(configs['twitch_feed']),
