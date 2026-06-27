@@ -215,6 +215,15 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
         ),
       );
 
+      // ── Visibility detection ───────────────────────────────────────────────
+      // Globe SVG has a localized title attribute: "Shared with: Public" / "Compartido con: Público" etc.
+      const publicIndicatorSel = this.sel(
+        article,
+        'public_indicator',
+        'svg[title*="Público"], svg[title*="Public"], svg[title*="Öffentlich"], svg[title*="Publiek"]',
+      );
+      const isPublic = !!article.querySelector(publicIndicatorSel) || isAd;
+
       return {
         id: postId,
         platform: 'facebook' as const,
@@ -222,7 +231,7 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
         is_ad: isAd,
         author_handle: authorHandle,
         author_display_name: authorName,
-        content_text: contentText.substring(0, 5000),
+        content_text: isPublic ? contentText.substring(0, 5000) : '[private]',
         permalink,
         post_type: postType,
         likes: parseEngagementCount(likeBtn),
@@ -231,6 +240,7 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
         captured_at: new Date().toISOString(),
         page_url: window.location.href,
         domain_id: '',
+        is_public: isPublic,
       };
     } catch (err) {
       console.error('[📘Facebook] extractPost — error:', err);
