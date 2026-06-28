@@ -207,7 +207,7 @@ export class InstagramWavelet extends BaseSocialWavelet {
       const comments = section ? getCountAfterAction(section, 'Comment') : 0;
 
       // Verified badge
-      const isVerified = !!article.querySelector('svg[aria-label="Verified"]');
+      const isVerified = !!article.querySelector(this.sel(article, 'verified_badge', 'svg[aria-label="Verified"]'));
 
       // Post type
       let postType: 'image' | 'carousel' | 'video' = 'image';

@@ -130,6 +130,11 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
     const adsLinkSelector = this.sel(article, 'ads_link', 'a[href*="/ads/"]');
     if (article.querySelector(adsLinkSelector)) return true;
 
+    // 4. Promoted/Recommended posts: Facebook marks these with data-ad-rendering-role
+    // on sub-elements (story_message, like_button, etc.) — organic posts never have this.
+    const adRoleMarkerSel = this.sel(article, 'ad_role_marker', '[data-ad-rendering-role]');
+    if (article.querySelector(adRoleMarkerSel)) return true;
+
     return false;
   }
 
@@ -164,7 +169,9 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
       const contentText = storyEl?.textContent?.trim() ?? '';
 
       // ── Timestamp / Permalink ──────────────────────────────────────────
-      const timeLink = article.querySelector<HTMLAnchorElement>(this.sel(article, 'time_link', 'a[href*="/posts/"]'));
+      const timeLink = article.querySelector<HTMLAnchorElement>(
+        this.sel(article, 'time_link', 'a[href*="/posts/"], a[href*="/watch/"], a[href*="?v="]'),
+      );
       let permalink = timeLink?.href ?? '';
 
       // Sponsored posts often do not expose a /posts/pfbid... permalink. Fall back to the

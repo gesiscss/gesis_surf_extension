@@ -20,11 +20,13 @@ export class ThreadsFeedWavelet extends BaseSocialWavelet {
   extractPost(postEl: HTMLElement): ThreadsPostData | null {
     try {
       // ── Permalink & Post ID ─────────────────────────────────────────
-      const permalinkAnchor = postEl.querySelector<HTMLAnchorElement>('a[href*="/post/"]');
+      const postLinkSel = this.sel(postEl, 'post_link', 'a[href*="/post/"]');
+      const permalinkAnchor = postEl.querySelector<HTMLAnchorElement>(postLinkSel);
       let permalink = permalinkAnchor?.href ?? '';
       if (!permalink) {
         // Fallback: try to find any anchor with /@username/post/ pattern inside the element
-        const anyAnchor = postEl.querySelector<HTMLAnchorElement>('a[href^="/@"]');
+        const authorLinkSel = this.sel(postEl, 'author_link', 'a[href^="/@"]');
+        const anyAnchor = postEl.querySelector<HTMLAnchorElement>(authorLinkSel);
         if (anyAnchor?.href.includes('/post/')) {
           permalink = anyAnchor.href;
         }
@@ -36,7 +38,7 @@ export class ThreadsFeedWavelet extends BaseSocialWavelet {
       if (!postId) return null;
 
       // ── Author handle ────────────────────────────────────────────────
-      const userAnchor = postEl.querySelector<HTMLAnchorElement>('a[href^="/@"]');
+      const userAnchor = postEl.querySelector<HTMLAnchorElement>(this.sel(postEl, 'author_link', 'a[href^="/@"]'));
       const authorHandle = userAnchor?.getAttribute('href')?.replace('/@', '') ?? '';
 
       // ── Author display name ────────────────────────────────────────
@@ -48,13 +50,20 @@ export class ThreadsFeedWavelet extends BaseSocialWavelet {
       }
 
       // ── Verified badge ─────────────────────────────────────────────
-      const isVerified = postEl.querySelector('svg[aria-label="Verified"], svg[aria-label="Verificado"]') !== null;
+      const isVerified =
+        postEl.querySelector(
+          this.sel(postEl, 'verified_badge', 'svg[aria-label="Verified"], svg[aria-label="Verificado"]'),
+        ) !== null;
 
       // ── Content text ───────────────────────────────────────────────
       // Threads content is typically in a div with multiple spans/paragraphs.
       // We gather all meaningful text nodes excluding the UFI section.
       const ufi = postEl.querySelector(
-        '[role="group"], div[class*="ufi"], div[aria-label*="like"], div[aria-label*="repost"]',
+        this.sel(
+          postEl,
+          'ufi_group',
+          '[role="group"], div[class*="ufi"], div[aria-label*="like"], div[aria-label*="repost"]',
+        ),
       );
       let contentText = '';
       const textEls = postEl.querySelectorAll('span, p');
@@ -75,7 +84,7 @@ export class ThreadsFeedWavelet extends BaseSocialWavelet {
       }
 
       // ── Timestamp ────────────────────────────────────────────────────
-      const timeEl = postEl.querySelector<HTMLTimeElement>('time[datetime]');
+      const timeEl = postEl.querySelector<HTMLTimeElement>(this.sel(postEl, 'timestamp', 'time[datetime]'));
       const postTimestamp = timeEl?.getAttribute('datetime') ?? undefined;
 
       // ── Engagement ─────────────────────────────────────────────────
@@ -141,7 +150,10 @@ export class ThreadsFeedWavelet extends BaseSocialWavelet {
 
     for (const post of posts) {
       // Extra guard: only process if it looks like a feed post (has time + user link)
-      if (!post.querySelector('time[datetime]') || !post.querySelector('a[href^="/@"]')) {
+      if (
+        !post.querySelector(this.sel(post, 'timestamp', 'time[datetime]')) ||
+        !post.querySelector(this.sel(post, 'author_link', 'a[href^="/@"]'))
+      ) {
         continue;
       }
       const data = this.extractPost(post);
