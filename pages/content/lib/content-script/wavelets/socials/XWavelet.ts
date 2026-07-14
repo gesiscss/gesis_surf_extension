@@ -69,12 +69,28 @@ export class XWavelet extends BaseSocialWavelet {
       const ariaLabel =
         article.querySelector(this.sel(article, 'metrics_group', '[role="group"]'))?.getAttribute('aria-label') ?? '';
 
+      // ── Verified badge ──────────────────────────────────────────────
+      const isVerified = !!article.querySelector(
+        this.sel(article, 'verified_badge', '[data-testid="User-Name"] svg[data-testid="icon-verified"]'),
+      );
+
+      // ── Post type ─────────────────────────────────────────────────────
+      const hasVideo = !!article.querySelector(this.sel(article, 'video_player', '[data-testid="videoPlayer"], video'));
+      const hasPhoto = !!article.querySelector(this.sel(article, 'photo', '[data-testid="tweetPhoto"]'));
+      const postType: 'image' | 'video' | 'text' = hasVideo ? 'video' : hasPhoto ? 'image' : 'text';
+
+      // ── Ad detection ───────────────────────────────────────────────────
+      const isAd = !!article.querySelector(
+        this.sel(article, 'promoted_indicator', '[data-testid="promotedIndicator"]'),
+      );
+
       return {
         id: tweetId,
         platform: 'x' as const,
         signal_type: 'feed' as const,
-        author_handle: `@${authorHandle}`,
-        author_display_name: displayName,
+        author_handle: isPublic ? `@${authorHandle}` : '[private]',
+        author_display_name: isPublic ? displayName : '[private]',
+        is_verified: isVerified,
         content_text: isPublic ? tweetText.substring(0, 5000) : '[private]',
         permalink: `https://x.com/${authorHandle}/status/${tweetId}`,
         post_timestamp: tweetTimestamp,
@@ -85,10 +101,12 @@ export class XWavelet extends BaseSocialWavelet {
         bookmarks: parseMetric(ariaLabel, 'bookmark'),
         views: parseMetric(ariaLabel, 'view'),
         comments: parseMetric(ariaLabel, 'repl'),
+        post_type: postType,
         page_url: window.location.href,
         domain_id: '',
         is_public: isPublic,
         is_protected: isProtected,
+        is_ad: isAd,
       };
     } catch {
       return null;

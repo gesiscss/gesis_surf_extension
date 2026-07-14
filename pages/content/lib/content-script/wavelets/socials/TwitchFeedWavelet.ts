@@ -64,7 +64,11 @@ export class TwitchFeedWavelet extends BaseSocialWavelet {
         .filter(Boolean);
 
       // ── Verified ─────────────────────────────────────────────────────
-      const isVerified = !!card.querySelector(this.sel(card, 'verified', 'svg[title="Verified"]'));
+      // aria-label on the channel link contains "(Verified)" for verified streamers.
+      // svg[title="Verified"] does NOT work — <title> is a child element, not an attribute.
+      const isVerified = !!card.querySelector(
+        this.sel(card, 'verified', 'a[data-test-selector="TitleAndChannel"][aria-label*="(Verified)"]'),
+      );
 
       // ── LIVE status ──────────────────────────────────────────────────
       const isLive = !!card.querySelector(this.sel(card, 'live_badge', '.tw-channel-status-text-indicator'));

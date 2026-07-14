@@ -111,6 +111,10 @@ export abstract class BaseSocialWavelet {
       console.log(`[${this.label}] Initial scan (t=4000)`);
       this.processAddedNode(document.body as HTMLElement);
     }, 4000);
+    setTimeout(() => {
+      console.log(`[${this.label}] Initial scan (t=8000)`);
+      this.processAddedNode(document.body as HTMLElement);
+    }, 8000);
   }
 
   /**

@@ -54,6 +54,9 @@ function extractPostIdFromUrl(url: string): string | null {
   if (videoMatch) return videoMatch[1];
   const storyMatch = url.match(/story_fbid=(\d+)/);
   if (storyMatch) return storyMatch[1];
+  // Photo posts: /photo/?fbid=12345
+  const fbidMatch = url.match(/[?&]fbid=(\d+)/);
+  if (fbidMatch) return fbidMatch[1];
   return null;
 }
 
@@ -130,9 +133,10 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
     const adsLinkSelector = this.sel(article, 'ads_link', 'a[href*="/ads/"]');
     if (article.querySelector(adsLinkSelector)) return true;
 
-    // 4. Promoted/Recommended posts: Facebook marks these with data-ad-rendering-role
-    // on sub-elements (story_message, like_button, etc.) — organic posts never have this.
-    const adRoleMarkerSel = this.sel(article, 'ad_role_marker', '[data-ad-rendering-role]');
+    // 4. Sponsored posts: Facebook adds a call-to-action button (data-ad-rendering-role="cta-")
+    // that organic posts never have. Other roles like "meta", "title", "description" appear
+    // on ANY link preview card (including organic photo carousels), so they must NOT be used.
+    const adRoleMarkerSel = this.sel(article, 'ad_role_marker', '[data-ad-rendering-role="cta-"]');
     if (article.querySelector(adRoleMarkerSel)) return true;
 
     return false;
@@ -151,6 +155,15 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
       let authorHandle = extractHandleFromFacebookUrl(profileUrl);
       let authorName = profileLink?.textContent?.trim() ?? '';
 
+      console.log(
+        '[📘Facebook] extractPost — profileLink found:',
+        !!profileLink,
+        '| href:',
+        profileUrl || 'none',
+        '| handle:',
+        authorHandle || '(empty)',
+      );
+
       // Ads may not have a normal profile link; try to extract a page handle from any
       // facebook.com link inside the article, otherwise keep a generic handle so the ad
       // is still captured.
@@ -158,9 +171,18 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
       if (!authorHandle) {
         authorHandle = extractHandleFromFacebookUrl(fallbackLink?.href ?? '');
         authorName = fallbackLink?.textContent?.trim() ?? 'Sponsored';
+        console.log(
+          '[📘Facebook] extractPost — fallback link:',
+          fallbackLink?.href ?? 'none',
+          '| handle:',
+          authorHandle || '(empty)',
+        );
       }
 
-      if (!authorHandle) return null;
+      if (!authorHandle) {
+        console.log('[📘Facebook] extractPost — ❌ no authorHandle, returning null');
+        return null;
+      }
 
       // ── Content ────────────────────────────────────────────────────────
       const storyEl = article.querySelector<HTMLElement>(
@@ -170,7 +192,7 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
 
       // ── Timestamp / Permalink ──────────────────────────────────────────
       const timeLink = article.querySelector<HTMLAnchorElement>(
-        this.sel(article, 'time_link', 'a[href*="/posts/"], a[href*="/watch/"], a[href*="?v="]'),
+        this.sel(article, 'time_link', 'a[href*="/posts/"], a[href*="/watch/"], a[href*="?v="], a[href*="/photo/"]'),
       );
       let permalink = timeLink?.href ?? '';
 
@@ -180,11 +202,20 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
         permalink = profileUrl || fallbackLink?.href || window.location.href;
       }
 
+      // For any post still without a permalink (e.g. news article shares that only have
+      // external redirect links), fall back to the Page profile URL so the field is never
+      // empty — the backend requires a non-empty string.
+      if (!permalink) {
+        permalink = profileUrl || window.location.href;
+      }
+
       let postId = extractPostIdFromUrl(permalink);
 
       // If there is still no pfbid, use a deterministic fallback ID derived from the
-      // advertiser + content so the ad is still captured.
-      if (!postId && isAd) {
+      // author + content so the post is still captured.
+      // This covers organic Page posts with link preview cards that don't expose
+      // a /posts/pfbid... permalink (e.g. DIE ZEIT, BÜNDNIS 90/DIE GRÜNEN).
+      if (!postId && (isAd || contentText)) {
         postId = generateAdPostId(authorHandle, contentText);
       }
 
@@ -236,8 +267,8 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
         platform: 'facebook' as const,
         signal_type: 'feed' as const,
         is_ad: isAd,
-        author_handle: authorHandle,
-        author_display_name: authorName,
+        author_handle: isPublic ? authorHandle : '[private]',
+        author_display_name: isPublic ? authorName : '[private]',
         content_text: isPublic ? contentText.substring(0, 5000) : '[private]',
         permalink,
         post_type: postType,
@@ -261,15 +292,92 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
       ? [el]
       : Array.from(el.querySelectorAll<HTMLElement>(articleSel));
 
+    // Also find posts that are NOT inside div[role="article"] — Facebook uses a
+    // different feed layout for accounts without friends where posts are not wrapped
+    // in div[role="article"]. Find them by profile_name and walk up to the post container.
+    // Uses sel() with key 'profile_name' so the backend can remotely update the selector.
+    const profileNameSel = this.sel(el, 'profile_name', '[data-ad-rendering-role="profile_name"]');
+    const profileNames = el.matches?.(profileNameSel)
+      ? [el]
+      : Array.from(el.querySelectorAll<HTMLElement>(profileNameSel));
+    for (const pn of profileNames) {
+      const article = pn.closest<HTMLElement>('div[role="article"]');
+      if (!article) {
+        // Walk up from profile_name until we find an ancestor that also contains
+        // story_message or like_button — that's the post container.
+        // This is stable because data-ad-rendering-role attributes are Facebook's
+        // internal naming, not obfuscated CSS classes.
+        let container: HTMLElement | null = pn.parentElement;
+        while (container && container !== document.body) {
+          if (
+            container.querySelector('[data-ad-rendering-role="story_message"]') ||
+            container.querySelector('[data-ad-rendering-role="like_button"]')
+          ) {
+            if (!articles.includes(container)) {
+              articles.push(container);
+            }
+            break;
+          }
+          container = container.parentElement;
+        }
+      }
+    }
+
     if (articles.length > 0) {
       console.log(`[📘Facebook] Processing ${articles.length} articles...`);
     }
 
     for (const article of articles) {
+      // Skip loading placeholders — Facebook uses div[role="article"] for loading spinners
+      if (
+        article.querySelector('[data-visualcompletion="loading-state"]') ||
+        article.getAttribute('aria-label')?.toLowerCase().includes('wird geladen') ||
+        article.getAttribute('aria-label')?.toLowerCase().includes('loading')
+      ) {
+        continue;
+      }
+
+      // Debug: log what kind of article this is
+      const ariaLabel = article.getAttribute('aria-label') ?? '';
+      const hasProfileName = !!article.querySelector('[data-ad-rendering-role="profile_name"]');
+      const hasStoryMessage = !!article.querySelector('[data-ad-rendering-role="story_message"]');
+      const hasTimeLink = !!article.querySelector('a[href*="/posts/"]');
+      const hasReelLink = !!article.querySelector('a[href*="/reel/"]');
+      const firstLink = article.querySelector('a');
+      console.log('[📘Facebook] Article debug:', {
+        ariaLabel: ariaLabel.substring(0, 60),
+        hasProfileName,
+        hasStoryMessage,
+        hasTimeLink,
+        hasReelLink,
+        firstLinkHref: firstLink?.href?.substring(0, 80) ?? 'none',
+        childCount: article.children.length,
+        innerHTMLPreview: article.innerHTML.substring(0, 200),
+      });
+
       const data = this.extractPost(article);
-      if (!data) continue;
-      if (this.capturedIds.has(data.id)) continue;
+      if (!data) {
+        console.log(`[📘Facebook] extractPost returned null — skipping article`);
+        continue;
+      }
+      if (this.capturedIds.has(data.id)) {
+        console.log(`[📘Facebook] Already captured — skipping id: ${data.id}`);
+        continue;
+      }
       this.capturedIds.add(data.id);
+      console.log(`[📘Facebook] ✅ Captured:`, {
+        id: data.id,
+        author_handle: data.author_handle,
+        author_display_name: data.author_display_name,
+        is_ad: data.is_ad,
+        is_public: data.is_public,
+        post_type: data.post_type,
+        likes: data.likes,
+        comments: data.comments,
+        shares: data.shares,
+        content_text: data.content_text.substring(0, 80),
+        permalink: data.permalink,
+      });
       this.sendData(data);
     }
   }

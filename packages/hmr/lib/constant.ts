@@ -5,7 +5,7 @@ const STG_URL = 'https://staging.surfcollect.gesis.org/api';
 const PROD_URL = 'https://surfcollect.gesis.org/api';
 const LOCAL_URL = 'http://localhost:8000/api';
 
-const getApiUrl = (): string => LOCAL_URL;
+const getApiUrl = (): string => STG_URL;
 
 // API Configuration & environment switching
 export const API_CONFIG = {

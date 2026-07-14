@@ -101,9 +101,16 @@ export class ThreadsFeedWavelet extends BaseSocialWavelet {
         const button = svg.closest('div[role="button"], button');
         if (!button) continue;
 
-        // The count is the first numeric text node inside the button.
-        const countMatch = button.textContent?.match(/\d+/) ?? null;
-        const count = countMatch ? parseInt(countMatch[0], 10) : 0;
+        // The count is the first numeric text (supports "123", "16.9K", "1.2M", "2.3B").
+        const raw = button.textContent ?? '';
+        const countMatch = raw.match(/([\d.]+)\s*([KMBkmb])?(?!\d)/);
+        let count = 0;
+        if (countMatch) {
+          const value = parseFloat(countMatch[1]);
+          const suffix = (countMatch[2] ?? '').toUpperCase();
+          const mult = suffix === 'K' ? 1_000 : suffix === 'M' ? 1_000_000 : suffix === 'B' ? 1_000_000_000 : 1;
+          count = Math.round(value * mult);
+        }
 
         if (ariaLabel.includes('like')) {
           likes = count;

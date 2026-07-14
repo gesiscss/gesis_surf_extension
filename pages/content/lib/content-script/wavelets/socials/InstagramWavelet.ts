@@ -91,7 +91,7 @@ function buildPostFromJSON(o: Record<string, unknown>): InstagramPostData | null
     platform: 'instagram',
     is_ad: false,
     shortcode: code,
-    author_handle: user.username as string,
+    author_handle: isPublic ? (user.username as string) : '[private]',
     is_verified: !!user.is_verified,
     content_text: isPublic ? caption : '[private]',
     permalink: `https://www.instagram.com/p/${code}/`,
