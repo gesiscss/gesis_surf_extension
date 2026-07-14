@@ -24,6 +24,17 @@ export interface Extension {
   extension_browser: string;
   extension_data_collection: boolean;
   host_version: string;
+  selector_version: string;
+}
+
+/**
+ * Payload for PATCH /user/me/ to update extension metadata on install/update.
+ */
+export interface ExtensionMetadataPayload {
+  extension_version: string;
+  extension_browser: string;
+  extension_installed_at?: string;
+  extension_updated_at?: string;
 }
 
 export interface AuthResponse {

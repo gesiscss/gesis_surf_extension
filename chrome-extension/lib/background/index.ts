@@ -2,7 +2,7 @@
  * Background script for the Chrome extension.
  * Manages startup and installation events, and initializes services.
  */
-import { runtime, Runtime } from 'webextension-polyfill';
+import { runtime, storage, Runtime } from 'webextension-polyfill';
 import { AuthService } from '../services';
 import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
 import { MessageHandler } from '../messages';
@@ -11,6 +11,8 @@ import { ExtensionMessage } from '../messages/interfaces/types';
 console.log('[background] Background script loaded');
 const API_URL = import.meta.env?.VITE_API_URL || API_CONFIG.BASE_URL;
 console.log(`[background] Using API URL: ${API_URL}`);
+
+const PENDING_EXTENSION_UPDATE_KEY = 'pending_extension_update';
 
 //  Starting Services
 const authService = new AuthService(API_URL);
@@ -43,6 +45,19 @@ runtime.onStartup.addListener(async () => {
 //  Listen for Installation or Update events
 runtime.onInstalled.addListener(async (details: Runtime.OnInstalledDetailsType) => {
   console.log('[background] onInstalled or onUpdated', details);
+
+  // Persist the reason so it can be sent after auth if the user isn't authenticated yet
+  let reason: 'install' | 'update' | undefined;
+  if (details.reason === 'install') {
+    reason = 'install';
+  } else if (details.reason === 'update') {
+    reason = 'update';
+  }
+
+  if (reason) {
+    await storage.local.set({ [PENDING_EXTENSION_UPDATE_KEY]: reason });
+  }
+
   await authService.checkAuthentication();
 });
 
