@@ -131,12 +131,28 @@ class DomainEventManager {
 
   /**
    * Closes the previous domain session if it exists.
+   * Wraps the update in a try/catch so that a domain that was never sent to the
+   * backend (e.g. page abandoned during loading) does not prevent the new domain
+   * from being initialized. The stale ID is always cleared and the pending
+   * promise (if any) is cancelled so it does not leak in the DomainManager Map.
    */
   private async closePreviousDomainSession() {
     console.log(`[${this.serviceName}] Closing domain ${this.currentActiveDomainSessionId}`);
     if (this.currentActiveDomainSessionId) {
-      await this.domainManager.updateDomain(this.currentActiveDomainSessionId, 'PATCH');
-      this.currentActiveDomainSessionId = null;
+      try {
+        await this.domainManager.updateDomain(this.currentActiveDomainSessionId, 'PATCH');
+      } catch (error) {
+        console.warn(
+          `[${this.serviceName}] Failed to close domain ${this.currentActiveDomainSessionId} ` +
+            '(may never have been sent to backend):',
+          error instanceof Error ? error.message : error,
+        );
+        // Clean up the pending promise if the domain was registered but never sent
+        this.domainManager.cancelPendingDomain(this.currentActiveDomainSessionId);
+      } finally {
+        // ALWAYS clear the stale ID so the next domain can be initialized
+        this.currentActiveDomainSessionId = null;
+      }
     }
   }
 

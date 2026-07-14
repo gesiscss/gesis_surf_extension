@@ -18,7 +18,7 @@ export default class WaveletEventManager {
    * Pages with heavy JS (e.g. YouTube Shorts direct navigation) can take several seconds
    * before the tab reaches 'complete' and the domain is sent to the backend.
    */
-  private readonly DOMAIN_READY_TIMEOUT_MS = 5000;
+  private readonly DOMAIN_READY_TIMEOUT_MS = 10000;
   private readonly dbService: DatabaseService;
   private readonly domainManager: DomainManager;
   private readonly domainPolicyService: DomainPolicyService;

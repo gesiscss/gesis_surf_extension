@@ -27,7 +27,7 @@ export default class ContentEventHandler {
    * domain session to be persisted. Matches the wavelet timeout so all content events
    * are resilient to the domain-loading race condition.
    */
-  private readonly DOMAIN_READY_TIMEOUT_MS = 5000;
+  private readonly DOMAIN_READY_TIMEOUT_MS = 10000;
   private domainManager: DomainManager;
   private dbService: DatabaseService;
   private apiClient: ContentScriptHandler;
