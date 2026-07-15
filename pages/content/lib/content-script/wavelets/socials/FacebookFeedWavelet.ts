@@ -254,13 +254,24 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
       );
 
       // ── Visibility detection ───────────────────────────────────────────────
-      // Globe SVG has a localized title attribute: "Shared with: Public" / "Compartido con: Público" etc.
+      // Facebook renders the privacy indicator as an <abbr> wrapping an SVG icon.
+      // The localized title attribute lives on the <abbr>, not the SVG.
+      // Check both <abbr> and <svg> (and <span> as fallback) to cover all renderings.
+      // IMPORTANT: scope to elements OUTSIDE story_message and blockquote — embedded
+      // shared posts carry their own public Globe icon which would cause a false positive
+      // on a friends-only outer post that shares a public post.
       const publicIndicatorSel = this.sel(
         article,
         'public_indicator',
-        'svg[title*="Público"], svg[title*="Public"], svg[title*="Öffentlich"], svg[title*="Publiek"]',
+        'abbr[title*="Público"], abbr[title*="Public"], abbr[title*="Öffentlich"], abbr[title*="Publiek"],' +
+          ' svg[title*="Público"], svg[title*="Public"], svg[title*="Öffentlich"], svg[title*="Publiek"],' +
+          ' span[title*="Público"], span[title*="Public"], span[title*="Öffentlich"], span[title*="Publiek"]',
       );
-      const isPublic = !!article.querySelector(publicIndicatorSel) || isAd;
+      const publicIndicators = Array.from(article.querySelectorAll(publicIndicatorSel));
+      const isPublic =
+        publicIndicators.some(
+          el => !el.closest('[data-ad-rendering-role="story_message"]') && !el.closest('blockquote'),
+        ) || isAd;
 
       return {
         id: postId,
@@ -334,6 +345,23 @@ export class FacebookFeedWavelet extends BaseSocialWavelet {
         article.getAttribute('aria-label')?.toLowerCase().includes('wird geladen') ||
         article.getAttribute('aria-label')?.toLowerCase().includes('loading')
       ) {
+        continue;
+      }
+
+      // Skip comments — Facebook reuses div[role="article"] for individual comments
+      // in a thread (same React component as feed posts). The most reliable signal is
+      // data-ad-rendering-role, which Facebook only puts on real feed posts, never on
+      // comments. As a secondary check, look for a privacy/visibility indicator (abbr
+      // with "Public"/"Público"/etc.) which comments never have.
+      // Note: we cannot rely on /posts/ links because comments can contain links to
+      // posts, and we fabricate the permalink ourselves in extractPost anyway.
+      const hasAdRenderingRole = !!article.querySelector('[data-ad-rendering-role]');
+      const hasVisibilityIndicator = !!article.querySelector(
+        'abbr[title*="Public"], abbr[title*="Público"], abbr[title*="Öffentlich"], abbr[title*="Publiek"],' +
+          ' svg[title*="Public"], svg[title*="Público"], svg[title*="Öffentlich"], svg[title*="Publiek"]',
+      );
+      if (!hasAdRenderingRole && !hasVisibilityIndicator) {
+        console.log('[📘Facebook] Skipped — no data-ad-rendering-role or visibility indicator (likely a comment)');
         continue;
       }
 
