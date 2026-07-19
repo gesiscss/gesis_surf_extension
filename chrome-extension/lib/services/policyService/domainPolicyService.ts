@@ -44,18 +44,18 @@ export class DomainPolicyService extends BasePolicyService {
   private buildPayload(domain: DomainDataTypes, classification: PolicyClassification): DomainPayloadTypes {
     switch (classification) {
       case 'private':
-        return this.createMaskedPayload(domain, 'Private-Mode');
+        return this.createMaskedPayload(domain, 'Private-Mode', classification);
 
       case 'full_deny':
-        return this.createMaskedPayload(domain, classification);
+        return this.createMaskedPayload(domain, classification, classification);
 
       case 'only_host':
-        return this.createOnlyHostPayload(domain, classification);
+        return this.createOnlyHostPayload(domain, classification, classification);
 
       case 'full_allow':
       case 'default':
       default:
-        return this.createFullAllowPayload(domain);
+        return this.createFullAllowPayload(domain, classification);
     }
   }
 
@@ -65,7 +65,7 @@ export class DomainPolicyService extends BasePolicyService {
    * @param maskValue The value to use for masking
    * @returns DomainPayloadTypes The constructed payload for private mode or full deny classification
    */
-  private createMaskedPayload(domain: DomainDataTypes, maskValue: string): DomainPayloadTypes {
+  private createMaskedPayload(domain: DomainDataTypes, maskValue: string, classification: string): DomainPayloadTypes {
     console.log(`[${this.serviceName}] Applying masked payload for classification: ${maskValue}`);
     return {
       domain_title: maskValue,
@@ -73,6 +73,7 @@ export class DomainPolicyService extends BasePolicyService {
       domain_fav_icon: maskValue,
       start_time: new Date().toISOString(),
       closing_time: new Date().toISOString(),
+      criteria_classification: classification,
     };
   }
 
@@ -81,7 +82,7 @@ export class DomainPolicyService extends BasePolicyService {
    * @param domain The domain data to build the payload from
    * @returns DomainPayloadTypes The constructed payload for full allow classification
    */
-  private createFullAllowPayload(domain: DomainDataTypes): DomainPayloadTypes {
+  private createFullAllowPayload(domain: DomainDataTypes, classification: string): DomainPayloadTypes {
     console.log(`[${this.serviceName}] Applying Full Allow policy`);
     return {
       domain_title: domain.title || 'No Title',
@@ -90,6 +91,7 @@ export class DomainPolicyService extends BasePolicyService {
       start_time: new Date().toISOString(),
       closing_time: new Date().toISOString(),
       domain_last_accessed: new Date().toISOString(),
+      criteria_classification: classification,
     };
   }
 
@@ -100,7 +102,11 @@ export class DomainPolicyService extends BasePolicyService {
    * @param maskValue The value to use for masking
    * @returns DomainPayloadTypes The only_host payload
    */
-  private createOnlyHostPayload(domain: DomainDataTypes, maskValue: string): DomainPayloadTypes {
+  private createOnlyHostPayload(
+    domain: DomainDataTypes,
+    maskValue: string,
+    classification: string,
+  ): DomainPayloadTypes {
     console.log(`[${this.serviceName}] Creating only_host payload for: ${maskValue}`);
     return {
       domain_title: maskValue,
@@ -108,6 +114,7 @@ export class DomainPolicyService extends BasePolicyService {
       domain_fav_icon: maskValue,
       start_time: new Date().toISOString(),
       closing_time: new Date().toISOString(),
+      criteria_classification: classification,
     };
   }
 

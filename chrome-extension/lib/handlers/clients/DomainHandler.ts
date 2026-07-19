@@ -238,7 +238,7 @@ class DomainManager {
       // Extract the domain session ID from the response
       console.log(`[${this.serviceName}] Domains in response:`, data.domains);
 
-      // Find the created domain in the response by domain_session_id and latest start_time (NEED CORRECTION)
+      // Find the created domain in the response by domain_session_id and latest start_time (NEED TO CHECK)
       if (!data.domains || data.domains.length === 0) {
         console.error(`[${this.serviceName}] No domains found in response`);
         return undefined;
