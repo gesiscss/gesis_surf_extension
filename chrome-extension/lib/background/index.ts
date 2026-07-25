@@ -9,28 +9,13 @@ import { MessageHandler } from '../messages';
 import { ExtensionMessage } from '../messages/interfaces/types';
 import { migrateLegacyToken } from '../storages/migrateLegacyToken';
 import { ensureDeviceId } from '../storages/deviceId';
-import { ElasticLogger, LogLevel } from '@chrome-extension-boilerplate/shared/lib/services/logging';
+import { logger } from '../services/logger';
 
 console.log('[background] Background script loaded');
 const API_URL = import.meta.env?.VITE_API_URL || API_CONFIG.BASE_URL;
 console.log(`[background] Using API URL: ${API_URL}`);
 
 const PENDING_EXTENSION_UPDATE_KEY = 'pending_extension_update';
-
-// --- ElasticLogger singleton -------------------------------------------------
-// Sends structured log entries from the extension to Django's /extension-logs/
-// endpoint, which forwards them to Elasticsearch (app-extension index).
-// This complements Django's server-side traffic_middleware logs (app+api index)
-// with client-side events Django cannot see: failed requests, client-side
-// errors, request/response bodies, and internal extension messaging.
-const logger = new ElasticLogger({
-  endpoint: `${API_URL}/extension-logs/`,
-  index: 'app-extension',
-  minLevel: LogLevel.INFO, // DEBUG filtered out in production
-});
-
-// Export the logger so services can use it for apiRequest's `logger` config.
-export { logger };
 
 //  Starting Services
 const authService = new AuthService(API_URL);

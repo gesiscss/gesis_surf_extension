@@ -16,6 +16,8 @@ import { DataCollectionService } from '../dataCollectionService';
 import { HostService } from '../hostService';
 import { SelectorService } from '../selectorService';
 import { readToken, writeToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
+import { apiRequestWithDevice } from '../apiClientWithDevice';
+import { logger } from '../logger';
 import {
   AuthValidationResult,
   ExtensionMetadataPayload,
@@ -141,14 +143,14 @@ export class AuthService {
 
       console.log('[AuthService] Updating extension metadata:', extensionPayload);
 
-      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Token ${token}`,
+      const response = await apiRequestWithDevice(
+        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ extension: extensionPayload }),
         },
-        body: JSON.stringify({ extension: extensionPayload }),
-      });
+        { method: 'PATCH', logToElasticsearch: true, logger },
+      );
 
       if (!response.ok) {
         console.warn(`[AuthService] Extension metadata update failed: ${response.status} ${response.statusText}`);
@@ -191,15 +193,13 @@ export class AuthService {
    * @param token The token used to retrieve user information.
    * @returns The token validation result.
    */
-  async validateToken(token: string): Promise<AuthValidationResult> {
+  async validateToken(): Promise<AuthValidationResult> {
     try {
-      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Token ${token}`,
-        },
-      });
+      const response = await apiRequestWithDevice(
+        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`,
+        { method: 'GET' },
+        { method: 'GET', logToElasticsearch: true, logger },
+      );
 
       if (response.status === 401) {
         console.warn('Token is invalid:', response.status, response.statusText);
@@ -277,7 +277,7 @@ export class AuthService {
         return;
       }
 
-      const validationResult = await this.validateToken(token);
+      const validationResult = await this.validateToken();
 
       switch (validationResult) {
         case 'valid':
