@@ -225,6 +225,32 @@ export class AuthService {
       }
 
       if (typeof data === 'object' && data !== null && 'user_id' in data && typeof data.user_id === 'string') {
+        // Version reconciliation: compare the running extension version with the
+        // version the backend has on record. If they differ (update, downgrade,
+        // backend reset, or a previous PATCH that never fired because the service
+        // worker was killed), send a PATCH now — fire-and-forget so it doesn't
+        // block validation or the downstream initialization. This runs on every
+        // startup, so it self-heals even when onInstalled never fired or its PATCH
+        // was lost. The reason is inferred from the backend record: if
+        // extension_installed_at is present it's an update, otherwise a first
+        // install.
+        const extensionData = (
+          data as {
+            extension?: { extension_version?: string; extension_installed_at?: string | null };
+          }
+        ).extension;
+        const backendVersion = extensionData?.extension_version;
+        const manifestVersion = runtime.getManifest().version;
+
+        if (backendVersion !== manifestVersion) {
+          const reason: 'install' | 'update' = extensionData?.extension_installed_at ? 'update' : 'install';
+          console.log(
+            `[AuthService] Version mismatch — backend: ${backendVersion ?? 'n/a'}, manifest: ${manifestVersion}. ` +
+              `Sending PATCH (reason: ${reason}).`,
+          );
+          void this.updateExtensionMetadata(reason);
+        }
+
         return 'valid';
       }
 

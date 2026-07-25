@@ -7,12 +7,30 @@ import { AuthService } from '../services';
 import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
 import { MessageHandler } from '../messages';
 import { ExtensionMessage } from '../messages/interfaces/types';
+import { migrateLegacyToken } from '../storages/migrateLegacyToken';
+import { ensureDeviceId } from '../storages/deviceId';
+import { ElasticLogger, LogLevel } from '@chrome-extension-boilerplate/shared/lib/services/logging';
 
 console.log('[background] Background script loaded');
 const API_URL = import.meta.env?.VITE_API_URL || API_CONFIG.BASE_URL;
 console.log(`[background] Using API URL: ${API_URL}`);
 
 const PENDING_EXTENSION_UPDATE_KEY = 'pending_extension_update';
+
+// --- ElasticLogger singleton -------------------------------------------------
+// Sends structured log entries from the extension to Django's /extension-logs/
+// endpoint, which forwards them to Elasticsearch (app-extension index).
+// This complements Django's server-side traffic_middleware logs (app+api index)
+// with client-side events Django cannot see: failed requests, client-side
+// errors, request/response bodies, and internal extension messaging.
+const logger = new ElasticLogger({
+  endpoint: `${API_URL}/extension-logs/`,
+  index: 'app-extension',
+  minLevel: LogLevel.INFO, // DEBUG filtered out in production
+});
+
+// Export the logger so services can use it for apiRequest's `logger` config.
+export { logger };
 
 //  Starting Services
 const authService = new AuthService(API_URL);
@@ -39,12 +57,17 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
 //  Listen for startup events
 runtime.onStartup.addListener(async () => {
   console.log('[background] onStartup');
+  const deviceId = await ensureDeviceId();
+  logger.setDeviceId(deviceId);
+  await migrateLegacyToken();
   await authService.checkAuthentication();
 });
 
 //  Listen for Installation or Update events
 runtime.onInstalled.addListener(async (details: Runtime.OnInstalledDetailsType) => {
   console.log('[background] onInstalled or onUpdated', details);
+  const deviceId = await ensureDeviceId();
+  logger.setDeviceId(deviceId);
 
   // Persist the reason so it can be sent after auth if the user isn't authenticated yet
   let reason: 'install' | 'update' | undefined;
@@ -58,6 +81,7 @@ runtime.onInstalled.addListener(async (details: Runtime.OnInstalledDetailsType) 
     await storage.local.set({ [PENDING_EXTENSION_UPDATE_KEY]: reason });
   }
 
+  await migrateLegacyToken();
   await authService.checkAuthentication();
 });
 

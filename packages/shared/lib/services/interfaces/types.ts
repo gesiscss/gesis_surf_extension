@@ -1,3 +1,5 @@
+import type { ElasticLogger } from '../logging/ElasticLogger';
+
 export interface Wave {
   id: string;
   start_date: string;
@@ -61,3 +63,20 @@ export type AuthValidationResult =
   | 'server_unavailable'
   | 'network_unavailable'
   | 'unexpected_response';
+
+/**
+ * Configuration for an `apiRequest` call.
+ * Shared across services and the chrome-extension `apiRequestWithDevice` wrapper.
+ */
+export interface ApiRequestConfig {
+  /** HTTP method. Defaults to 'GET'. */
+  method?: string;
+  /** Skip authentication (e.g., for login before a token exists). */
+  skipAuth?: boolean;
+  /** Additional headers to merge in (e.g., `X-Device-Id`). */
+  extraHeaders?: HeadersInit;
+  /** Whether to log this request/response to Elasticsearch. Defaults to false. */
+  logToElasticsearch?: boolean;
+  /** Logger instance. If not provided, logging is skipped even if requested. */
+  logger?: ElasticLogger | null;
+}
