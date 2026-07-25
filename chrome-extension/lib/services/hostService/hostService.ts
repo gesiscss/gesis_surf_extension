@@ -5,8 +5,9 @@
  */
 import { storage } from 'webextension-polyfill';
 import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
-import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { DatabaseService, HostItemTypes } from '@root/lib/db';
+import { apiRequestWithDevice } from '../apiClientWithDevice';
+import { logger } from '../logger';
 
 const HOST_VERSION_KEY = 'host_version';
 const MAX_ATTEMPTS = 8;
@@ -51,17 +52,12 @@ export class HostService {
    * @returns Promise<string | null> The remote version or null if fetch fails
    */
   private async fetchRemoteVersion(): Promise<string | null> {
-    const token = await readToken();
-    if (!token) return null;
-
     try {
-      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await apiRequestWithDevice(
+        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`,
+        { method: 'GET' },
+        { method: 'GET', logToElasticsearch: true, logger },
+      );
 
       if (!response.ok) return null;
       const data = await response.json();
@@ -77,16 +73,12 @@ export class HostService {
    * @returns Promise<HostItemTypes[]> The list of hosts or empty array if fetch fails
    */
   private async fetchHostsFromApi(): Promise<HostItemTypes[]> {
-    const token = await readToken();
-    if (!token) return [];
     try {
-      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.HOST}async_hosts/`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await apiRequestWithDevice(
+        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.HOST}async_hosts/`,
+        { method: 'GET' },
+        { method: 'GET', logToElasticsearch: true, logger },
+      );
 
       if (!response.ok) return [];
 
@@ -95,7 +87,7 @@ export class HostService {
       if (Array.isArray(initial)) return initial as HostItemTypes[];
       if (!initial?.task_id) return [];
 
-      return await this.pollTaskResult(initial.task_id, token);
+      return await this.pollTaskResult(initial.task_id);
     } catch (error) {
       console.error('[HostService] Error fetching hosts:', error);
       return [];
@@ -126,20 +118,18 @@ export class HostService {
    * @param token The authentication token
    * @returns Promise<HostItemTypes[]> The list of hosts or empty array if polling fails
    */
-  private async pollTaskResult(taskId: string, token: string): Promise<HostItemTypes[]> {
+  private async pollTaskResult(taskId: string): Promise<HostItemTypes[]> {
     let delay = 1000;
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       await new Promise(resolve => setTimeout(resolve, delay));
 
       try {
-        const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.HOST_TASK}${taskId}/`, {
-          method: 'GET',
-          headers: {
-            Authorization: `Token ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
+        const response = await apiRequestWithDevice(
+          `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.HOST_TASK}${taskId}/`,
+          { method: 'GET' },
+          { method: 'GET', logToElasticsearch: true, logger },
+        );
 
         if (!response.ok) {
           delay = Math.min(delay * 2, MAX_DELAY);

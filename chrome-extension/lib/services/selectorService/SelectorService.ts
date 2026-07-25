@@ -1,8 +1,9 @@
 import { storage } from 'webextension-polyfill';
 import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
-import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 import DatabaseService from '@root/lib/db/services/DatabaseService';
+import { apiRequestWithDevice } from '../apiClientWithDevice';
+import { logger } from '../logger';
 
 const SELECTOR_VERSION_KEY = 'selector_version';
 const SELECTOR_STORAGE_KEY = 'selectors';
@@ -44,16 +45,12 @@ export class SelectorService {
   }
 
   private async fetchRemoteVersion(): Promise<string | null> {
-    const token = await readToken();
-    if (!token) return null;
     try {
-      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await apiRequestWithDevice(
+        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`,
+        { method: 'GET' },
+        { method: 'GET', logToElasticsearch: true, logger },
+      );
       if (!response.ok) return null;
       const data = await response.json();
       return data.extension?.selector_version ?? null;
@@ -64,16 +61,12 @@ export class SelectorService {
   }
 
   private async fetchSelectorsFromApi(): Promise<SelectorConfig[]> {
-    const token = await readToken();
-    if (!token) return [];
     try {
-      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.SELECTORS}`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await apiRequestWithDevice(
+        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.SELECTORS}`,
+        { method: 'GET' },
+        { method: 'GET', logToElasticsearch: true, logger },
+      );
       if (!response.ok) return [];
 
       const initial = await response.json();
@@ -81,27 +74,25 @@ export class SelectorService {
       if (Array.isArray(initial)) return initial as SelectorConfig[];
       if (!initial?.task_id) return [];
 
-      return await this.pollTaskResult(initial.task_id, token);
+      return await this.pollTaskResult(initial.task_id);
     } catch (error) {
       console.error('[SelectorService] Error fetching selectors:', error);
       return [];
     }
   }
 
-  private async pollTaskResult(taskId: string, token: string): Promise<SelectorConfig[]> {
+  private async pollTaskResult(taskId: string): Promise<SelectorConfig[]> {
     let delay = 1000;
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       await new Promise(resolve => setTimeout(resolve, delay));
 
       try {
-        const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.SELECTORS_TASK}${taskId}/`, {
-          method: 'GET',
-          headers: {
-            Authorization: `Token ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
+        const response = await apiRequestWithDevice(
+          `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.SELECTORS_TASK}${taskId}/`,
+          { method: 'GET' },
+          { method: 'GET', logToElasticsearch: true, logger },
+        );
 
         if (!response.ok) {
           delay = Math.min(delay * 2, MAX_DELAY);

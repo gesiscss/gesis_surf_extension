@@ -4,7 +4,8 @@
  */
 import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
 import { DatabaseService } from '@root/lib/db';
-import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
+import { apiRequestWithDevice } from '../apiClientWithDevice';
+import { logger } from '../logger';
 
 class DataCollectionService {
   private readonly dbService: DatabaseService;
@@ -37,20 +38,11 @@ class DataCollectionService {
    */
   private async checkDataCollectionFlag(): Promise<boolean> {
     try {
-      const token = await readToken();
-
-      if (!token) {
-        console.log('[DataCollectionService] Token not found in storage, disabling data collection.');
-        return false;
-      }
-
-      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await apiRequestWithDevice(
+        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`,
+        { method: 'GET' },
+        { method: 'GET', logToElasticsearch: true, logger },
+      );
 
       if (!response.ok) {
         console.warn('[DataCollectionService] Invalid token, disabling data collection.');

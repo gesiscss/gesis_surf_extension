@@ -1,8 +1,9 @@
 import { DatabaseService } from '../../db';
 import { v4 as uuidv4 } from 'uuid';
 import { GlobalSessionTypes, SessionType } from './types';
-import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { storage } from 'webextension-polyfill';
+import { apiRequestWithDevice } from '../apiClientWithDevice';
+import { logger } from '../logger';
 
 class GlobalSessionService {
   dbService: DatabaseService;
@@ -98,15 +99,14 @@ class GlobalSessionService {
       console.log('Closing global session:', global_session);
       this.sessionBeingClosed = global_session.global_session_id;
 
-      const token = await readToken();
-      const response = await fetch(`${this.apiUrl}/globalsession/global-session/${global_session.id}/`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Token ${token}`,
+      const response = await apiRequestWithDevice(
+        `${this.apiUrl}/globalsession/global-session/${global_session.id}/`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ closing_time: new Date().toISOString() }),
         },
-        body: JSON.stringify({ closing_time: new Date().toISOString() }),
-      });
+        { method: 'PATCH', logToElasticsearch: true, logger },
+      );
 
       if (response.status === 404) {
         console.warn('Global session not found:', global_session);
@@ -152,20 +152,17 @@ class GlobalSessionService {
       const startTime = new Date().toISOString();
       const payload = GlobalSessionService.buildGlobalSessionPayload(newSessionId, startTime);
 
-      // Create Token
-      const token = await readToken();
       console.log('Creating new global session with ID:', newSessionId);
       console.log('Using API URL:', this.apiUrl);
-      console.log('Using Token:', token);
 
-      const response = await fetch(`${this.apiUrl}/globalsession/global-session/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Token ${token}`,
+      const response = await apiRequestWithDevice(
+        `${this.apiUrl}/globalsession/global-session/`,
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
         },
-        body: JSON.stringify(payload),
-      });
+        { method: 'POST', logToElasticsearch: true, logger },
+      );
 
       console.log('Global Session Response status creation:', response.status);
       // console.log('Response body:', await response.json());
