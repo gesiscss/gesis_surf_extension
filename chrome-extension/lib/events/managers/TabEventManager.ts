@@ -15,15 +15,6 @@ class TabEventManager {
   private readonly serviceName = 'TabEventManager';
   private domainEventManager: DomainEventManager;
   private domainPolicyService: DomainPolicyService;
-  /**
-   * Tracks the last processed URL per tab so that hash-only or query-only
-   * changes (e.g. `#google_vignette`, anchor jumps) do not trigger a full
-   * domain transition. Only origin + pathname + search are compared — the
-   * hash is intentionally ignored because SPAs that use hash-based routing
-   * (e.g. YouTube `#/watch?v=...`) are still detected as real navigations
-   * via the `loading` status that Chrome fires for them.
-   */
-  private lastTabUrls = new Map<number, string>();
 
   constructor(
     private tabManager: TabHandler,
@@ -32,39 +23,6 @@ class TabEventManager {
   ) {
     this.domainEventManager = new DomainEventManager(this.domainManager);
     this.domainPolicyService = new DomainPolicyService(this.dbService);
-  }
-
-  /**
-   * Checks whether a URL change is a non-navigation hash change that should not
-   * trigger a new domain session. Only filters known ad/tracking overlay hashes
-   * (e.g. `#google_vignette`) — not hash-based SPA routes like `#/watch?v=...`
-   * which are real navigations.
-   * @param oldUrl The previous URL.
-   * @param newUrl The new URL.
-   * @returns true if the change is a known non-navigation hash overlay.
-   */
-  private isNonNavigationHashChange(oldUrl: string, newUrl: string): boolean {
-    try {
-      const oldParsed = new URL(oldUrl);
-      const newParsed = new URL(newUrl);
-
-      // Only consider hash-only changes (same origin, pathname, search)
-      if (
-        oldParsed.origin !== newParsed.origin ||
-        oldParsed.pathname !== newParsed.pathname ||
-        oldParsed.search !== newParsed.search
-      ) {
-        return false;
-      }
-
-      const newHash = newParsed.hash;
-
-      // Known ad/tracking overlay hashes that are not real navigations
-      const nonNavigationHashes = ['#google_vignette'];
-      return nonNavigationHashes.some(h => newHash === h || newHash.startsWith(h));
-    } catch {
-      return false;
-    }
   }
 
   // ----------------- Core Listener -----------------
@@ -322,19 +280,8 @@ class TabEventManager {
    */
   private handleTabUpdate = async (tabId: number, changeInfo: Tabs.OnUpdatedChangeInfoType, tab: Tabs.Tab) => {
     if (changeInfo.status === 'loading') {
-      // Skip hash-only or query-only changes that Chrome reports as loading
-      // (e.g. `#google_vignette`, anchor jumps). These are not real navigations
-      // and should not create a new domain session.
-      const newUrl = tab.url || '';
-      const oldUrl = this.lastTabUrls.get(tabId) || '';
-      if (oldUrl && this.isNonNavigationHashChange(oldUrl, newUrl)) {
-        console.log(`[${this.serviceName}] Skipping non-navigation hash change: ${oldUrl} → ${newUrl}`);
-        return;
-      }
-      this.lastTabUrls.set(tabId, newUrl);
       await this.processTabLoading(tab);
     } else if (this.shouldProcessTabUpdate(changeInfo)) {
-      this.lastTabUrls.set(tabId, tab.url || '');
       await this.processTabUpdate(tab);
     }
   };
@@ -474,9 +421,6 @@ class TabEventManager {
    */
   private handleTabRemoval = async (tabId: number, removeInfo: Tabs.OnRemovedRemoveInfoType) => {
     try {
-      // Clean up the URL tracking map for this tab
-      this.lastTabUrls.delete(tabId);
-
       const tabSessionId = await this.tabManager.generateTabSession(tabId, removeInfo.windowId);
       console.log(`[${this.serviceName}] Tab Session ID on Removal:`, tabSessionId);
       const mapping = await this.dbService.getItem('tabslives', tabSessionId);
