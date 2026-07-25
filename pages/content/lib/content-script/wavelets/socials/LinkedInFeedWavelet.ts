@@ -304,6 +304,18 @@ export class LinkedInFeedWavelet extends BaseSocialWavelet {
         continue;
       }
 
+      // Skip "Suggested to follow" widgets — they're not posts, just people
+      // recommendation cards showing 3 profiles to follow. They pass the
+      // isFeedPost filter because they contain /in/ links, but they have no
+      // activity URN, no post text, no reactions, and no visibility icon.
+      // EN: "Suggested to follow", DE: "Vorgeschlagene Personen", also "Who to follow"
+      const fullText = article.innerText || '';
+      const isSuggestedToFollow = /suggested\s+to\s+follow|vorgeschlagene\s+personen|who\s+to\s+follow/i.test(fullText);
+      if (isSuggestedToFollow) {
+        console.log('[💼LinkedIn] Skipped — Suggested to follow widget (not a post)');
+        continue;
+      }
+
       const data = this.extractPost(article);
       if (!data) {
         console.log('[💼LinkedIn] extractPost returned null — skipping article');
