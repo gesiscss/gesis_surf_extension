@@ -4,8 +4,33 @@ import { Box, Card, CardContent, TextField, Button, Typography, CardMedia, Alert
 import { useAuth } from './AuthContext';
 import { readToken, writeToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
-import { validateToken, apiRequest } from '@chrome-extension-boilerplate/shared/lib/services/authServices';
+import { apiRequest } from '@chrome-extension-boilerplate/shared/lib/services/apiClient';
 import Browser from 'webextension-polyfill';
+
+/**
+ * Sends a log entry to Django's /extension-logs/ endpoint (which forwards to ES).
+ * Used for login failures — the popup can't access the ElasticLogger singleton
+ * (it lives in chrome-extension), so we send directly via fetch.
+ * Fire-and-forget: never throws, never blocks the login flow.
+ * Password is NEVER included in the log body.
+ */
+async function logToExtensionLogs(level: string, message: string, context: Record<string, unknown>): Promise<void> {
+  try {
+    await fetch(`${API_CONFIG.BASE_URL}/extension-logs/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level,
+        source: 'app-extension',
+        message,
+        ...context,
+      }),
+    });
+  } catch {
+    // Logging must never break the login flow
+  }
+}
 
 interface LoginProps {}
 
@@ -30,31 +55,34 @@ const Login: React.FC<LoginProps> = () => {
 
         if (storedToken) {
           console.log('Validating token ...');
-          const validationResult = await validateToken(
-            storedToken,
+          const response = await apiRequest(
             `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`,
+            { method: 'GET' },
+            { method: 'GET' },
           );
 
-          switch (validationResult) {
-            case 'valid':
+          if (response.status === 401) {
+            await writeToken(null);
+            setIsAuthenticated(false);
+          } else if (response.status >= 500) {
+            console.warn('Server unavailable, deferring validation');
+            setIsAuthenticated(true);
+            navigate('/home');
+          } else if (response.ok) {
+            const data = await response.json();
+            if (typeof data === 'object' && data !== null && 'user_id' in data) {
               setIsAuthenticated(true);
               navigate('/home');
               console.log('Token is valid. User is authenticated.');
-              break;
-
-            case 'invalid_token':
-              // Remove it from storage
-              await writeToken(null);
-              setIsAuthenticated(false);
-              break;
-
-            case 'server_unavailable':
-            case 'unexpected_response':
-            case 'network_unavailable':
-              console.warn('Token validation deferred due to:', validationResult);
+            } else {
+              console.warn('Unexpected response format');
               setIsAuthenticated(true);
               navigate('/home');
-              break;
+            }
+          } else {
+            console.warn('Unexpected status:', response.status);
+            setIsAuthenticated(true);
+            navigate('/home');
           }
         } else {
           console.log('No token found. User is not authenticated');
@@ -98,12 +126,8 @@ const Login: React.FC<LoginProps> = () => {
             user_id: username,
             password,
           }),
-          headers: {
-            'Content-Type': 'application/json',
-          },
         },
-        'POST',
-        true,
+        { method: 'POST', skipAuth: true },
       );
 
       const data = await response.json();
@@ -114,11 +138,11 @@ const Login: React.FC<LoginProps> = () => {
         setIsAuthenticated(true);
 
         try {
-          const response = await Browser.runtime.sendMessage({
+          const msgResponse = await Browser.runtime.sendMessage({
             type: 'AUTH_SUCCESS',
             token: data.token,
           });
-          console.log('Message sent to background script successfully:', response);
+          console.log('Message sent to background script successfully:', msgResponse);
         } catch (error) {
           console.error('Error sending message to background script:', error);
         }
@@ -126,10 +150,27 @@ const Login: React.FC<LoginProps> = () => {
       } else {
         const message = data.non_field_errors?.[0] || data.message || 'Login failed. Please check your credentials.';
         setErrorMessage(message);
+
+        // Log login failure to ES (password is NEVER included)
+        void logToExtensionLogs('warn', `Login failed: ${message}`, {
+          endpoint: API_CONFIG.ENDPOINTS.USER_TOKEN,
+          method: 'POST',
+          response_status: response.status,
+          response_ok: false,
+          request_body: JSON.stringify({ user_id: username }),
+        });
       }
     } catch (error) {
       console.error('Error during login:', error);
       setErrorMessage('An unexpected error occurred. Please try again later.');
+
+      // Log network error to ES (password is NEVER included)
+      void logToExtensionLogs('error', 'Login network error', {
+        endpoint: API_CONFIG.ENDPOINTS.USER_TOKEN,
+        method: 'POST',
+        error: error instanceof Error ? error.message : String(error),
+        request_body: JSON.stringify({ user_id: username }),
+      });
     } finally {
       setLoading(false);
     }
