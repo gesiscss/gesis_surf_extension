@@ -8,9 +8,9 @@ import type { Tabs } from 'webextension-polyfill';
 import { DatabaseService } from '@root/lib/db';
 import { GlobalSessionService } from '@root/lib/services';
 import DomainManager from './DomainHandler';
-import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { DomainObjectDataTypes, TabDataTypes, TabPayloadTypes } from '../types/tabTypes';
 import { apiUrl, InfoType } from '../shared';
+import { apiRequestWithDevice } from '../../services/apiClientWithDevice';
 
 /**
  * Manages browser tabs requests.
@@ -62,32 +62,6 @@ class TabManager {
       tab_session_id: await this.generateTabSession(tab_data, tab_data.windowId),
     };
     return payload;
-  }
-
-  /**
-   * Builds the request options for the fetch request.
-   * @param payload The payload to be sent to the server.
-   * @param method The method to be used in the fetch request.
-   * @returns The request options for the fetch request.
-   */
-  async requestOptions(payload: TabPayloadTypes, method: string): Promise<RequestInit | undefined> {
-    try {
-      const token = await readToken();
-      if (token) {
-        const headers = new Headers();
-        headers.append('Content-Type', 'application/json');
-        headers.append('Authorization', `Token ${token}`);
-        const options: RequestInit = {
-          method: method,
-          headers: headers,
-          body: JSON.stringify(payload),
-        };
-        return options;
-      }
-    } catch (error) {
-      console.error(`[${this.serviceName}] Failed to get token:`, error);
-    }
-    return undefined;
   }
 
   /**
@@ -145,15 +119,12 @@ class TabManager {
       const payloadTab = await this.buildPayload(tabData, info, windowId);
       console.log(`[${this.serviceName}] Payload:`, payloadTab);
 
-      // Prepare the request options for the Tab
-      const requestOptionsTab = await this.requestOptions(payloadTab, method);
-
-      if (!requestOptionsTab) {
-        throw new Error('Request options are undefined');
-      }
-
       // Send the Tab data to the server
-      const tabResponse = await fetch(`${apiUrl}/tab/tabs/`, requestOptionsTab);
+      const tabResponse = await apiRequestWithDevice(
+        `${apiUrl}/tab/tabs/`,
+        { method, body: JSON.stringify(payloadTab) },
+        { method },
+      );
       if (!tabResponse.ok) {
         throw new Error('Failed to send tab');
       }
@@ -184,16 +155,13 @@ class TabManager {
       payload.close_time = new Date().toISOString();
       delete payload.domains;
 
-      // Create the request options
-      const requestOptions = await this.requestOptions(payload, method);
-
-      if (!requestOptions) {
-        throw new Error('Request options are undefined');
-      }
-
       // Send the updated tab data to the server
       console.log(`[${this.serviceName}] Payload update:`, payload);
-      const responseTab = await fetch(`${apiUrl}/tab/tabs/${tabId}/`, requestOptions);
+      const responseTab = await apiRequestWithDevice(
+        `${apiUrl}/tab/tabs/${tabId}/`,
+        { method, body: JSON.stringify(payload) },
+        { method },
+      );
 
       if (!responseTab.ok) {
         throw new Error('Failed to update tab');
@@ -245,14 +213,11 @@ class TabManager {
       closing_time: new Date().toISOString(),
     };
 
-    const requestOptionsDomain = await this.domainService.requestOptions(payloadDomain, method);
-
-    if (!requestOptionsDomain) {
-      console.error(`[${this.serviceName}] Request options for domain are undefined, skipping domain update`);
-      return;
-    }
-
-    const responseDomain = await fetch(`${apiUrl}/domain/domains/${payloadDomain.id}/`, requestOptionsDomain);
+    const responseDomain = await apiRequestWithDevice(
+      `${apiUrl}/domain/domains/${payloadDomain.id}/`,
+      { method, body: JSON.stringify(payloadDomain) },
+      { method },
+    );
     if (!responseDomain.ok) {
       console.error(`[${this.serviceName}] Failed to update domain for session ID: ${domainSessionId}`);
     }

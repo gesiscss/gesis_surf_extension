@@ -1,5 +1,6 @@
 import { storage } from 'webextension-polyfill';
 import { readToken, writeToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
+import { logger } from '../services/logger';
 
 /**
  * Legacy key used by Fernando's old extension (v1.x).
@@ -23,11 +24,18 @@ interface LegacyToken {
 export async function migrateLegacyToken(): Promise<void> {
   // Already have a token? Nothing to do.
   const existing = await readToken();
-  if (existing) return;
+  if (existing) {
+    logger.debug('Token migration: token already exists, no migration needed');
+    return;
+  }
 
   const result = await storage.local.get(LEGACY_KEY);
   const legacy: unknown = result[LEGACY_KEY];
-  if (!legacy) return; // fresh install, no legacy data
+  if (!legacy) {
+    // Fresh install or already migrated — no legacy data to migrate.
+    logger.info('Token migration: no WTG_User found (fresh install or already migrated)');
+    return;
+  }
 
   // chrome.storage.local holds the object directly; localStorage copy was stringified.
   // Handle both shapes defensively.
@@ -37,12 +45,15 @@ export async function migrateLegacyToken(): Promise<void> {
   if (!tokenValue || typeof tokenValue !== 'string') {
     // Malformed legacy entry — remove it so we don't keep retrying.
     await storage.local.remove(LEGACY_KEY);
-    console.warn('[migrate] WTG_User present but no valid token field — removed.');
+    logger.warn('Token migration: WTG_User present but no valid token field — removed', {
+      context: { legacy_type: typeof legacy },
+    });
     return;
   }
 
   await writeToken(tokenValue);
   await storage.local.remove(LEGACY_KEY);
+  logger.info('Token migration: WTG_User → token migrated successfully');
   console.info('[migrate] WTG_User → token: migrated legacy token');
 }
 

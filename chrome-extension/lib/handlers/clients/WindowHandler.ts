@@ -4,10 +4,10 @@
  */
 
 import { DatabaseService } from '@root/lib/db';
-import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import GlobalSessionService from '@root/lib/services/globalSession/GlobalSessionService';
 import { WindowDataTypes, WindowPayloadTypes } from '../types/windowTypes';
 import { apiUrl, InfoType } from '../shared';
+import { apiRequestWithDevice } from '../../services/apiClientWithDevice';
 
 /**
  * Manages browser window events.
@@ -77,38 +77,6 @@ class WindowManager {
   }
 
   /**
-   * Builds the request options for the fetch request.
-   * @param payload The payload to be sent to the server.
-   * @param method The method to be used in the fetch request.
-   * @returns The request options for the fetch request.
-   */
-  async buildRequestOptions(
-    payload: WindowPayloadTypes,
-    method: 'POST' | 'PUT' | 'PATCH',
-  ): Promise<RequestInit | undefined> {
-    try {
-      const token = await readToken();
-
-      if (!token) {
-        console.error(`[${this.serviceName}] Token is undefined`);
-        return undefined;
-      }
-
-      return {
-        method: method,
-        headers: {
-          Authorization: `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      };
-    } catch (error) {
-      console.error(`[${this.serviceName}] Error:`, error);
-      throw error;
-    }
-  }
-
-  /**
    * Sends the window data to the server.
    * @param window The window data to be sent.
    * @param info The type of event that triggered the payload.
@@ -121,13 +89,12 @@ class WindowManager {
   ): Promise<Response> {
     try {
       const payload = await this.buildPayload(window, info, startTime);
-      const requestOptions = await this.buildRequestOptions(payload, method);
 
-      if (!requestOptions) {
-        throw new Error('Failed to build request options');
-      }
-
-      const response = await fetch(`${this.apiUrl}/window/windows/`, requestOptions);
+      const response = await apiRequestWithDevice(
+        `${this.apiUrl}/window/windows/`,
+        { method, body: JSON.stringify(payload) },
+        { method },
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -175,13 +142,11 @@ class WindowManager {
       throw new Error('Window ID is undefined');
     }
 
-    const requestOptions = await this.buildRequestOptions(payload, method);
-
-    if (!requestOptions) {
-      throw new Error('Failed to build request options');
-    }
-
-    const response = await fetch(`${this.apiUrl}/window/windows/${payload.id}/`, requestOptions);
+    const response = await apiRequestWithDevice(
+      `${this.apiUrl}/window/windows/${payload.id}/`,
+      { method, body: JSON.stringify(payload) },
+      { method },
+    );
 
     if (!response.ok) {
       const errorText = await response.text();

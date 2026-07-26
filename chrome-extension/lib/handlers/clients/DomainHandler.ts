@@ -6,11 +6,11 @@
 
 import { DatabaseService } from '@root/lib/db';
 import { GlobalSessionService } from '@root/lib/services';
-import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { DomainDataTypes, DomainResponseTypes, DomainPayloadTypes } from '../types/domainTypes';
 import { apiUrl } from '../shared';
 import { TabMapping } from '../types';
 import { DomainPolicyService } from '@root/lib/services/policyService';
+import { apiRequestWithDevice } from '../../services/apiClientWithDevice';
 
 type DomainCreationDeferred = {
   promise: Promise<void>;
@@ -152,32 +152,6 @@ class DomainManager {
   }
 
   /**
-   * Creates the request options for the fetch request.
-   * @param payload The payload to be sent.
-   * @param method The method to be used in the fetch request.
-   * @returns The request options for the fetch request.
-   */
-  async requestOptions<T>(payload: T, method: string): Promise<RequestInit | undefined> {
-    try {
-      const token = await readToken();
-      if (token) {
-        const headers = new Headers();
-        headers.append('Content-Type', 'application/json');
-        headers.append('Authorization', `Token ${token}`);
-        const options: RequestInit = {
-          method: method,
-          headers: headers,
-          body: JSON.stringify(payload),
-        };
-        return options;
-      }
-    } catch (error) {
-      console.error(`[${this.serviceName}] Failed to get token:`, error);
-    }
-    return undefined;
-  }
-
-  /**
    * Sends the domain data to the server.
    * @param domainData The domain data to be sent.
    * @param tabSessionId The tab session ID to be used.
@@ -208,24 +182,19 @@ class DomainManager {
       domains: [payloadDomain],
     };
 
-    // Create the request options
-    const requestOptions = await this.requestOptions(payload, method);
-    if (!requestOptions) {
-      console.error(`[${this.serviceName}] Error building request options`);
-      this.failDomainCreation(domainSessionId, new Error('Error building request options'));
-      return undefined;
-    }
-
     // Get the tab instance ID
     const windowId = tabSessionId.id;
 
     console.log(`[${this.serviceName}] Payload Domain:`, payloadDomain);
-    console.log(`[${this.serviceName}] Request Options:`, requestOptions);
     console.log(`[${this.serviceName}] Window ID:`, windowId);
     console.log(`[${this.serviceName}] Tab Session ID:`, tabSessionId);
 
     try {
-      const response = await fetch(`${apiUrl}/tab/tabs/${windowId}/`, requestOptions);
+      const response = await apiRequestWithDevice(
+        `${apiUrl}/tab/tabs/${windowId}/`,
+        { method, body: JSON.stringify(payload) },
+        { method },
+      );
       const data = await response.json();
 
       if (!response.ok) {
@@ -296,8 +265,11 @@ class DomainManager {
       id: stored.id,
     };
 
-    const requestOptions = await this.requestOptions(payload, method);
-    const response = await fetch(`${apiUrl}/domain/domains/${payload.id}/`, requestOptions);
+    const response = await apiRequestWithDevice(
+      `${apiUrl}/domain/domains/${payload.id}/`,
+      { method, body: JSON.stringify(payload) },
+      { method },
+    );
 
     if (!response.ok) {
       const errorText = await response.text();

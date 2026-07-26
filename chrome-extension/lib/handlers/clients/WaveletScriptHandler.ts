@@ -2,8 +2,8 @@
  * @fileoverview WaveletScriptHandler is responsible for handling communication between the content script and the Wavelet backend API.
  * It sends LLM data to the appropriate endpoints based on the LLM provider and ensures that requests are authenticated.
  */
-import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { LLMData, SocialData, SocialMessageType } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
+import { apiRequestWithDevice } from '../../services/apiClientWithDevice';
 
 // Phase 2: unified social endpoint — backend routes to the correct index via
 // the `platform` field inside the payload (mirrors LLM /llm/ pattern).
@@ -35,8 +35,11 @@ export default class WaveletScriptHandler {
     };
     if (data.domain_id) payload['domain_id'] = data.domain_id;
 
-    const options = await this.requestOptions(payload, 'POST');
-    const response = await fetch(`${this.apiUrl}${endpoint}`, options);
+    const response = await apiRequestWithDevice(
+      `${this.apiUrl}${endpoint}`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      { method: 'POST' },
+    );
 
     if (!response.ok) {
       const body = await response.text();
@@ -57,8 +60,11 @@ export default class WaveletScriptHandler {
     const payload = { ...data, post_id: data.id };
     delete (payload as Record<string, unknown>).id;
 
-    const options = await this.requestOptions(payload, 'POST');
-    const response = await fetch(`${this.apiUrl}${SOCIAL_ENDPOINT}`, options);
+    const response = await apiRequestWithDevice(
+      `${this.apiUrl}${SOCIAL_ENDPOINT}`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      { method: 'POST' },
+    );
 
     if (!response.ok) {
       const body = await response.text();
@@ -66,23 +72,5 @@ export default class WaveletScriptHandler {
       throw new Error(`[${this.serviceName}] ${messageType} API failed: ${response.status}`);
     }
     console.log(`[${this.serviceName}] ${messageType} sent:`, data.id);
-  }
-  /**
-   * Requests the necessary options for making an authenticated API call, including the token.
-   * @param payload The data payload to be sent in the request body.
-   * @param method The HTTP method to be used for the request (e.g., 'POST').
-   * @returns A promise that resolves to the RequestInit object containing method, headers, and body for the fetch call.
-   */
-  private async requestOptions<T>(payload: T, method: string): Promise<RequestInit> {
-    const token = await readToken();
-    if (!token) throw new Error('Authentication token not found');
-    return {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Token ${token}`,
-      },
-      body: JSON.stringify(payload),
-    };
   }
 }

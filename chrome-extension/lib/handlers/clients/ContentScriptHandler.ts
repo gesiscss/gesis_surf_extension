@@ -3,9 +3,9 @@
  * @implements {ContentScriptHandler}
  */
 
-import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import { HTMLSnapshot, ClickData, ScrollData } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 import { ClickPayload, ScrollPayload, HTMLPayload, DomainInfo } from '../types/contentScriptTypes';
+import { apiRequestWithDevice } from '../../services/apiClientWithDevice';
 
 /**
  * Handles API operations for content script events (clicks, scrolls, HTML captures)
@@ -43,9 +43,11 @@ export default class ContentScriptHandler {
       domain_session_id: domainSessionId,
     };
 
-    const requestOptions = await this.requestOptions(payload, 'POST');
-
-    const response = await fetch(`${this.apiUrl}/clicks/clicks/`, requestOptions);
+    const response = await apiRequestWithDevice(
+      `${this.apiUrl}/clicks/clicks/`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      { method: 'POST' },
+    );
 
     if (!response.ok) {
       throw new Error(`Click API failed: ${response.status} - ${response.statusText}`);
@@ -93,8 +95,11 @@ export default class ContentScriptHandler {
       is_final: isFinal,
     };
 
-    const requestOptions = await this.requestOptions(payload, 'POST');
-    const response = await fetch(`${this.apiUrl}/scrolls/scrolls/`, requestOptions);
+    const response = await apiRequestWithDevice(
+      `${this.apiUrl}/scrolls/scrolls/`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      { method: 'POST' },
+    );
 
     if (!response.ok) {
       throw new Error(`Scroll API failed: ${response.status} - ${response.statusText}`);
@@ -118,8 +123,11 @@ export default class ContentScriptHandler {
     };
 
     const endpoint = `${this.apiUrl}/domain/domains/${domainInfo.id}/`;
-    const requestOptions = await this.requestOptions(payload, 'PATCH');
-    const response = await fetch(endpoint, requestOptions);
+    const response = await apiRequestWithDevice(
+      endpoint,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+      { method: 'PATCH' },
+    );
 
     if (!response.ok) {
       throw new Error(`HTML API failed: ${response.status} - ${response.statusText}`);
@@ -127,27 +135,5 @@ export default class ContentScriptHandler {
 
     await response.json();
     console.log(`[${this.serviceName}] HTML sent`);
-  }
-
-  /**
-   * Create request options with auth
-   * @param payload Payload data
-   * @param method HTTP method
-   * @returns RequestInit
-   */
-  private async requestOptions<T>(payload: T, method: string): Promise<RequestInit> {
-    const token = await readToken();
-    if (!token) {
-      throw new Error('Authentication token not found');
-    }
-
-    return {
-      method: method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Token ${token}`,
-      },
-      body: JSON.stringify(payload),
-    };
   }
 }
