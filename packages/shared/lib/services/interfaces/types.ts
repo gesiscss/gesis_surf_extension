@@ -46,17 +46,6 @@ export interface AuthResponse {
   extension: Extension | null;
 }
 
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    public statusText: string,
-    message: string = 'API Error',
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
-
 export type AuthValidationResult =
   | 'valid'
   | 'invalid_token'
