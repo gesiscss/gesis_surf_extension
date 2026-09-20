@@ -11,12 +11,12 @@ authors:
   - family-names: "Guzman"
     given-names: "Fernando"
 
-  - family-names: "Stier"
-    given-names: "Sebastian"
-    affiliation: "GESIS – Leibniz Institute for the Social Sciences"
-
   - family-names: "Mangold"
     given-names: "Frank"
+    affiliation: "GESIS – Leibniz Institute for the Social Sciences"
+
+  - family-names: "Stier"
+    given-names: "Sebastian"
     affiliation: "GESIS – Leibniz Institute for the Social Sciences"
 
 repository-code: "https://github.com/gesiscss/gesis_surf_extension"
