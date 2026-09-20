@@ -347,7 +347,7 @@ For detailed privacy information, please refer to the project's privacy document
 
 Questions or feedback? Reach out!
 
-- **GitHub Issues**: [Create an issue](https://github.com/gesiscss/gesis_surf_extension/issues)
+- **Extension Issues**: [Frontend Repository](https://github.com/gesiscss/gesis_surf_extension/issues)
 - **Backend Issues**: [Backend Repository](https://github.com/gesiscss/gesis_surf_backend/issues)
 - **GESIS**: https://www.gesis.org/en/home
 
