@@ -323,10 +323,10 @@ The extension communicates with the backend API for:
 
 ## 👥 Authors
 
-- **Mario Ramirez** - _Lead Research Software Engineer_ - [@geomario](https://github.com/geomario) [MarioGESIS](https://www.gesis.org/en/institute/about-us/staff/person/mario.ramirez)
+- **Mario Ramirez** - _Lead Research Software Engineer_ - [@geomario](https://github.com/geomario) [Mario@GESIS](https://www.gesis.org/en/institute/about-us/staff/person/mario.ramirez)
 - **Fernando Guzman** - _Software Architect Consultant_ - [Fernando@LinkedIn](https://www.linkedin.com/in/fernando-guzman-9262801b/)
 - **Frank Mangold** - _Senior Researcher_ [Frank@GESIS](https://www.gesis.org/institut/ueber-uns/mitarbeitendenverzeichnis/person/Frank.Mangold)
-- **Sebastian Stier** - _Scientific Director_ [@SebStier](https://github.com/sebstier) [Sebastian@Gesis](https://www.gesis.org/en/institute/about-us/staff/person/sebastian.stier)
+- **Sebastian Stier** - _Scientific Director_ [@sebstier](https://github.com/sebstier) [Sebastian@GESIS](https://www.gesis.org/en/institute/about-us/staff/person/sebastian.stier)
 
 ## 🙏 Institutional Affiliation
 
