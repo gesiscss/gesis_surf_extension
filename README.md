@@ -37,9 +37,9 @@
 
 ---
 
-GESIS Surf is an open-source research infrastructure for privacy-preserving, longitudinal collection of web browsing behavioral data at scale — combining a browser extension, REST API backend, and hierarchical session modeling to enable reproducible passive panel studies created by [GESIS – Leibniz Institute for the Social Sciences](https://www.gesis.org/).
+GESIS Surf is an open-source research infrastructure for privacy-preserving, longitudinal collection of web browsing behavioral data at scale — combining a browser extension, REST API backend, and hierarchical session modeling to enable reproducible passive panel studies. GESIS Surf is developed by [GESIS – Leibniz Institute for the Social Sciences](https://www.gesis.org/).
 
-> 🔗 **Looking for the backend?** Check out [GESIS Surf Backend](https://github.com/geomario/gesis_surf_backend)
+> 🔗 **Looking for the backend?** Check out [GESIS Surf Backend](https://github.com/gesiscss/gesis_surf_backend)
 
 ## ✨ Features
 
@@ -296,7 +296,7 @@ The GESIS Surf Extension works in conjunction with the **GESIS Surf Backend** fo
 
 ### Related Repositories
 
-- **[GESIS Surf Backend](https://github.com/geomario/gesis_surf_backend)** - Django REST API for data collection, user management, and research analysis
+- **[GESIS Surf Backend](https://github.com/gesiscss/gesis_surf_backend)** - Django REST API for data collection, user management, and research analysis
   - Built with Django 4.2 and Python 3.10+
   - PostgreSQL for persistent storage
   - Celery/Redis for async task processing
@@ -348,27 +348,16 @@ For detailed privacy information, please refer to the project's privacy document
 Questions or feedback? Reach out!
 
 - **GitHub Issues**: [Create an issue](https://github.com/gesiscss/gesis_surf_extension/issues)
-- **Backend Issues**: [Backend Repository](https://github.com/geomario/gesis_surf_backend/issues)
+- **Backend Issues**: [Backend Repository](https://github.com/gesiscss/gesis_surf_backend)
 - **GESIS**: https://www.gesis.org/
 
 ## 📝 Citation
 
-If you use this software in your research, please cite:
+If you use GESIS Surf in your research, please cite the software using the
+citation information provided in [`CITATION.cff`](CITATION.cff).
 
-```bibtex
-@article{ramirez2025gesis,
-  title = {GESIS Surf Extension},
-  author = {Ramirez, Mario and Guzman, Fernando and Stier, Sebastian and Mangold, Frank},
-  journal = {SoftwareX},
-  volume = {XX},
-  pages = {XXXXXX},
-  year = {2026},
-  publisher = {Elsevier},
-  doi = {10.1016/j.softx.2025.xxxxxx}
-}
-```
-
-See [`CITATION.cff`](CITATION.cff) for more citation formats.
+The SoftwareX article describing GESIS Surf is currently under submission.
+Its bibliographic information will be added here upon publication.
 
 ---
 
