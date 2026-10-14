@@ -29,15 +29,20 @@ const Login: React.FC<LoginProps> = () => {
 
         if (storedToken) {
           console.log('Validating token ...');
-          const isValid = await validateToken(storedToken, `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`);
-          console.log('Token is valid:', isValid);
-          if (isValid) {
+          const result = await validateToken(storedToken, `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`);
+          console.log('Token validation result:', result);
+          if (result === 'valid') {
             setIsAuthenticated(true);
             navigate('/home');
-          } else {
-            // Remove it from storage
+          } else if (result === 'invalid') {
+            console.warn('[Login] Token rejected by server — removing');
             await writeToken(null);
             setIsAuthenticated(false);
+          } else {
+            // unreachable / server_error / forbidden — keep token, navigate to home
+            console.warn(`[Login] Could not validate token (${result}) — keeping session`);
+            setIsAuthenticated(true);
+            navigate('/home');
           }
         }
       } catch (error) {
