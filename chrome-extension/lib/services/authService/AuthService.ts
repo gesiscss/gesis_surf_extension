@@ -11,7 +11,7 @@ import { HeartbeatService } from '../heartBeatService';
 import { PrivateModeService } from '../privateModeService';
 import { MessageHandler } from '@root/lib/messages';
 import { MessageResponse } from '@root/lib/messages/interfaces';
-import { runtime, Runtime } from 'webextension-polyfill';
+import { runtime, Runtime, storage } from 'webextension-polyfill';
 import { DataCollectionService } from '../dataCollectionService';
 import { HostService } from '../hostService';
 
@@ -103,7 +103,7 @@ export class AuthService {
    * @param token The token to retrive user information
    * @returns The boolean value of the user authentication status
    */
-  async validateToken(token: string): Promise<boolean> {
+  async validateToken(token: string): Promise<'valid' | 'invalid' | 'server_error' | 'forbidden' | 'unreachable'> {
     try {
       const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`, {
         method: 'GET',
@@ -112,16 +112,14 @@ export class AuthService {
           Authorization: `Token ${token}`,
         },
       });
-      console.log('Token validation response:', response);
-      if (response.ok) {
-        return true;
-      } else {
-        console.warn('Token invalid:', response.status, response.statusText);
-        return false;
-      }
+      if (response.ok) return 'valid';
+      if (response.status === 401) return 'invalid';
+      if (response.status === 403) return 'forbidden';
+      console.warn(`[AuthService] Unexpected status ${response.status} — keeping token`);
+      return 'server_error';
     } catch (error) {
-      console.error('Error validating token:', error);
-      return false;
+      console.warn('[AuthService] Server unreachable — keeping token:', error);
+      return 'unreachable';
     }
   }
 
@@ -133,21 +131,23 @@ export class AuthService {
    */
   async checkAuthentication() {
     try {
-      const token = (await chrome.storage.local.get('token')).token as string | undefined;
+      const token = ((await storage.local.get('token')) as { token?: string }).token;
 
       if (token) {
-        const isValid = await this.validateToken(token);
-        if (isValid) {
+        const result = await this.validateToken(token);
+        if (result === 'valid') {
           console.log('[background AuthService] User is authenticated');
           this.isAuthenticated = true;
           await this.initializeServices();
-        } else {
-          console.log('[background AuthService] User is not authenticated');
-          await chrome.storage.local.remove('token');
+        } else if (result === 'invalid') {
+          console.warn('[background AuthService] Token rejected (401) — removing');
+          await storage.local.remove('token');
           this.isAuthenticated = false;
+        } else {
+          console.warn(`[background AuthService] Could not validate token (${result}) — keeping token`);
         }
       } else {
-        console.log('[background AuthService] User is not authenticated');
+        console.log('[background AuthService] No token found');
         this.isAuthenticated = false;
       }
     } catch (error) {
