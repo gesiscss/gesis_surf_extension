@@ -53,7 +53,7 @@ const Login: React.FC<LoginProps> = () => {
       }
     };
 
-    checkAuthentication();
+    void checkAuthentication();
   }, [setIsAuthenticated, navigate]);
 
   const handlePasswordChange = (event: ChangeEvent<HTMLInputElement>) => {
