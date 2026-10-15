@@ -74,7 +74,7 @@ export const validateToken = async (token: string, url: string): Promise<TokenVa
 
     if (response.ok) {
       const data = (await response.json()) as AuthResponse;
-      return data && data.user_id ? 'valid' : 'invalid';
+      return data?.user_id ? 'valid' : 'invalid';
     }
 
     if (response.status === 401) return 'invalid';
