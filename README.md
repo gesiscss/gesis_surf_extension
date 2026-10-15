@@ -37,17 +37,17 @@
 
 ---
 
-GESIS Surf is an open-source research infrastructure for privacy-preserving, longitudinal collection of web browsing behavioral data at scale — combining a browser extension, REST API backend, and hierarchical session modeling to enable reproducible passive panel studies. GESIS Surf is developed by [GESIS – Leibniz Institute for the Social Sciences](https://www.gesis.org/).
+GESIS Surf is an open-source research infrastructure for privacy-preserving, longitudinal collection of web browsing data — combining a browser extension, REST API backend, and hierarchical session modeling to capture digital behavior at scale. GESIS Surf is developed by [GESIS – Leibniz Institute for the Social Sciences](https://www.gesis.org/en/home).
 
 > 🔗 **Looking for the backend?** Check out [GESIS Surf Backend](https://github.com/gesiscss/gesis_surf_backend)
 
 ## ✨ Features
 
-- � **Passive Longitudinal Data Collection** - Captures naturalistic browsing behavior over time without interrupting users, enabling large-scale panel studies
+- � **Passive Longitudinal Data Collection** - Captures naturalistic browsing behavior over time without interrupting users, enabling large-scale behavioral studies
 - 🏗️ **Hierarchical Session Modeling** - Preserves the full structure of browsing behavior across windows, tabs, domains, and interactions
 - 📄 **Content-Level Capture** - Records clicks, scrolls, DOM changes, page metadata, and full HTML snapshots per observation
-- 🛡️ **Privacy-by-Design** - Strict opt-in participation, per-domain collection rules, and client-side data minimization at the point of collection
-- 🌐 **Cross-Browser Support** - Works on both Chrome and Firefox via WebExtension API
+- 🛡️ **Privacy-by-Design** - Strict opt-in participation, per-domain privacy-preserving collection rules, and client-side data minimization at the point of collection
+- 🌐 **Cross-Browser Support** - Works on Chrome, Edge, and Firefox via WebExtension API
 - 🔐 **Secure Authentication** - Token-based authentication with secure session management
 - 💾 **Client-Side Storage** - IndexedDB for local data buffering before transmission
 - ♻️ **Reproducible Infrastructure** - Open-source, self-hostable backend with REST API for transparent and auditable research workflows
@@ -288,7 +288,7 @@ pnpm run prettier
 
 This project is licensed under the MIT License - see the [`LICENSE`](LICENSE) file for details.
 
-Copyright © 2023-2025 [GESIS – Leibniz Institute for the Social Sciences](https://www.gesis.org/)
+Copyright © 2023-2026 [GESIS – Leibniz Institute for the Social Sciences](https://www.gesis.org/en/home)
 
 ## 🔗 Backend Integration
 
@@ -323,14 +323,14 @@ The extension communicates with the backend API for:
 
 ## 👥 Authors
 
-- **Mario Ramirez** - _Lead Research Software Engineer_ - [@geomario](https://github.com/geomario) [@MarioGesis](https://www.gesis.org/en/institute/about-us/staff/person/mario.ramirez)
-- **Fernando Guzman** - _Software Architect Consultant_ - [@Fernando](https://www.linkedin.com/in/fernando-guzman-9262801b/)
-- **Dr. Sebastian Stier** - _Department Director CSS_ [@Seb](https://www.gesis.org/en/institute/about-us/staff/person/sebastian.stier)
-- **Dr. Frank Mangold** - _Kommissarischer Teamleiter DDD_ [@Frank](https://www.gesis.org/institut/ueber-uns/mitarbeitendenverzeichnis/person/Frank.Mangold)
+- **Mario Ramirez** - _Lead Research Software Engineer_ - [@geomario](https://github.com/geomario) [Mario@GESIS](https://www.gesis.org/en/institute/about-us/staff/person/mario.ramirez)
+- **Fernando Guzman** - _Software Architect Consultant_ - [Fernando@LinkedIn](https://www.linkedin.com/in/fernando-guzman-9262801b/)
+- **Frank Mangold** - _Senior Researcher_ [Frank@GESIS](https://www.gesis.org/institut/ueber-uns/mitarbeitendenverzeichnis/person/Frank.Mangold)
+- **Sebastian Stier** - _Scientific Director_ [@sebstier](https://github.com/sebstier) [Sebastian@GESIS](https://www.gesis.org/en/institute/about-us/staff/person/sebastian.stier)
 
-## 🙏 Acknowledgments
+## 🙏 Institutional Affiliation
 
-- [GESIS - Leibniz Institute for the Social Sciences](https://www.gesis.org/)
+- [GESIS - Leibniz Institute for the Social Sciences](https://www.gesis.org/en/home)
 - [Computational Social Science Department](https://www.gesis.org/en/institute/about-us/departments/computational-social-science)
 
 ## 🔒 Privacy Notice
@@ -347,9 +347,9 @@ For detailed privacy information, please refer to the project's privacy document
 
 Questions or feedback? Reach out!
 
-- **GitHub Issues**: [Create an issue](https://github.com/gesiscss/gesis_surf_extension/issues)
-- **Backend Issues**: [Backend Repository](https://github.com/gesiscss/gesis_surf_backend)
-- **GESIS**: https://www.gesis.org/
+- **Extension Issues**: [Frontend Repository](https://github.com/gesiscss/gesis_surf_extension/issues)
+- **Backend Issues**: [Backend Repository](https://github.com/gesiscss/gesis_surf_backend/issues)
+- **GESIS**: https://www.gesis.org/en/home
 
 ## 📝 Citation
 
