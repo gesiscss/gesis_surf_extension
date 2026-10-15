@@ -84,13 +84,16 @@ export class AuthService {
 
   /**
    * Start Listening to Messages from Content Scripts and Popups.
-   * @return Promise<void>
+   * Registers a message listener; the async work is handled inside the IIFE
+   * because a WebExtension listener must return synchronously to keep the
+   * response channel open (returning true) while the handler completes.
+   * @return void
    */
-  async startMessageListener(): Promise<void> {
+  startMessageListener(): void {
     console.log('[AuthService] Setting up message listener');
     runtime.onMessage.addListener(
       (message: unknown, sender: Runtime.MessageSender, sendResponse: (response: MessageResponse) => void): true => {
-        (async () => {
+        void (async () => {
           await this.messageHandler.handleMessage(message, sender, sendResponse);
         })();
         return true;
