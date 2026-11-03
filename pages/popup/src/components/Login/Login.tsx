@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
+import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Card, CardContent, TextField, Button, Typography, CardMedia, Alert, FormLabel } from '@mui/material';
 import { useAuth } from './AuthContext';
@@ -32,26 +32,48 @@ async function logToExtensionLogs(level: string, message: string, context: Recor
   }
 }
 
-interface LoginProps {}
+interface LoginProps {
+  isLoginWindow: boolean;
+}
 
 // Render
-const Login: React.FC<LoginProps> = () => {
+const Login: React.FC<LoginProps> = ({ isLoginWindow }) => {
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const { setIsAuthenticated } = useAuth();
   const navigate = useNavigate();
 
+  const openLoginWindow = useCallback(async () => {
+    setErrorMessage('');
+    try {
+      const response: unknown = await Browser.runtime.sendMessage({ type: 'OPEN_LOGIN_WINDOW' });
+      if (
+        typeof response !== 'object' ||
+        response === null ||
+        !('status' in response) ||
+        response.status !== 'success'
+      ) {
+        throw new Error('The background did not confirm opening the login window.');
+      }
+      window.close();
+    } catch (error) {
+      console.error('[Login] Could not open the login window:', error);
+      setErrorMessage('Das Anmeldefenster konnte nicht geöffnet werden. Bitte versuchen Sie es erneut.');
+    }
+  }, []);
+
   useEffect(() => {
+    let active = true;
+
     const checkAuthentication = async () => {
       setLoading(true);
+      let storedToken: string | null = null;
 
       try {
-        const data = await readToken();
-        const storedToken = data || null;
-
-        console.log('Stored Token:', storedToken);
+        storedToken = (await readToken()) || null;
+        if (!active) return;
 
         if (storedToken) {
           console.log('Validating token ...');
@@ -60,44 +82,58 @@ const Login: React.FC<LoginProps> = () => {
             { method: 'GET' },
             { method: 'GET' },
           );
+          if (!active) return;
 
           if (response.status === 401) {
+            console.warn('[Login] Token rejected by server — removing');
             await writeToken(null);
+            if (!active) return;
             setIsAuthenticated(false);
-          } else if (response.status >= 500) {
-            console.warn('Server unavailable, deferring validation');
-            setIsAuthenticated(true);
-            navigate('/home');
-          } else if (response.ok) {
-            const data = await response.json();
-            if (typeof data === 'object' && data !== null && 'user_id' in data) {
-              setIsAuthenticated(true);
-              navigate('/home');
-              console.log('Token is valid. User is authenticated.');
-            } else {
-              console.warn('Unexpected response format');
-              setIsAuthenticated(true);
-              navigate('/home');
-            }
           } else {
-            console.warn('Unexpected status:', response.status);
+            // ok / 403 / 5xx — keep the session; only a 401 logs the user out.
+            if (!response.ok) {
+              console.warn('[Login] Could not validate token, status:', response.status);
+            }
             setIsAuthenticated(true);
             navigate('/home');
+            return;
           }
         } else {
           console.log('No token found. User is not authenticated');
           setIsAuthenticated(false);
         }
+
+        if (!isLoginWindow) {
+          await openLoginWindow();
+        }
       } catch (error) {
+        if (!active) return;
+        if (storedToken) {
+          // Backend unreachable — keep the session instead of logging the user out.
+          console.warn('[Login] Server unreachable — keeping session:', error);
+          setIsAuthenticated(true);
+          navigate('/home');
+          return;
+        }
         console.error('Error checking authentication:', error);
         setIsAuthenticated(false);
+        setErrorMessage('Das Zugriffstoken konnte nicht gelesen werden.');
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
-    checkAuthentication();
-  }, [setIsAuthenticated, navigate]);
+    void checkAuthentication();
+    return () => {
+      active = false;
+    };
+  }, [isLoginWindow, navigate, openLoginWindow, setIsAuthenticated]);
+
+  const handleOpenLoginWindow = async () => {
+    setLoading(true);
+    await openLoginWindow();
+    setLoading(false);
+  };
 
   const handlePasswordChange = (event: ChangeEvent<HTMLInputElement>) => {
     setPassword(event.target.value);
@@ -131,21 +167,32 @@ const Login: React.FC<LoginProps> = () => {
       );
 
       const data = await response.json();
-      console.log('Login response data:', data);
 
       if (response.ok) {
+        if (typeof data?.token !== 'string' || data.token.trim().length === 0) {
+          console.error('[Login] The server did not return a valid authentication token.');
+          setErrorMessage('Die Anmeldung ist fehlgeschlagen: Es wurde kein gültiges Zugriffstoken empfangen.');
+          return;
+        }
+
         await writeToken(data.token);
-        setIsAuthenticated(true);
 
         try {
-          const msgResponse = await Browser.runtime.sendMessage({
+          const result: unknown = await Browser.runtime.sendMessage({
             type: 'AUTH_SUCCESS',
-            token: data.token,
           });
-          console.log('Message sent to background script successfully:', msgResponse);
+          if (typeof result !== 'object' || result === null || !('status' in result) || result.status !== 'success') {
+            throw new Error('The background did not confirm authentication.');
+          }
         } catch (error) {
           console.error('Error sending message to background script:', error);
+          setErrorMessage(
+            'Die Anmeldung konnte im Hintergrund nicht abgeschlossen werden. Bitte versuchen Sie es erneut.',
+          );
+          return;
         }
+        setPassword('');
+        setIsAuthenticated(true);
         navigate('/home');
       } else {
         const message = data.non_field_errors?.[0] || data.message || 'Login failed. Please check your credentials.';
@@ -191,6 +238,28 @@ const Login: React.FC<LoginProps> = () => {
     );
   }
 
+  if (!isLoginWindow) {
+    return (
+      <Box sx={{ padding: 1, backgroundColor: '#003C78', minHeight: '100vh', boxSizing: 'border-box' }}>
+        <Card sx={{ textAlign: 'center' }}>
+          <CardContent>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              Die Anmeldung erfolgt in einem separaten Fenster.
+            </Typography>
+            {errorMessage && (
+              <Alert severity="error" sx={{ mb: 1 }}>
+                {errorMessage}
+              </Alert>
+            )}
+            <Button variant="contained" fullWidth onClick={() => void handleOpenLoginWindow()}>
+              Anmeldefenster öffnen
+            </Button>
+          </CardContent>
+        </Card>
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -205,7 +274,7 @@ const Login: React.FC<LoginProps> = () => {
         padding: 1,
         boxSizing: 'border-box',
         borderRadius: 1,
-        overflow: 'hidden',
+        overflow: 'auto',
       }}>
       <Card
         sx={{
@@ -261,6 +330,7 @@ const Login: React.FC<LoginProps> = () => {
             <TextField
               label="GESIS Surf-ID"
               type="text"
+              autoComplete="username"
               value={username}
               onChange={handleUserIdChange}
               fullWidth
@@ -289,6 +359,7 @@ const Login: React.FC<LoginProps> = () => {
             <TextField
               label="GESIS Surf-Passwort"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={handlePasswordChange}
               fullWidth

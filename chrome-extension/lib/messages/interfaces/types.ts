@@ -30,7 +30,10 @@ export interface BaseMessage {
 // Auth Messages and Types
 export interface AuthSuccessMessage extends BaseMessage {
   type: 'AUTH_SUCCESS';
-  token: string;
+}
+
+export interface OpenLoginWindowMessage extends BaseMessage {
+  type: 'OPEN_LOGIN_WINDOW';
 }
 
 export interface AuthFailureMessage extends BaseMessage {
@@ -52,6 +55,7 @@ export interface SocialEventMessage extends BaseMessage {
 
 export type ExtensionMessage =
   | AuthSuccessMessage
+  | OpenLoginWindowMessage
   | AuthFailureMessage
   | PrivateModeMessage
   | ClickEventMessage

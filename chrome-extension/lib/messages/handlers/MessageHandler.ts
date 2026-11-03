@@ -53,8 +53,13 @@ export class MessageHandler {
     sendResponse: (response: MessageResponse) => void,
   ): Promise<boolean> {
     try {
-      await readToken();
-      await this.authService.checkAuthentication();
+      const token = await readToken();
+      if (!token) {
+        throw new Error('Authentication token not found.');
+      }
+      if (!(await this.authService.checkAuthentication())) {
+        throw new Error('Authentication could not be initialized.');
+      }
       sendResponse({ status: 'success', message: 'Authentication successful.' });
     } catch (error) {
       console.error('[background] Authentication process failed:', error);

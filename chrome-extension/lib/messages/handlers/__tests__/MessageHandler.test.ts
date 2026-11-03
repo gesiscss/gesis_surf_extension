@@ -42,6 +42,7 @@ vi.mock('@chrome-extension-boilerplate/shared/lib/storages/tokenStorage', () => 
 
 import { MessageHandler } from '../MessageHandler';
 import type { AuthService, PrivateModeService } from '@root/lib/services';
+import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -65,8 +66,9 @@ beforeEach(() => {
   mockHandleContentEvent.mockResolvedValue({ status: 'success', message: 'ok' });
 
   mockAuthService = {
-    checkAuthentication: vi.fn().mockResolvedValue(undefined),
+    checkAuthentication: vi.fn().mockResolvedValue(true),
   };
+  vi.mocked(readToken).mockResolvedValue('test-token');
 
   mockPrivateModeService = {
     getPrivateModeState: vi.fn().mockResolvedValue({ mode: false, alarm: '', remainingTime: 0 }),
@@ -129,9 +131,28 @@ describe('handleMessage routing', () => {
   });
 
   it('routes AUTH_SUCCESS → calls checkAuthentication', async () => {
-    await handler.handleMessage({ type: 'AUTH_SUCCESS', token: 'abc' }, fakeSender, sendResponse);
+    await handler.handleMessage({ type: 'AUTH_SUCCESS' }, fakeSender, sendResponse);
 
+    expect(readToken).toHaveBeenCalled();
     expect(mockAuthService.checkAuthentication).toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Authentication successful.' });
+  });
+
+  it('reports an authentication error when no token can be read', async () => {
+    vi.mocked(readToken).mockResolvedValue(null);
+
+    await handler.handleMessage({ type: 'AUTH_SUCCESS' }, fakeSender, sendResponse);
+
+    expect(mockAuthService.checkAuthentication).not.toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'error', message: 'Authentication token not found.' });
+  });
+
+  it('reports an authentication error when the background could not initialize', async () => {
+    mockAuthService.checkAuthentication.mockResolvedValue(false);
+
+    await handler.handleMessage({ type: 'AUTH_SUCCESS' }, fakeSender, sendResponse);
+
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'error', message: 'Authentication could not be initialized.' });
   });
 
   it('routes CLICK_EVENT → calls ContentEventManager.handleContentEvent', async () => {

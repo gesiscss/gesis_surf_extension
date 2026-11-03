@@ -102,6 +102,18 @@ To load the extension in Chrome:
 3. Click **Load unpacked**
 4. Select the `dist/` directory
 
+### Signing in
+
+When you open GESIS Surf without a valid sign-in, a separate login window opens. It stays open when you switch to your
+email or another window, so you can copy and paste your password. If you open the extension again while the login window
+is open, the existing window is brought forward without clearing the form. After a successful sign-in, the login window
+closes automatically (before data collection starts, so it is not recorded) and you can use the extension's toolbar
+popup as usual.
+
+The password is kept in the login form's memory and cleared after a successful sign-in. The authentication token is
+stored in the extension's existing browser-local storage and read by the background service and popup. Browser-local
+extension storage is not encrypted, so protect access to the browser profile and device.
+
 ## 💻 Development
 
 ### Start the Development Server
