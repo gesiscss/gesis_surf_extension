@@ -10,6 +10,7 @@ import { ExtensionMessage } from '../messages/interfaces/types';
 import { migrateLegacyToken } from '../storages/migrateLegacyToken';
 import { ensureDeviceId } from '../storages/deviceId';
 import { logger } from '../services/logger';
+import { LoginWindowService } from '../services/loginWindow/LoginWindowService';
 
 console.log('[background] Background script loaded');
 const API_URL = import.meta.env?.VITE_API_URL || API_CONFIG.BASE_URL;
@@ -20,26 +21,44 @@ const PENDING_EXTENSION_UPDATE_KEY = 'pending_extension_update';
 //  Starting Services
 const authService = new AuthService(API_URL);
 const messageHandler = new MessageHandler(authService, authService.privateModeService);
+const loginWindowService = new LoginWindowService();
+authService.setBeforeCollectionStart(() => loginWindowService.close());
 
 // Listen for incoming messages
-runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
+  if (message && (message as ExtensionMessage).type === 'OPEN_LOGIN_WINDOW') {
+    void loginWindowService
+      .open()
+      .then(() => sendResponse({ status: 'success' }))
+      .catch(error => {
+        console.error('[background] Could not open the login window:', error);
+        sendResponse({
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Could not open the login window',
+        });
+      });
+    return true;
+  }
+
   if (message && (message as ExtensionMessage).type === 'AUTH_SUCCESS') {
-    (async () => {
+    void (async () => {
       try {
         await messageHandler.handleAuthSuccess(message, sendResponse);
       } catch (error) {
-        console.log('[background] Error handling message:', error);
+        console.error('[background] Error handling message:', error);
         sendResponse({
           status: 'error',
           message: error instanceof Error ? error.message : 'Unknown error occurred',
         });
       }
     })();
+    return true;
   }
-  return true;
+
+  return false;
 });
 
-//  Listen for startup events
+//  Listen for startup events (browser start / computer reboot)
 runtime.onStartup.addListener(async () => {
   console.log('[background] onStartup');
   const deviceId = await ensureDeviceId();
@@ -69,5 +88,10 @@ runtime.onInstalled.addListener(async (details: Runtime.OnInstalledDetailsType) 
   await migrateLegacyToken();
   await authService.checkAuthentication();
 });
+
+// Runs on every service-worker start, including idle wake-ups. Only restores
+// message handling and private mode; collection and the global session are
+// started by onStartup/onInstalled or a login, never by a plain wake-up.
+authService.start();
 
 console.log('[background] Background script initialization complete');

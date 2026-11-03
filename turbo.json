@@ -4,11 +4,13 @@
   "tasks": {
     "dev": {
       "dependsOn": ["^build"],
+      "env": ["__DEV__", "__FIREFOX__"],
       "outputs": ["dist/**", "build/**"],
       "persistent": true
     },
     "build": {
       "dependsOn": ["^build"],
+      "env": ["__FIREFOX__"],
       "outputs": ["../../dist/**", "dist/**", "build/**"],
       "cache": false
     },

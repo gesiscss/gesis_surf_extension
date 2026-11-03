@@ -11,7 +11,7 @@ import { HeartbeatService } from '../heartBeatService';
 import { PrivateModeService } from '../privateModeService';
 import { MessageHandler } from '@root/lib/messages';
 import { MessageResponse } from '@root/lib/messages/interfaces';
-import { runtime, storage, Runtime } from 'webextension-polyfill';
+import { alarms, runtime, storage, Runtime } from 'webextension-polyfill';
 import { DataCollectionService } from '../dataCollectionService';
 import { HostService } from '../hostService';
 import { SelectorService } from '../selectorService';
@@ -40,6 +40,17 @@ export class AuthService {
   dataCollectionService: DataCollectionService;
   hostService: HostService;
   selectorService: SelectorService;
+  private static readonly RETRY_ALARM = 'authRetry';
+  private static readonly RETRY_PERIOD_MINUTES = 1;
+  // Kept in storage.session, which the browser clears on restart and on
+  // extension reload/update, so it means "this browser session already has
+  // its global session".
+  private static readonly SESSION_STARTED_KEY = 'collectionStartedThisBrowserSession';
+  private collectionActive = false;
+  private initializationInFlight: Promise<void> | null = null;
+  private messageListenerRegistered = false;
+  private retryListenerRegistered = false;
+  private beforeCollectionStart: (() => Promise<void>) | null = null;
 
   constructor(apiEndpoint: string) {
     this.isAuthenticated = false;
@@ -63,12 +74,127 @@ export class AuthService {
   }
 
   /**
+   * Runs on every service-worker start, including idle wake-ups.
+   * Restores message handling and private mode only. Collection and the
+   * global session are started by checkAuthentication (browser start,
+   * install/update, or login), never by a plain wake-up.
+   */
+  start(): void {
+    this.startMessageListener();
+    this.startRetryListener();
+    void this.privateModeService.initialize();
+  }
+
+  /**
+   * Registers a hook that runs once the token is validated and before
+   * collection starts (used to close the login window so it is not recorded).
+   * Failures are logged and never block collection.
+   */
+  setBeforeCollectionStart(hook: () => Promise<void>): void {
+    this.beforeCollectionStart = hook;
+  }
+
+  private async runBeforeCollectionStart(): Promise<void> {
+    try {
+      await this.beforeCollectionStart?.();
+    } catch (error) {
+      console.error('[AuthService] Error before starting collection:', error);
+    }
+  }
+
+  /**
+   * Listens for the reconnect alarm. Registered synchronously on every worker
+   * start so the alarm can wake the worker.
+   */
+  private startRetryListener(): void {
+    if (this.retryListenerRegistered) return;
+    this.retryListenerRegistered = true;
+    alarms.onAlarm.addListener(alarm => {
+      if (alarm.name === AuthService.RETRY_ALARM) {
+        void this.retryStartup();
+      }
+    });
+  }
+
+  /**
+   * Retries starting collection after the backend could not be reached when
+   * the browser started or the user logged in. Never starts a second global
+   * session in the same browser session.
+   */
+  async retryStartup(): Promise<void> {
+    try {
+      if (this.collectionActive || (await this.hasStartedThisBrowserSession())) {
+        await this.cancelRetry();
+        return;
+      }
+      if (this.initializationInFlight) return;
+      console.log('[AuthService] Retrying startup after a connection problem');
+      await this.checkAuthentication();
+    } catch (error) {
+      console.error('[AuthService] Error retrying startup:', error);
+    }
+  }
+
+  private async scheduleRetry(): Promise<void> {
+    try {
+      await alarms.create(AuthService.RETRY_ALARM, { periodInMinutes: AuthService.RETRY_PERIOD_MINUTES });
+      console.log(`[AuthService] Will retry starting collection every ${AuthService.RETRY_PERIOD_MINUTES} minute(s)`);
+    } catch (error) {
+      console.error('[AuthService] Could not schedule the startup retry:', error);
+    }
+  }
+
+  private async cancelRetry(): Promise<void> {
+    try {
+      await alarms.clear(AuthService.RETRY_ALARM);
+    } catch (error) {
+      console.error('[AuthService] Could not cancel the startup retry:', error);
+    }
+  }
+
+  private async hasStartedThisBrowserSession(): Promise<boolean> {
+    const area = chrome.storage?.session;
+    if (!area) return false;
+    const result = await area.get(AuthService.SESSION_STARTED_KEY);
+    return result[AuthService.SESSION_STARTED_KEY] === true;
+  }
+
+  private async markStartedThisBrowserSession(): Promise<void> {
+    try {
+      await chrome.storage?.session?.set({ [AuthService.SESSION_STARTED_KEY]: true });
+    } catch (error) {
+      console.error('[AuthService] Could not record the started session:', error);
+    }
+  }
+
+  /**
+   * Whether tab/window collection is currently running in this worker.
+   */
+  isCollectionActive(): boolean {
+    return this.collectionActive;
+  }
+
+  /**
    * Function to initialize services.
-   * Initializes the services required for the extension.
+   * Initializes the services required for the extension. Safe to call
+   * repeatedly: collection is started at most once per worker.
    * @return Promise<void>
    * @throws {Error} If initialization fails
    */
-  async initializeServices() {
+  async initializeServices(): Promise<void> {
+    if (this.collectionActive) {
+      console.log('[AuthService] Services already initialized');
+      return;
+    }
+    if (!this.initializationInFlight) {
+      this.initializationInFlight = this.startServices().finally(() => {
+        this.initializationInFlight = null;
+      });
+    }
+    return this.initializationInFlight;
+  }
+
+  private async startServices(): Promise<void> {
     console.log('[AuthService] Initializing services');
     try {
       await this.dataCollectionService.initialize();
@@ -86,7 +212,9 @@ export class AuthService {
       await Promise.all([this.heartbeatService.startHeartbeat(), this.privateModeService.initialize()]);
 
       await this.heartbeatService.startAlarmAll();
-      await this.startMessageListener();
+      this.collectionActive = true;
+      await this.markStartedThisBrowserSession();
+      await this.cancelRetry();
 
       console.log('[AuthService] Services initialized successfully');
     } catch (error) {
@@ -97,14 +225,50 @@ export class AuthService {
 
   /**
    * Start Listening to Messages from Content Scripts and Popups.
-   * @return Promise<void>
+   * Registered once per worker. Private-mode messages are always answered;
+   * content events wait for an in-progress initialization and are rejected
+   * while collection is inactive.
+   * @return void
    */
-  async startMessageListener(): Promise<void> {
+  startMessageListener(): void {
+    if (this.messageListenerRegistered) return;
+    this.messageListenerRegistered = true;
     console.log('[AuthService] Setting up message listener');
-    runtime.onMessage.addListener(
-      (message: unknown, sender: Runtime.MessageSender, sendResponse: (response: MessageResponse) => void): true => {
-        (async () => {
-          await this.messageHandler.handleMessage(message, sender, sendResponse);
+    chrome.runtime.onMessage.addListener(
+      (message: unknown, sender: Runtime.MessageSender, sendResponse: (response: MessageResponse) => void) => {
+        const type =
+          typeof message === 'object' && message !== null && 'type' in message
+            ? (message as { type?: unknown }).type
+            : undefined;
+
+        // Handled by the background index listener.
+        if (type === 'OPEN_LOGIN_WINDOW' || type === 'AUTH_SUCCESS') {
+          return false;
+        }
+        // Broadcasts from the background to the popup; not requests.
+        if (type === 'PRIVATE_MODE_EXPIRED') {
+          return false;
+        }
+
+        void (async () => {
+          try {
+            if (type === 'PRIVATE_MODE') {
+              await this.privateModeService.initialize();
+            } else {
+              await this.initializationInFlight?.catch(() => undefined);
+              if (!this.collectionActive) {
+                sendResponse({ status: 'error', message: 'Data collection is not active' });
+                return;
+              }
+            }
+            await this.messageHandler.handleMessage(message, sender, sendResponse);
+          } catch (error) {
+            console.error('[AuthService] Error handling message:', error);
+            sendResponse({
+              status: 'error',
+              message: error instanceof Error ? error.message : 'Failed to handle message',
+            });
+          }
         })();
         return true;
       },
@@ -264,17 +428,20 @@ export class AuthService {
   /**
    * Function to check if the user is authenticated.
    * Checks if the user is authenticated by checking the token.
-   * @return Promise<void>
-   * @throws {Error} If checking authentication fails
+   * If the backend cannot be reached (or startup fails) while a token is
+   * stored, the token is kept and a retry alarm is scheduled so collection
+   * starts as soon as the backend is reachable again.
+   * @returns Whether the token was validated and services were initialized.
    */
-  async checkAuthentication() {
+  async checkAuthentication(): Promise<boolean> {
     try {
       const token = await readToken();
 
       if (!token) {
         console.log('[background AuthService] No token found. User is not authenticated');
         this.isAuthenticated = false;
-        return;
+        await this.cancelRetry();
+        return false;
       }
 
       const validationResult = await this.validateToken();
@@ -283,26 +450,38 @@ export class AuthService {
         case 'valid':
           console.log('[background AuthService] User is authenticated');
           this.isAuthenticated = true;
+          await this.runBeforeCollectionStart();
           await this.initializeServices();
+          await this.cancelRetry();
           await this.checkPendingExtensionUpdate();
-          return;
+          return true;
 
         case 'invalid_token':
           console.log('[background AuthService] User is not authenticated');
           await writeToken(null);
           this.isAuthenticated = false;
-          return;
+          await this.cancelRetry();
+          return false;
 
         case 'server_unavailable':
-        case 'unexpected_response':
         case 'network_unavailable':
           console.warn('[background AuthService] Token validation deferred due to:', validationResult);
           this.isAuthenticated = false;
-          return;
+          await this.scheduleRetry();
+          return false;
+
+        case 'unexpected_response':
+          // Not a connection problem (e.g. 403), so retrying would not help.
+          console.warn('[background AuthService] Token validation deferred due to:', validationResult);
+          this.isAuthenticated = false;
+          await this.cancelRetry();
+          return false;
       }
     } catch (error) {
       console.error('[background AuthService] Error checking authentication:', error);
       this.isAuthenticated = false;
+      await this.scheduleRetry();
+      return false;
     }
   }
 }
