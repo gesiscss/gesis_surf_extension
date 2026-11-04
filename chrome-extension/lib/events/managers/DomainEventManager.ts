@@ -5,7 +5,10 @@
  */
 
 import { DomainHandler, DomainDataTypes, TabMapping } from '@root/lib/handlers';
+import { KeyedSerialQueue } from '@root/lib/utils/keyedSerialQueue';
 import { tabs as browserTabs } from 'webextension-polyfill';
+
+const DOMAIN_STATE_KEY = 'domain-state';
 
 /**
  * Manages domain-related events in the Chrome extension.
@@ -21,6 +24,12 @@ class DomainEventManager {
    * When the same domain later reports status === 'complete', we finish sending it.
    */
   private pendingDomainSessionId: string | null = null;
+  /**
+   * Domain changes and cleanups read and write the shared state above across awaits.
+   * Running them one at a time stops two calls for the same pending domain from both
+   * sending it (duplicate domain rows).
+   */
+  private readonly stateQueue = new KeyedSerialQueue<string>();
 
   constructor(private readonly domainManager: DomainHandler) {}
 
@@ -40,6 +49,10 @@ class DomainEventManager {
    * @returns void
    */
   async handleDomainChange(newDomain: string | null, tab: DomainDataTypes, mapping: TabMapping) {
+    return this.stateQueue.run(DOMAIN_STATE_KEY, () => this.processDomainChange(newDomain, tab, mapping));
+  }
+
+  private async processDomainChange(newDomain: string | null, tab: DomainDataTypes, mapping: TabMapping) {
     console.log(`[${this.serviceName}] Handle Domain Change to ${newDomain}`);
 
     try {
@@ -78,6 +91,10 @@ class DomainEventManager {
    * @returns void
    */
   public async handleDomainCleanup(): Promise<void> {
+    return this.stateQueue.run(DOMAIN_STATE_KEY, () => this.processDomainCleanup());
+  }
+
+  private async processDomainCleanup(): Promise<void> {
     try {
       if (this.currentActiveDomainSessionId) {
         console.log(`[${this.serviceName}] Cleaning up domain session for ${this.currentActiveDomainSessionId}`);

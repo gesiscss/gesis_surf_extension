@@ -10,11 +10,18 @@ import { TabHandler, DomainHandler, DomainDataTypes, TabPayloadTypes } from '@ro
 import DomainEventManager from './DomainEventManager';
 import { DatabaseService, ItemTypes } from '@root/lib/db';
 import { DomainPolicyService } from '@root/lib/services/policyService';
+import { KeyedSerialQueue } from '@root/lib/utils/keyedSerialQueue';
 
 class TabEventManager {
   private readonly serviceName = 'TabEventManager';
   private domainEventManager: DomainEventManager;
   private domainPolicyService: DomainPolicyService;
+  /**
+   * Browser events for one tab (onUpdated, onActivated, onRemoved) often fire within
+   * milliseconds. Handling them one at a time per tab stops two events from both
+   * seeing "no tab mapping" and creating the same tab twice.
+   */
+  private readonly tabQueue = new KeyedSerialQueue<number>();
 
   constructor(
     private tabManager: TabHandler,
@@ -278,13 +285,14 @@ class TabEventManager {
    * @param tab The tab data.
    * @returns void
    */
-  private handleTabUpdate = async (tabId: number, changeInfo: Tabs.OnUpdatedChangeInfoType, tab: Tabs.Tab) => {
-    if (changeInfo.status === 'loading') {
-      await this.processTabLoading(tab);
-    } else if (this.shouldProcessTabUpdate(changeInfo)) {
-      await this.processTabUpdate(tab);
-    }
-  };
+  private handleTabUpdate = (tabId: number, changeInfo: Tabs.OnUpdatedChangeInfoType, tab: Tabs.Tab) =>
+    this.tabQueue.run(tabId, async () => {
+      if (changeInfo.status === 'loading') {
+        await this.processTabLoading(tab);
+      } else if (this.shouldProcessTabUpdate(changeInfo)) {
+        await this.processTabUpdate(tab);
+      }
+    });
 
   /**
    * Handles the existing tab updating the domain.
@@ -419,7 +427,10 @@ class TabEventManager {
    * @example
    * handleTabRemoval(tabId, removeInfo);
    */
-  private handleTabRemoval = async (tabId: number, removeInfo: Tabs.OnRemovedRemoveInfoType) => {
+  private handleTabRemoval = (tabId: number, removeInfo: Tabs.OnRemovedRemoveInfoType) =>
+    this.tabQueue.run(tabId, () => this.processTabRemoval(tabId, removeInfo));
+
+  private async processTabRemoval(tabId: number, removeInfo: Tabs.OnRemovedRemoveInfoType) {
     try {
       const tabSessionId = await this.tabManager.generateTabSession(tabId, removeInfo.windowId);
       console.log(`[${this.serviceName}] Tab Session ID on Removal:`, tabSessionId);
@@ -445,7 +456,7 @@ class TabEventManager {
     } catch (error) {
       this.handleTabError(error, 'removal', tabId);
     }
-  };
+  }
 
   private async handleExistingTabRemoval(tabId: number, mapping: TabPayloadTypes) {
     console.log(`[${this.serviceName}] Existing Tab Removal`, tabId);
