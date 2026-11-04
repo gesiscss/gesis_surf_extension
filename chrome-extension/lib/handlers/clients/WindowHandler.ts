@@ -9,6 +9,9 @@ import { WindowDataTypes, WindowPayloadTypes } from '../types/windowTypes';
 import { apiUrl, InfoType } from '../shared';
 import { apiRequestWithDevice } from '../../services/apiClientWithDevice';
 
+// Window events are processed one at a time, so a hanging request must not block the rest.
+const WINDOW_REQUEST_TIMEOUT_MS = 15000;
+
 /**
  * Manages browser window events.
  * Automatically registers event listeners for window events.
@@ -37,6 +40,17 @@ class WindowManager {
 
   public async globalSessionId(windowId: number): Promise<string> {
     return await this.globalSessionService.getGlobalSessionId(windowId, 'window');
+  }
+
+  /**
+   * Checks whether the window has an open record stored locally.
+   * @param windowId The browser window ID.
+   * @returns True if a record exists for the window in the current global session.
+   */
+  public async hasWindowRecord(windowId: number): Promise<boolean> {
+    const windowSessionId = await this.globalSessionId(windowId);
+    const item = await this.dbService.getItem('winlives', windowSessionId);
+    return Boolean(item) && !(item instanceof Error);
   }
 
   /**
@@ -92,7 +106,7 @@ class WindowManager {
 
       const response = await apiRequestWithDevice(
         `${this.apiUrl}/window/windows/`,
-        { method, body: JSON.stringify(payload) },
+        { method, body: JSON.stringify(payload), signal: AbortSignal.timeout(WINDOW_REQUEST_TIMEOUT_MS) },
         { method },
       );
 
@@ -144,7 +158,7 @@ class WindowManager {
 
     const response = await apiRequestWithDevice(
       `${this.apiUrl}/window/windows/${payload.id}/`,
-      { method, body: JSON.stringify(payload) },
+      { method, body: JSON.stringify(payload), signal: AbortSignal.timeout(WINDOW_REQUEST_TIMEOUT_MS) },
       { method },
     );
 

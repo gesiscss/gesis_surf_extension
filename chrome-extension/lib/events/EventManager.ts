@@ -40,13 +40,13 @@ class EventManager {
   public async startListeners() {
     await this.windowEventManager.registerWindowListeners();
 
-    this.focusLostUnsubscribe = this.windowEventManager.onFocusLost(windowId => {
-      this.tabEventManager.handleActiveTabBlur(windowId);
-    });
+    this.focusLostUnsubscribe = this.windowEventManager.onFocusLost(windowId =>
+      this.tabEventManager.handleActiveTabBlur(windowId),
+    );
 
-    this.focusGainedUnsubscribe = this.windowEventManager.onFocusGained(windowId => {
-      this.tabEventManager.handleActiveTabFocus(windowId);
-    });
+    this.focusGainedUnsubscribe = this.windowEventManager.onFocusGained(windowId =>
+      this.tabEventManager.handleActiveTabFocus(windowId),
+    );
 
     this.tabEventManager.registerTabListeners();
     console.log('[EventManager] Starting listeners');

@@ -152,7 +152,7 @@ class TabManager {
       tabId = payload.id;
 
       // Update the close time of the tab
-      payload.close_time = new Date().toISOString();
+      payload.closing_time = new Date().toISOString();
       delete payload.domains;
 
       // Send the updated tab data to the server
