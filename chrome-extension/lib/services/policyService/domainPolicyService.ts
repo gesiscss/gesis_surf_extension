@@ -10,6 +10,7 @@ import { DomainPayloadTypes, DomainDataTypes } from '@root/lib/handlers/types/do
 import { BasePolicyService } from './basePolicyService';
 import { DatabaseService } from '@root/lib/db';
 import { PolicyClassification } from './types';
+import { sanitizeText } from '@root/lib/utils/sanitizeText';
 
 export class DomainPolicyService extends BasePolicyService {
   constructor(dbService: DatabaseService) {
@@ -29,7 +30,13 @@ export class DomainPolicyService extends BasePolicyService {
   public async evaluate(url: string, domain: DomainDataTypes): Promise<DomainPayloadTypes> {
     const classification = await this.resolvePolicy(url);
     console.log(`[${this.serviceName}] Classification for ${url}: ${classification}`);
-    return this.buildPayload(domain, classification);
+    const payload = this.buildPayload(domain, classification);
+    return {
+      ...payload,
+      domain_title: sanitizeText(payload.domain_title),
+      domain_url: sanitizeText(payload.domain_url),
+      domain_fav_icon: sanitizeText(payload.domain_fav_icon),
+    };
   }
 
   /**

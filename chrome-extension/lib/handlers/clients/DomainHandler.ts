@@ -11,6 +11,7 @@ import { apiUrl } from '../shared';
 import { TabMapping } from '../types';
 import { DomainPolicyService } from '@root/lib/services/policyService';
 import { apiRequestWithDevice } from '../../services/apiClientWithDevice';
+import { sanitizeText } from '@root/lib/utils/sanitizeText';
 
 type DomainCreationDeferred = {
   promise: Promise<void>;
@@ -40,7 +41,7 @@ class DomainManager {
    */
   async generateDomainSession(windowId: number, tabId: number, domainUrl: string, maskUrl?: string): Promise<string> {
     const windowSessionId = await this.globalSessionService.getGlobalSessionId(windowId, 'window');
-    const urlPart = maskUrl || domainUrl;
+    const urlPart = sanitizeText(maskUrl || domainUrl);
     return `${windowSessionId}-tabId-${tabId}-domain-${urlPart}`;
   }
 
@@ -132,7 +133,7 @@ class DomainManager {
     try {
       const payload = await this.domainPolicyService.evaluate(domain_data.url, domain_data);
 
-      const shouldMaskUrl = payload.domain_url !== domain_data.url;
+      const shouldMaskUrl = payload.domain_url !== sanitizeText(domain_data.url);
       const urlMask = shouldMaskUrl ? payload.domain_url : undefined;
 
       return {
