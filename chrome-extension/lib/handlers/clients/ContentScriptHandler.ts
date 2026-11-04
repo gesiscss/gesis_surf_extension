@@ -6,6 +6,7 @@
 import { HTMLSnapshot, ClickData, ScrollData } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
 import { ClickPayload, ScrollPayload, HTMLPayload, DomainInfo } from '../types/contentScriptTypes';
 import { apiRequestWithDevice } from '../../services/apiClientWithDevice';
+import { sanitizeText } from '@root/lib/utils/sanitizeText';
 
 /**
  * Handles API operations for content script events (clicks, scrolls, HTML captures)
@@ -117,9 +118,17 @@ export default class ContentScriptHandler {
    * @returns Promise<void>
    */
   public async sendHTML(htmlData: HTMLSnapshot, domainInfo: DomainInfo): Promise<void> {
+    const meta = htmlData.meta
+      ? {
+          ...htmlData.meta,
+          title: htmlData.meta.title === undefined ? undefined : sanitizeText(htmlData.meta.title),
+          description: htmlData.meta.description === undefined ? undefined : sanitizeText(htmlData.meta.description),
+          favicon_url: htmlData.meta.favicon_url === undefined ? undefined : sanitizeText(htmlData.meta.favicon_url),
+        }
+      : undefined;
     const payload: HTMLPayload = {
-      snapshot_html: htmlData.html_content,
-      meta: htmlData.meta,
+      snapshot_html: sanitizeText(htmlData.html_content),
+      meta,
     };
 
     const endpoint = `${this.apiUrl}/domain/domains/${domainInfo.id}/`;

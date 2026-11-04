@@ -3,7 +3,8 @@
  * @implements {ClickPayload, ScrollPayload, HTMLPayload, DomainInfo, ContentEventType}
  */
 
-import { ScrollMetrics } from '@chrome-extension-boilerplate/shared/lib/types/contentScript/sharedContentScriptTypes';
+import type { HTMLSnapshot } from '@chrome-extension-boilerplate/shared/lib/types/contentScript';
+import type { ScrollMetrics } from '@chrome-extension-boilerplate/shared/lib/types/contentScript/sharedContentScriptTypes';
 
 // Payload for click events
 export interface ClickPayload {
@@ -33,17 +34,10 @@ export interface ScrollPayload {
   is_final?: boolean;
 }
 
-// Metadata structure for HTML captures
-interface MetaData {
-  description?: string;
-  fav_icon?: string;
-  title?: string;
-}
-
 // Payload for HTML capture events
 export interface HTMLPayload {
   snapshot_html: string;
-  meta?: MetaData;
+  meta?: HTMLSnapshot['meta'];
 }
 
 // Domain information structure
