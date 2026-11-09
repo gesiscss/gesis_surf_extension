@@ -72,22 +72,47 @@ describe('KeyedSerialQueue', () => {
     await expect(next).resolves.toBe('ok');
   });
 
-  it('stops waiting for a hung task after maxWaitMs', async () => {
+  it('abandons a hung task after maxWaitMs but never runs two tasks for one key at once', async () => {
     vi.useFakeTimers();
     const queue = new KeyedSerialQueue<number>(1000);
     const hung = deferred();
     let secondStarted = false;
+    let secondFinished = false;
 
     void queue.run(1, () => hung.promise);
-    const second = queue.run(1, async () => {
+    void queue.run(1, async () => {
       secondStarted = true;
+      await flush();
+      secondFinished = true;
     });
 
-    await vi.advanceTimersByTimeAsync(999);
-    expect(secondStarted).toBe(false);
-
-    await vi.advanceTimersByTimeAsync(1);
-    await second;
+    await vi.advanceTimersByTimeAsync(1500);
     expect(secondStarted).toBe(true);
+    expect(secondFinished).toBe(true);
+
+    hung.resolve();
+  });
+
+  it('waits for a slow task instead of abandoning it, and preserves the order', async () => {
+    vi.useFakeTimers();
+    const queue = new KeyedSerialQueue<number>(1000);
+    const slow = deferred();
+    const order: string[] = [];
+
+    void queue.run(1, async () => {
+      order.push('slow:start');
+      await slow.promise;
+      order.push('slow:end');
+    });
+    void queue.run(1, async () => {
+      order.push('second');
+    });
+
+    await vi.advanceTimersByTimeAsync(900);
+    expect(order).toEqual(['slow:start']);
+
+    slow.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(order).toEqual(['slow:start', 'slow:end', 'second']);
   });
 });

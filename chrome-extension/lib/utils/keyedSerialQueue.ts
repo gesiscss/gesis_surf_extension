@@ -1,23 +1,26 @@
 /**
  * Runs async tasks one at a time per key. Tasks with different keys run in parallel.
  *
- * A task waits for the previous task with the same key for at most `maxWaitMs`.
- * API requests have no timeout, so this bound keeps one hung request from
- * blocking every later task for that key.
+ * Every task is bounded by `maxWaitMs`: a hung network request can never block all
+ * later tasks for that key. Unlike a wait timeout, the hung task is still abandoned
+ * only after it is cancelled, so two tasks for the same key never run at once.
  */
 export class KeyedSerialQueue<K> {
   private readonly tails = new Map<K, Promise<void>>();
 
-  constructor(private readonly maxWaitMs: number = 15000) {}
+  constructor(
+    private readonly maxWaitMs: number = 15000,
+    private readonly onTimeout?: (key: K, error: Error) => void,
+  ) {}
 
   run<T>(key: K, task: () => Promise<T>): Promise<T> {
     const previous = this.tails.get(key);
 
     const result = (async () => {
       if (previous) {
-        await this.waitAtMost(previous);
+        await previous;
       }
-      return task();
+      return this.boundedTask(key, task);
     })();
 
     const settled = result.then(
@@ -34,13 +37,17 @@ export class KeyedSerialQueue<K> {
     return result;
   }
 
-  private async waitAtMost(previous: Promise<void>): Promise<void> {
+  private async boundedTask<T>(key: K, task: () => Promise<T>): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<void>(resolve => {
-      timer = setTimeout(resolve, this.maxWaitMs);
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const error = new Error(`Task for key ${String(key)} exceeded ${this.maxWaitMs}ms and was abandoned`);
+        this.onTimeout?.(key, error);
+        reject(error);
+      }, this.maxWaitMs);
     });
     try {
-      await Promise.race([previous, timeout]);
+      return await Promise.race([task(), timeout]);
     } finally {
       clearTimeout(timer);
     }
