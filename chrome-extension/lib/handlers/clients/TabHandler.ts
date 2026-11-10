@@ -12,6 +12,8 @@ import { DomainObjectDataTypes, TabDataTypes, TabPayloadTypes } from '../types/t
 import { apiUrl, InfoType } from '../shared';
 import { apiRequestWithDevice } from '../../services/apiClientWithDevice';
 
+const TAB_REQUEST_TIMEOUT_MS = 15000;
+
 /**
  * Manages browser tabs requests.
  * Sends requests to the server to manage tabs.
@@ -122,7 +124,7 @@ class TabManager {
       // Send the Tab data to the server
       const tabResponse = await apiRequestWithDevice(
         `${apiUrl}/tab/tabs/`,
-        { method, body: JSON.stringify(payloadTab) },
+        { method, body: JSON.stringify(payloadTab), signal: AbortSignal.timeout(TAB_REQUEST_TIMEOUT_MS) },
         { method },
       );
       if (!tabResponse.ok) {
@@ -159,7 +161,7 @@ class TabManager {
       console.log(`[${this.serviceName}] Payload update:`, payload);
       const responseTab = await apiRequestWithDevice(
         `${apiUrl}/tab/tabs/${tabId}/`,
-        { method, body: JSON.stringify(payload) },
+        { method, body: JSON.stringify(payload), signal: AbortSignal.timeout(TAB_REQUEST_TIMEOUT_MS) },
         { method },
       );
 
@@ -231,7 +233,7 @@ class TabManager {
 
     const responseDomain = await apiRequestWithDevice(
       `${apiUrl}/domain/domains/${payloadDomain.id}/`,
-      { method, body: JSON.stringify(payloadDomain) },
+      { method, body: JSON.stringify(payloadDomain), signal: AbortSignal.timeout(TAB_REQUEST_TIMEOUT_MS) },
       { method },
     );
     if (!responseDomain.ok) {

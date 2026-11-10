@@ -17,6 +17,10 @@ const DOMAIN_STATE_KEY = 'domain-state';
  */
 const RELOAD_ABSORPTION_MS = 1000;
 
+export interface ActiveDomainVisit {
+  readonly sessionId: string;
+}
+
 /**
  * Manages domain-related events in the Chrome extension.
  * Handles domain changes, transitions, and session management
@@ -25,6 +29,8 @@ const RELOAD_ABSORPTION_MS = 1000;
 class DomainEventManager {
   private readonly serviceName = 'DomainEventManager';
   private currentActiveDomainSessionId: string | null = null;
+  private currentVisit: ActiveDomainVisit | null = null;
+  private restoredState = false;
   /**
    * Tracks a domain session that was registered as pending but not yet sent to the backend.
    * This happens when a domain change is detected while the tab is still loading.
@@ -49,6 +55,10 @@ class DomainEventManager {
     return this.currentActiveDomainSessionId;
   }
 
+  get activeVisit(): ActiveDomainVisit | null {
+    return this.currentVisit;
+  }
+
   /**
    * Handles domain change events.
    * @param newDomain The new domain URL.
@@ -60,10 +70,26 @@ class DomainEventManager {
     return this.stateQueue.run(DOMAIN_STATE_KEY, () => this.processDomainChange(newDomain, tab, mapping));
   }
 
+  public async restoreDomainState(sessionId: string): Promise<void> {
+    return this.stateQueue.run(DOMAIN_STATE_KEY, () => this.restoreState(sessionId));
+  }
+
+  private async restoreState(sessionId: string): Promise<void> {
+    if (this.restoredState) return;
+    const restored = await this.domainManager.restoreActiveDomainSession(sessionId);
+    if (restored) {
+      this.currentActiveDomainSessionId = restored.sessionId;
+      this.currentVisit = { sessionId: restored.sessionId };
+      this.pendingDomainSessionId = restored.pending ? restored.sessionId : null;
+    }
+    this.restoredState = true;
+  }
+
   private async processDomainChange(newDomain: string | null, tab: DomainDataTypes, mapping: TabMapping) {
     console.log(`[${this.serviceName}] Handle Domain Change to ${newDomain}`);
 
     try {
+      if (newDomain) await this.restoreState(newDomain);
       if (this.isReloadOfCurrentVisit(newDomain, tab)) {
         if (this.isVisitOldEnoughToRemint(newDomain)) {
           // A real reload of the same URL ends this visit; the reopened page mints
@@ -99,7 +125,12 @@ class DomainEventManager {
    * and cross-URL navigation are not reloads of the current visit.
    */
   private isReloadOfCurrentVisit(newDomain: string | null, tab: DomainDataTypes): boolean {
-    return Boolean(newDomain) && newDomain === this.currentActiveDomainSessionId && tab.status === 'loading';
+    return (
+      Boolean(newDomain) &&
+      newDomain === this.currentActiveDomainSessionId &&
+      newDomain !== this.pendingDomainSessionId &&
+      tab.status === 'loading'
+    );
   }
 
   /**
@@ -121,6 +152,7 @@ class DomainEventManager {
   public resetDomainSession(): void {
     console.log(`[${this.serviceName}] Resetting current active domain session ID`);
     this.currentActiveDomainSessionId = null;
+    this.currentVisit = null;
     this.pendingDomainSessionId = null;
   }
 
@@ -156,8 +188,11 @@ class DomainEventManager {
    * Handles domain cleanup on tab closure or navigation away.
    * @returns void
    */
-  public async handleDomainCleanup(): Promise<void> {
-    return this.stateQueue.run(DOMAIN_STATE_KEY, () => this.processDomainCleanup());
+  public async handleDomainCleanup(expectedVisit?: ActiveDomainVisit | null): Promise<void> {
+    return this.stateQueue.run(DOMAIN_STATE_KEY, () => {
+      if (expectedVisit !== undefined && this.currentVisit !== expectedVisit) return Promise.resolve();
+      return this.processDomainCleanup();
+    });
   }
 
   private async processDomainCleanup(): Promise<void> {
@@ -231,10 +266,11 @@ class DomainEventManager {
           error instanceof Error ? error.message : error,
         );
         // Clean up the pending promise if the domain was registered but never sent
-        this.domainManager.cancelPendingDomain(this.currentActiveDomainSessionId);
+        await this.domainManager.cancelPendingDomain(this.currentActiveDomainSessionId);
       } finally {
         // ALWAYS clear the stale ID so the next domain can be initialized
         this.currentActiveDomainSessionId = null;
+        this.currentVisit = null;
       }
     }
   }
@@ -283,11 +319,14 @@ class DomainEventManager {
     console.log(`[${this.serviceName}] Mapping in DomainEventManager:`, mapping);
     console.log(`[${this.serviceName}] Type if mapping.id:`, typeof mapping.id);
 
+    if (!this.currentVisit || this.currentActiveDomainSessionId !== newDomain) {
+      this.currentVisit = { sessionId: newDomain };
+    }
     this.currentActiveDomainSessionId = newDomain;
     this.pendingDomainSessionId = newDomain;
-    this.domainManager.registerPendingDomain(newDomain);
 
     try {
+      await this.domainManager.registerPendingDomain(newDomain);
       if (mapping.id === undefined) {
         throw new Error('Tab ID is undefined');
       }
@@ -296,7 +335,7 @@ class DomainEventManager {
         console.log(`[${this.serviceName}] Domain is ready to be sent for ${newDomain}`);
         const savedDomainSessionId = await this.domainManager.sendDomain(tab, mapping, 'PATCH');
         this.currentActiveDomainSessionId = savedDomainSessionId || newDomain;
-        this.pendingDomainSessionId = null;
+        this.pendingDomainSessionId = savedDomainSessionId ? null : newDomain;
         console.log(
           `[${this.serviceName}] Updated current active domain session ID to:`,
           this.currentActiveDomainSessionId,
@@ -308,8 +347,7 @@ class DomainEventManager {
       // loading can wait for the domain to be persisted once the tab completes.
       this.currentActiveDomainSessionId = newDomain;
     } catch (error) {
-      this.domainManager.cancelPendingDomain(newDomain);
-      this.pendingDomainSessionId = null;
+      this.resetDomainSession();
       throw error;
     }
   }

@@ -72,25 +72,27 @@ describe('KeyedSerialQueue', () => {
     await expect(next).resolves.toBe('ok');
   });
 
-  it('abandons a hung task after maxWaitMs but never runs two tasks for one key at once', async () => {
+  it('times out callers without releasing the barrier or permitting late writes after a successor', async () => {
     vi.useFakeTimers();
     const queue = new KeyedSerialQueue<number>(1000);
     const hung = deferred();
-    let secondStarted = false;
-    let secondFinished = false;
-
-    void queue.run(1, () => hung.promise);
-    void queue.run(1, async () => {
-      secondStarted = true;
-      await flush();
-      secondFinished = true;
+    const order: string[] = [];
+    const first = queue.run(1, async () => {
+      await hung.promise;
+      order.push('first:write');
     });
+    const second = queue.run(1, async () => {
+      order.push('second:write');
+    });
+    const outcomes = Promise.allSettled([first, second]);
 
     await vi.advanceTimersByTimeAsync(1500);
-    expect(secondStarted).toBe(true);
-    expect(secondFinished).toBe(true);
+    expect(order).toEqual([]);
+    expect((await outcomes).every(result => result.status === 'rejected')).toBe(true);
 
     hung.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(order).toEqual(['first:write', 'second:write']);
   });
 
   it('waits for a slow task instead of abandoning it, and preserves the order', async () => {
@@ -114,5 +116,26 @@ describe('KeyedSerialQueue', () => {
     slow.resolve();
     await vi.advanceTimersByTimeAsync(0);
     expect(order).toEqual(['slow:start', 'slow:end', 'second']);
+  });
+
+  it('keeps sequential bounded operations serialized when their total exceeds the caller deadline', async () => {
+    vi.useFakeTimers();
+    const queue = new KeyedSerialQueue<string>(1000);
+    const order: string[] = [];
+    const first = queue.run('k', async () => {
+      for (let i = 0; i < 2; i++) {
+        await new Promise(resolve => setTimeout(resolve, 750));
+      }
+      order.push('first:write');
+    });
+    const second = queue.run('k', async () => {
+      order.push('second:write');
+    });
+    const outcomes = Promise.allSettled([first, second]);
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(order).toEqual([]);
+    await outcomes;
+    await vi.advanceTimersByTimeAsync(500);
+    expect(order).toEqual(['first:write', 'second:write']);
   });
 });

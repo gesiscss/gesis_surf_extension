@@ -4,11 +4,12 @@
  * @implements {DatabaseService}
  */
 import { openDB } from 'idb';
-import type { IDBPDatabase } from 'idb';
+import type { IDBPDatabase, StoreNames as DatabaseStoreNames } from 'idb';
 import { DBGesisTypes, ItemTypes } from '../interfaces/types';
 import { DB_CONFIG } from '../constants/dbConfig';
+import { stableKeyOf } from '../../utils/domainVisitIdentity';
 
-type StoreNames = 'winlives' | 'tabslives' | 'domainslives' | 'config' | 'winclose' | 'hostslives' | 'selectors';
+type StoreNames = DatabaseStoreNames<DBGesisTypes>;
 
 /**
  * Service for interacting with the IndexedDB database.
@@ -22,11 +23,14 @@ class DatabaseService {
 
   private initializeDB(): Promise<IDBPDatabase<DBGesisTypes>> {
     return openDB<DBGesisTypes>(DB_CONFIG.name, DB_CONFIG.version, {
-      upgrade(db, oldVersion) {
+      upgrade(db, oldVersion, _newVersion, transaction) {
+        if (!db.objectStoreNames.contains('domainvisits')) {
+          db.createObjectStore('domainvisits', { keyPath: 'local_key' });
+        }
         if (!db.objectStoreNames.contains('winlives')) {
           db.createObjectStore('winlives', { keyPath: 'window_session_id' });
           db.createObjectStore('tabslives', { keyPath: 'tab_session_id' });
-          db.createObjectStore('domainslives', { keyPath: 'domain_session_id' });
+          db.createObjectStore('domainslives', { keyPath: 'local_key' });
           db.createObjectStore('hostslives', { keyPath: 'hostname' });
           db.createObjectStore('selectors', { keyPath: 'provider' });
         } else if (oldVersion < 2) {
@@ -35,11 +39,42 @@ class DatabaseService {
           db.deleteObjectStore('tabslives');
           db.createObjectStore('tabslives', { keyPath: 'tab_session_id' });
           db.deleteObjectStore('domainslives');
-          db.createObjectStore('domainslives', { keyPath: 'domain_session_id' });
+          db.createObjectStore('domainslives', { keyPath: 'local_key' });
           db.deleteObjectStore('hostslives');
           db.createObjectStore('hostslives', { keyPath: 'hostname' });
           db.deleteObjectStore('selectors');
           db.createObjectStore('selectors', { keyPath: 'provider' });
+        } else if (oldVersion < 4) {
+          // v3 keyed domainslives by domain_session_id, which the wire hint
+          // (key#visitStart) made unusable as a stable local key. Re-key to
+          // an explicit local_key, preserving every existing record: they
+          // hold backend UUIDs needed to close open visits.
+          const oldStore = transaction.objectStore('domainslives');
+          void transaction.done.catch(error => {
+            console.error('Domain identity migration transaction aborted', error);
+          });
+          void oldStore
+            .getAll()
+            .then(async records => {
+              const keys = new Set<string>();
+              const migrated = records.map(record => {
+                const storedId = record.domain_session_id;
+                if (!storedId) throw new Error('Cannot migrate a Domain without a session identity');
+                const localKey = stableKeyOf(storedId);
+                if (keys.has(localKey)) throw new Error(`Conflicting active Domain records for ${localKey}`);
+                keys.add(localKey);
+                return { ...record, local_key: localKey };
+              });
+              db.deleteObjectStore('domainslives');
+              const newStore = db.createObjectStore('domainslives', { keyPath: 'local_key' });
+              for (const record of migrated) {
+                await newStore.add(record);
+              }
+            })
+            .catch(error => {
+              console.error('Failed to migrate domain identities', error);
+              if (!transaction.error) transaction.abort();
+            });
         }
       },
     });
@@ -90,7 +125,7 @@ class DatabaseService {
     console.log('Key:', key);
     try {
       const db = await this.db;
-      const item = (await db.get(storeName, key)) as ItemTypes;
+      const item = await db.get(storeName, key);
       console.log('Item:', item);
       if (!item) {
         console.warn(`Item with Id ${key} not found in ${storeName}`);
@@ -109,7 +144,7 @@ class DatabaseService {
    * @returns All items from the store.
    * @throws An error if the get all operation fails.
    */
-  async getAllItems(storeName: StoreNames): Promise<object[] | Error> {
+  async getAllItems<K extends StoreNames>(storeName: K): Promise<DBGesisTypes[K]['value'][] | Error> {
     try {
       const db = await this.db;
       return await db.getAll(storeName);

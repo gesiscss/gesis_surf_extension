@@ -29,7 +29,9 @@ vi.mock('@root/lib/services/policyService', () => ({
 }));
 vi.mock('../DomainEventManager', () => ({
   default: class {
+    activeVisit: { sessionId: string } | null = null;
     handleDomainChange = vi.fn(async () => undefined);
+    restoreDomainState = vi.fn(async () => undefined);
     handleDomainCleanup = vi.fn(async () => undefined);
   },
 }));
@@ -117,11 +119,13 @@ describe('TabEventManager', () => {
     const manager = new TabEventManager(tabHandler, dbService, domainHandler);
     manager['domainEventManager'].activeDomainSessionId =
       ownerTabId === null ? null : `gs-tabId-${ownerTabId}-domain-x`;
+    manager['domainEventManager'].activeVisit =
+      ownerTabId === null ? null : { sessionId: `gs-tabId-${ownerTabId}-domain-x` };
     manager['domainEventManager'].activeDomainBelongsTo = vi.fn(
       (tabId: number) => ownerTabId === tabId && ownerTabId !== null,
     );
     manager.registerTabListeners();
-    return { tabHandler, deleted, store, onRemoved: listeners.removed as RemovalListener };
+    return { tabHandler, deleted, store, manager, onRemoved: listeners.removed as RemovalListener };
   };
 
   it('does not close the active domain of another tab when a background tab is removed', async () => {
@@ -161,13 +165,16 @@ describe('TabEventManager', () => {
   });
 
   it('closes the domain owned by the removed foreground tab', async () => {
-    const { tabHandler, deleted, onRemoved } = await setupRemoval(5); // domain belongs to tab 5
+    const { tabHandler, deleted, manager, onRemoved } = await setupRemoval(5);
 
     await onRemoved(5, { windowId: 1, isWindowClosing: false });
 
     const [, , method, domainSessionId] = vi.mocked(tabHandler.updateTab).mock.calls[0];
     expect(method).toBe('PATCH');
-    expect(domainSessionId).toBe('gs-tabId-5-domain-x');
+    expect(domainSessionId).toBe('');
+    expect(manager['domainEventManager'].handleDomainCleanup).toHaveBeenCalledWith(
+      manager['domainEventManager'].activeVisit,
+    );
     expect(deleted).toEqual(['tab-session']);
   });
 });

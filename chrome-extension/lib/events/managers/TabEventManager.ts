@@ -116,7 +116,6 @@ class TabEventManager {
 
     const removeInfo = this.createRemoveInfo(windowId);
     await this.handleTabRemoval(activeTab.id, removeInfo);
-    await this.domainEventManager.handleDomainCleanup();
   }
 
   /**
@@ -144,10 +143,8 @@ class TabEventManager {
       }
 
       await this.processActiveTabRemoval(windowId!);
-      await this.domainEventManager.handleDomainCleanup();
     } catch (error) {
       console.error(`[${this.serviceName}] Error handling active tab blur:`, error);
-      await this.domainEventManager.handleDomainCleanup();
     }
   }
 
@@ -437,6 +434,7 @@ class TabEventManager {
       const mapping = await this.dbService.getItem('tabslives', tabSessionId);
 
       if (mapping !== null && !(mapping instanceof Error)) {
+        await this.domainEventManager.restoreDomainState(tabSessionId);
         console.log(`[${this.serviceName}] Mapping BEFORE UPDATE:`, mapping);
         const payloadMapping: TabPayloadTypes = {
           closing_time: mapping.close_time,
@@ -463,11 +461,14 @@ class TabEventManager {
 
     try {
       if (this.domainEventManager.activeDomainBelongsTo(tabId)) {
-        const domainSessionId = this.domainEventManager.activeDomainSessionId;
-        if (domainSessionId) {
+        const visit = this.domainEventManager.activeVisit;
+        if (visit) {
           console.log(`[${this.serviceName}] Active domain belongs to tab ${tabId}; closing it with the tab`);
-          await this.tabManager.updateTab(tabId, mapping, 'PATCH', domainSessionId);
-          await this.domainEventManager.handleDomainCleanup();
+          try {
+            await this.tabManager.updateTab(tabId, mapping, 'PATCH', '');
+          } finally {
+            await this.domainEventManager.handleDomainCleanup(visit);
+          }
           return;
         }
       } else {

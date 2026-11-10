@@ -1,5 +1,6 @@
 import { type DBSchema } from 'idb';
 import type { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/contentScript/sharedContentScriptTypes';
+import type { DomainPayloadTypes } from '../../handlers/types/domainTypes';
 
 /**
  * Represent the window or tab item from google API calls
@@ -24,17 +25,26 @@ export interface ItemTypes {
  * @interface DomainItemTypes
  */
 export interface DomainItemTypes {
+  id: number;
+  local_key: string;
   domain_title: string;
-  snapshot_html: string;
-  domain_status: string;
+  snapshot_html?: string;
+  domain_status?: string;
   domain_fav_icon: string;
   domain_session_id: string;
   start_time: string;
   closing_time: string;
   domain_url: string;
   domain_last_accessed: string;
-  category_number: number;
-  criteria_classification: string;
+  category_number?: number;
+  criteria_classification?: string;
+}
+
+export interface DomainVisitIdentity {
+  local_key: string;
+  domain_session_id: string;
+  start_time: string;
+  payload?: DomainPayloadTypes;
 }
 
 /**
@@ -98,8 +108,12 @@ export interface DBGesisTypes extends DBSchema {
 
   /** Store for domain entries */
   domainslives: {
-    key: number;
+    key: string;
     value: DomainItemTypes;
+  };
+  domainvisits: {
+    key: string;
+    value: DomainVisitIdentity;
   };
 
   /** Store for configuration settings */

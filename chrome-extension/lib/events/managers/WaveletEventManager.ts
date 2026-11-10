@@ -13,12 +13,6 @@ import WaveletScriptHandler from '@root/lib/handlers/clients/WaveletScriptHandle
 
 export default class WaveletEventManager {
   private readonly serviceName = 'WaveletEventManager';
-  /**
-   * Maximum time a wavelet will wait for the background domain session to be persisted.
-   * Pages with heavy JS (e.g. YouTube Shorts direct navigation) can take several seconds
-   * before the tab reaches 'complete' and the domain is sent to the backend.
-   */
-  private readonly DOMAIN_READY_TIMEOUT_MS = 10000;
   private readonly dbService: DatabaseService;
   private readonly domainManager: DomainManager;
   private readonly domainPolicyService: DomainPolicyService;
@@ -113,23 +107,28 @@ export default class WaveletEventManager {
     try {
       const maskUrl = await this.domainPolicyService.getMaskedUrl(tab.url);
       const domainSessionId = await this.domainManager.generateDomainSession(tab.windowId, tab.id, tab.url, maskUrl);
-      let stored = await this.dbService.getItem('domainslives', domainSessionId);
-      if (!stored || stored instanceof Error) {
-        await this.domainManager.waitForDomainReady(domainSessionId, this.DOMAIN_READY_TIMEOUT_MS);
-        stored = await this.dbService.getItem('domainslives', domainSessionId);
+      if (this.domainManager.isDomainClosing(domainSessionId)) {
+        console.warn(`[${this.serviceName}] Visit is closing for tab ${tab.id}; omitting stale linkage`);
+        return { domainId: '', hint: '' };
+      }
+      const stored = await this.dbService.getItem('domainslives', domainSessionId);
+      if (this.domainManager.isDomainClosing(domainSessionId)) {
+        console.warn(`[${this.serviceName}] Visit closed during lookup for tab ${tab.id}; omitting stale linkage`);
+        return { domainId: '', hint: '' };
       }
       if (!stored || stored instanceof Error) {
-        // No persisted domain yet: send the visit hint so the backend can link later.
-        return { domainId: '', hint: this.domainManager.wireSessionId(domainSessionId) };
+        const hint = await this.domainManager.wireSessionId(domainSessionId);
+        if (!hint) console.warn(`[${this.serviceName}] No safe visit context for tab ${tab.id}`);
+        return { domainId: '', hint };
       }
       const entry = stored as unknown as DomainResponseTypes;
       return {
         domainId: String(entry.id),
-        hint: entry.domain_session_id || this.domainManager.wireSessionId(domainSessionId),
+        hint: entry.domain_session_id || (await this.domainManager.wireSessionId(domainSessionId)),
       };
-    } catch {
-      console.log(`[${this.serviceName}] domain linkage not available (masked/denied domain)`);
-      return { domainId: '', hint: '' };
+    } catch (error) {
+      console.error(`[${this.serviceName}] Failed to resolve domain linkage:`, error);
+      throw error;
     }
   }
 }

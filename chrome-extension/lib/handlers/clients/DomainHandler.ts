@@ -12,6 +12,9 @@ import { TabMapping } from '../types';
 import { DomainPolicyService } from '@root/lib/services/policyService';
 import { apiRequestWithDevice } from '../../services/apiClientWithDevice';
 import { sanitizeText } from '@root/lib/utils/sanitizeText';
+import { stableKeyOf, visitTimeFromHint, VISIT_TIME_SEPARATOR } from '@root/lib/utils/domainVisitIdentity';
+
+const DOMAIN_REQUEST_TIMEOUT_MS = 15000;
 
 type DomainCreationDeferred = {
   promise: Promise<void>;
@@ -20,17 +23,23 @@ type DomainCreationDeferred = {
 };
 
 /** Separator between the stable key and the visit time in wire-visible session ids. */
-export const VISIT_TIME_SEPARATOR = '#';
+export { VISIT_TIME_SEPARATOR } from '@root/lib/utils/domainVisitIdentity';
 
 class DomainManager {
   private readonly serviceName = 'DomainManager';
   private static readonly pendingDomainCreations = new Map<string, DomainCreationDeferred>();
   /**
-   * Visit start time minted once per open visit, keyed by the stable domain session id.
-   * Dies with the service worker together with pendingDomainCreations; the persisted
-   * domainslives entry (start_time) is the durable copy for a restarted worker.
+   * Visit start time minted once per open visit, keyed by the stable local key.
+   * The persisted domainslives record (its domain_session_id hint) is the durable
+   * copy recovered when the worker restarts.
    */
   private static readonly visitStarts = new Map<string, string>();
+  /**
+   * Shared initialization promises so concurrent callers for one stable key recover
+   * or mint exactly one visit timestamp instead of racing on storage misses.
+   */
+  private static readonly visitInitializations = new Map<string, Promise<string>>();
+  private static readonly closingDomains = new Set<string>();
   private readonly dbService: DatabaseService;
   private readonly globalSessionService: GlobalSessionService;
   private readonly domainPolicyService: DomainPolicyService;
@@ -99,54 +108,137 @@ class DomainManager {
     DomainManager.pendingDomainCreations.delete(domainSessionId);
   }
 
-  public registerPendingDomain(domainSessionId: string): void {
+  public async registerPendingDomain(domainSessionId: string): Promise<void> {
     this.beginDomainCreation(domainSessionId);
-    this.mintVisitStart(domainSessionId);
+    await this.mintVisitStart(domainSessionId);
   }
 
-  public cancelPendingDomain(domainSessionId: string): void {
+  public async cancelPendingDomain(domainSessionId: string): Promise<void> {
+    await DomainManager.visitInitializations.get(domainSessionId);
     this.clearDomainCreation(domainSessionId);
     DomainManager.visitStarts.delete(domainSessionId);
+    for (const store of ['domainslives', 'domainvisits'] as const) {
+      const result = await this.dbService.deleteItem(store, domainSessionId);
+      if (result instanceof Error) throw result;
+    }
+    DomainManager.closingDomains.delete(domainSessionId);
   }
 
   /**
-   * Mints the visit start time once for an open visit and reuses it afterwards.
-   * Duplicate browser events for the same open visit therefore share one timestamp,
-   * which is what makes the wire session id unique per visit and stable on retry.
-   * @param domainSessionId The stable domain session id.
+   * Mints (or recovers) the visit start time for an open visit, exactly once.
+   * Concurrent callers share one initialization promise per stable key, so two
+   * events racing on a storage miss cannot mint two different timestamps.
+   * After a worker restart the persisted domainslives record is recovered first,
+   * preserving the exact original timestamp string across restarts.
+   * @param domainSessionId The stable local key.
    * @returns The retained ISO timestamp for this visit.
    */
-  public mintVisitStart(domainSessionId: string): string {
-    let visitStart = DomainManager.visitStarts.get(domainSessionId);
-    if (!visitStart) {
-      visitStart = new Date().toISOString();
-      DomainManager.visitStarts.set(domainSessionId, visitStart);
+  public async mintVisitStart(domainSessionId: string): Promise<string> {
+    const existing = DomainManager.visitStarts.get(domainSessionId);
+    if (existing) return existing;
+
+    let initialization = DomainManager.visitInitializations.get(domainSessionId);
+    if (!initialization) {
+      initialization = this.recoverOrMintVisitStart(domainSessionId);
+      DomainManager.visitInitializations.set(domainSessionId, initialization);
+      const clearInitialization = () => {
+        if (DomainManager.visitInitializations.get(domainSessionId) === initialization) {
+          DomainManager.visitInitializations.delete(domainSessionId);
+        }
+      };
+      void initialization.then(clearInitialization, clearInitialization);
     }
+    return initialization;
+  }
+
+  private async recoverOrMintVisitStart(domainSessionId: string): Promise<string> {
+    const hint = await this.wireSessionId(domainSessionId);
+    const recovered = visitTimeFromHint(hint);
+    if (recovered) {
+      DomainManager.visitStarts.set(domainSessionId, recovered);
+      return recovered;
+    }
+    const visitStart = new Date().toISOString();
+    await this.dbService.setItem('domainvisits', {
+      local_key: domainSessionId,
+      domain_session_id: `${domainSessionId}${VISIT_TIME_SEPARATOR}${visitStart}`,
+      start_time: visitStart,
+    });
+    DomainManager.visitStarts.set(domainSessionId, visitStart);
     return visitStart;
   }
 
   /**
    * Returns the wire-visible session id: the stable key plus this visit's start time.
    * Used when a payload ships to the backend; internal lookups keep using the stable key.
-   * @param domainSessionId The stable domain session id.
-   * @returns The composite `key#visitStart` string, or the bare key when no visit is open.
+   * @param domainSessionId The stable local key.
+   * @returns The composite `key#visitStart` string, or '' when no safe identity exists.
+   * An empty result must not be sent as a hint: it would never match exactly.
    */
-  public wireSessionId(domainSessionId: string): string {
+  public async wireSessionId(domainSessionId: string): Promise<string> {
+    if (this.isDomainClosing(domainSessionId)) return '';
     const visitStart = DomainManager.visitStarts.get(domainSessionId);
-    return visitStart ? `${domainSessionId}${VISIT_TIME_SEPARATOR}${visitStart}` : domainSessionId;
+    if (visitStart) return `${domainSessionId}${VISIT_TIME_SEPARATOR}${visitStart}`;
+    const stored =
+      (await this.dbService.getItem('domainvisits', domainSessionId)) ??
+      (await this.dbService.getItem('domainslives', domainSessionId));
+    if (!stored) return '';
+    const hint = stored.domain_session_id;
+    const timestamp = visitTimeFromHint(hint);
+    if (!timestamp) {
+      console.warn(`[${this.serviceName}] Legacy Domain has no visit-specific hint: ${domainSessionId}`);
+      return '';
+    }
+    if (stableKeyOf(hint) !== domainSessionId) {
+      throw new Error(`Stored visit hint does not belong to local key: ${domainSessionId}`);
+    }
+    if (stored.start_time !== timestamp) {
+      throw new Error(`Stored visit start does not match its hint: ${domainSessionId}`);
+    }
+    return hint;
   }
 
   /**
    * Returns the retained visit start time for an open visit, if any.
-   * @param domainSessionId The stable domain session id.
+   * Does not mint or recover: only a currently initialized identity is returned.
+   * @param domainSessionId The stable local key.
    */
   public currentVisitStart(domainSessionId: string): string | undefined {
     return DomainManager.visitStarts.get(domainSessionId);
   }
 
+  public isDomainClosing(domainSessionId: string): boolean {
+    return DomainManager.closingDomains.has(domainSessionId);
+  }
+
+  public async restoreActiveDomainSession(
+    nextSessionId: string,
+  ): Promise<{ sessionId: string; pending: boolean } | null> {
+    const windowMarker = nextSessionId.indexOf('-windowId-');
+    const tabMarker = nextSessionId.indexOf('-tabId-');
+    const marker = windowMarker === -1 ? tabMarker : windowMarker;
+    if (marker < 1) throw new Error('Cannot recover Domain state without a global session');
+    const prefix = nextSessionId.slice(0, marker);
+    const visits = await this.dbService.getAllItems('domainvisits');
+    const domains = await this.dbService.getAllItems('domainslives');
+    if (visits instanceof Error) throw visits;
+    if (domains instanceof Error) throw domains;
+    const keys = new Set(
+      [...visits, ...domains].map(record => record.local_key).filter(key => key.startsWith(`${prefix}-`)),
+    );
+    if (keys.size > 1) throw new Error('Cannot safely recover multiple active Domain visits');
+    const sessionId = keys.values().next().value;
+    if (!sessionId) return null;
+    await this.mintVisitStart(sessionId);
+    return { sessionId, pending: !domains.some(record => record.local_key === sessionId) };
+  }
+
   /** Clears the visit registry. Test-only isolation hook. */
   public static clearVisitRegistryForTests(): void {
     DomainManager.visitStarts.clear();
+    DomainManager.visitInitializations.clear();
+    DomainManager.pendingDomainCreations.clear();
+    DomainManager.closingDomains.clear();
   }
 
   public async waitForDomainReady(domainSessionId: string, timeoutMs: number = 1000): Promise<void> {
@@ -197,13 +289,15 @@ class DomainManager {
         domain_data.url,
         urlMask,
       );
-      const visitStart = this.mintVisitStart(stableSessionId);
+      const visitStart = await this.mintVisitStart(stableSessionId);
+      const retained = await this.dbService.getItem('domainvisits', stableSessionId);
+      if (retained?.payload) return retained.payload;
 
       return {
         ...payload,
         domain_last_accessed: await this.formatLastAccessed(domain_data.lastAccessed),
         start_time: visitStart,
-        domain_session_id: this.wireSessionId(stableSessionId),
+        domain_session_id: await this.wireSessionId(stableSessionId),
       };
     } catch (error) {
       console.error(`[${this.serviceName}] Error building payload:`, error);
@@ -230,13 +324,18 @@ class DomainManager {
     }
 
     const domainSessionId = payloadDomain.domain_session_id;
-    if (!domainSessionId) {
-      console.error(`[${this.serviceName}] Missing domain_session_id in domain payload`);
+    if (!domainSessionId || !payloadDomain.start_time) {
+      console.error(`[${this.serviceName}] Missing domain_session_id or start_time in domain payload`);
       return undefined;
     }
-    const stableSessionId = this.stableKeyOf(domainSessionId);
+    const stableSessionId = stableKeyOf(domainSessionId);
 
     this.beginDomainCreation(stableSessionId);
+    const existing = await this.dbService.getItem('domainslives', stableSessionId);
+    if (existing?.domain_session_id === domainSessionId) {
+      this.finishDomainCreation(stableSessionId);
+      return stableSessionId;
+    }
 
     // Create the payload inside domains
     const payload = {
@@ -251,9 +350,15 @@ class DomainManager {
     console.log(`[${this.serviceName}] Tab Session ID:`, tabSessionId);
 
     try {
+      await this.dbService.setItem('domainvisits', {
+        local_key: stableSessionId,
+        domain_session_id: domainSessionId,
+        start_time: payloadDomain.start_time,
+        payload: payloadDomain,
+      });
       const response = await apiRequestWithDevice(
         `${apiUrl}/tab/tabs/${windowId}/`,
-        { method, body: JSON.stringify(payload) },
+        { method, body: JSON.stringify(payload), signal: AbortSignal.timeout(DOMAIN_REQUEST_TIMEOUT_MS) },
         { method },
       );
       const data = await response.json();
@@ -278,46 +383,43 @@ class DomainManager {
         return undefined;
       }
 
-      const createdDomain = data.created_domains.find(
+      const matches = data.created_domains.filter(
         (domain: DomainResponseTypes) => domain.domain_session_id === domainSessionId,
       );
+      const createdDomain: DomainResponseTypes | undefined = matches.length === 1 ? matches[0] : undefined;
 
       if (!createdDomain) {
         console.error(
-          `[${this.serviceName}] created_domains does not contain the requested visit hint: ${domainSessionId}`,
+          `[${this.serviceName}] Expected one created Domain for ${domainSessionId}; received ${matches.length}`,
         );
         this.failDomainCreation(
           stableSessionId,
-          new Error('created_domains does not contain the requested visit hint'),
+          new Error(`Expected one matching created Domain; received ${matches.length}`),
         );
         return undefined;
       }
 
       console.log(`[${this.serviceName}] Exact created domain:`, createdDomain);
 
-      // Store under the stable key: domainslives is keyed by domain_session_id and
-      // every consumer looks it up by the reconstructable stable key. The wire
-      // (composite) session id stays available in the entry's own field.
-      await this.dbService.setItem('domainslives', { ...createdDomain, domain_session_id: stableSessionId });
+      // Store under the explicit local key; the wire hint (key#visitStart) stays
+      // byte-for-byte in the record's own field so closings and wavelets keep the
+      // exact identity the backend resolver matches on.
+      await this.dbService.setItem('domainslives', {
+        ...createdDomain,
+        domain_session_id: domainSessionId,
+        local_key: stableSessionId,
+      });
 
       this.finishDomainCreation(stableSessionId);
 
-      return createdDomain.domain_session_id;
+      // Callers (DomainEventManager, lookups) operate on the stable key; the
+      // timestamped hint exists only in payloads and the stored record's field.
+      return stableSessionId;
     } catch (error) {
       this.failDomainCreation(stableSessionId, error);
       console.error(`[${this.serviceName}] Error:`, error);
       return undefined;
     }
-  }
-
-  /**
-   * Strips the visit time suffix from a wire-visible session id, returning the stable
-   * key used for internal lookups. Bare keys pass through unchanged.
-   * @param wireSessionId A stable or composite session id.
-   */
-  private stableKeyOf(wireSessionId: string): string {
-    const separatorIndex = wireSessionId.indexOf(VISIT_TIME_SEPARATOR);
-    return separatorIndex === -1 ? wireSessionId : wireSessionId.slice(0, separatorIndex);
   }
 
   /**
@@ -327,10 +429,12 @@ class DomainManager {
    */
   async updateDomain(url: string, method: string): Promise<void> {
     const domainSessionId = url;
+    DomainManager.closingDomains.add(domainSessionId);
     const itemOrError = await this.dbService.getItem('domainslives', domainSessionId);
 
     if (!itemOrError) {
-      throw new Error(`Payload not found for domain session ID: ${domainSessionId}`);
+      await this.cancelPendingDomain(domainSessionId);
+      return;
     }
 
     if (itemOrError instanceof Error) {
@@ -351,7 +455,7 @@ class DomainManager {
 
     const response = await apiRequestWithDevice(
       `${apiUrl}/domain/domains/${payload.id}/`,
-      { method, body: JSON.stringify(payload) },
+      { method, body: JSON.stringify(payload), signal: AbortSignal.timeout(DOMAIN_REQUEST_TIMEOUT_MS) },
       { method },
     );
 
@@ -360,8 +464,7 @@ class DomainManager {
       throw new Error(`[${this.serviceName}] Error: ${response.status} - ${errorText}`);
     }
     console.log(`[${this.serviceName}] Domain updated, removed from local store`);
-    await this.dbService.deleteItem('domainslives', domainSessionId);
-    DomainManager.visitStarts.delete(this.stableKeyOf(domainSessionId));
+    await this.cancelPendingDomain(domainSessionId);
   }
 }
 

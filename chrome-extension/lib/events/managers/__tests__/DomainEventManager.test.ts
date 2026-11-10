@@ -28,6 +28,7 @@ describe('DomainEventManager', () => {
         }),
     );
     const domainHandler = {
+      restoreActiveDomainSession: vi.fn(async () => null),
       registerPendingDomain: vi.fn(),
       cancelPendingDomain: vi.fn(),
       updateDomain: vi.fn(),
@@ -51,6 +52,7 @@ describe('DomainEventManager', () => {
 
   it('absorbs a rapid reload of the same URL into the open visit', async () => {
     const domainHandler = {
+      restoreActiveDomainSession: vi.fn(async () => null),
       registerPendingDomain: vi.fn(),
       cancelPendingDomain: vi.fn(),
       updateDomain: vi.fn(),
@@ -69,6 +71,7 @@ describe('DomainEventManager', () => {
 
   it('starts a new visit when an old visit is reloaded', async () => {
     const domainHandler = {
+      restoreActiveDomainSession: vi.fn(async () => null),
       registerPendingDomain: vi.fn(),
       cancelPendingDomain: vi.fn(),
       updateDomain: vi.fn(),
