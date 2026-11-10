@@ -19,9 +19,18 @@ type DomainCreationDeferred = {
   reject: (reason?: unknown) => void;
 };
 
+/** Separator between the stable key and the visit time in wire-visible session ids. */
+export const VISIT_TIME_SEPARATOR = '#';
+
 class DomainManager {
   private readonly serviceName = 'DomainManager';
   private static readonly pendingDomainCreations = new Map<string, DomainCreationDeferred>();
+  /**
+   * Visit start time minted once per open visit, keyed by the stable domain session id.
+   * Dies with the service worker together with pendingDomainCreations; the persisted
+   * domainslives entry (start_time) is the durable copy for a restarted worker.
+   */
+  private static readonly visitStarts = new Map<string, string>();
   private readonly dbService: DatabaseService;
   private readonly globalSessionService: GlobalSessionService;
   private readonly domainPolicyService: DomainPolicyService;
@@ -88,10 +97,52 @@ class DomainManager {
 
   public registerPendingDomain(domainSessionId: string): void {
     this.beginDomainCreation(domainSessionId);
+    this.mintVisitStart(domainSessionId);
   }
 
   public cancelPendingDomain(domainSessionId: string): void {
     this.clearDomainCreation(domainSessionId);
+    DomainManager.visitStarts.delete(domainSessionId);
+  }
+
+  /**
+   * Mints the visit start time once for an open visit and reuses it afterwards.
+   * Duplicate browser events for the same open visit therefore share one timestamp,
+   * which is what makes the wire session id unique per visit and stable on retry.
+   * @param domainSessionId The stable domain session id.
+   * @returns The retained ISO timestamp for this visit.
+   */
+  public mintVisitStart(domainSessionId: string): string {
+    let visitStart = DomainManager.visitStarts.get(domainSessionId);
+    if (!visitStart) {
+      visitStart = new Date().toISOString();
+      DomainManager.visitStarts.set(domainSessionId, visitStart);
+    }
+    return visitStart;
+  }
+
+  /**
+   * Returns the wire-visible session id: the stable key plus this visit's start time.
+   * Used when a payload ships to the backend; internal lookups keep using the stable key.
+   * @param domainSessionId The stable domain session id.
+   * @returns The composite `key#visitStart` string, or the bare key when no visit is open.
+   */
+  public wireSessionId(domainSessionId: string): string {
+    const visitStart = DomainManager.visitStarts.get(domainSessionId);
+    return visitStart ? `${domainSessionId}${VISIT_TIME_SEPARATOR}${visitStart}` : domainSessionId;
+  }
+
+  /**
+   * Returns the retained visit start time for an open visit, if any.
+   * @param domainSessionId The stable domain session id.
+   */
+  public currentVisitStart(domainSessionId: string): string | undefined {
+    return DomainManager.visitStarts.get(domainSessionId);
+  }
+
+  /** Clears the visit registry. Test-only isolation hook. */
+  public static clearVisitRegistryForTests(): void {
+    DomainManager.visitStarts.clear();
   }
 
   public async waitForDomainReady(domainSessionId: string, timeoutMs: number = 1000): Promise<void> {
@@ -136,15 +187,19 @@ class DomainManager {
       const shouldMaskUrl = payload.domain_url !== sanitizeText(domain_data.url);
       const urlMask = shouldMaskUrl ? payload.domain_url : undefined;
 
+      const stableSessionId = await this.generateDomainSession(
+        domain_data.windowId,
+        domain_data.id,
+        domain_data.url,
+        urlMask,
+      );
+      const visitStart = this.mintVisitStart(stableSessionId);
+
       return {
         ...payload,
         domain_last_accessed: await this.formatLastAccessed(domain_data.lastAccessed),
-        domain_session_id: await this.generateDomainSession(
-          domain_data.windowId,
-          domain_data.id,
-          domain_data.url,
-          urlMask,
-        ),
+        start_time: visitStart,
+        domain_session_id: this.wireSessionId(stableSessionId),
       };
     } catch (error) {
       console.error(`[${this.serviceName}] Error building payload:`, error);
@@ -175,8 +230,9 @@ class DomainManager {
       console.error(`[${this.serviceName}] Missing domain_session_id in domain payload`);
       return undefined;
     }
+    const stableSessionId = this.stableKeyOf(domainSessionId);
 
-    this.beginDomainCreation(domainSessionId);
+    this.beginDomainCreation(stableSessionId);
 
     // Create the payload inside domains
     const payload = {
@@ -224,17 +280,30 @@ class DomainManager {
       console.log(`[${this.serviceName}] Created Domain:`, createdDomain);
 
       if (createdDomain) {
-        await this.dbService.setItem('domainslives', createdDomain);
+        // Store under the stable key: domainslives is keyed by domain_session_id and
+        // every consumer looks it up by the reconstructable stable key. The wire
+        // (composite) session id stays available in the entry's own field.
+        await this.dbService.setItem('domainslives', { ...createdDomain, domain_session_id: stableSessionId });
       }
 
-      this.finishDomainCreation(domainSessionId);
+      this.finishDomainCreation(stableSessionId);
 
       return createdDomain?.domain_session_id || payloadDomain.domain_session_id;
     } catch (error) {
-      this.failDomainCreation(domainSessionId, error);
+      this.failDomainCreation(stableSessionId, error);
       console.error(`[${this.serviceName}] Error:`, error);
       return undefined;
     }
+  }
+
+  /**
+   * Strips the visit time suffix from a wire-visible session id, returning the stable
+   * key used for internal lookups. Bare keys pass through unchanged.
+   * @param wireSessionId A stable or composite session id.
+   */
+  private stableKeyOf(wireSessionId: string): string {
+    const separatorIndex = wireSessionId.indexOf(VISIT_TIME_SEPARATOR);
+    return separatorIndex === -1 ? wireSessionId : wireSessionId.slice(0, separatorIndex);
   }
 
   /**
@@ -278,6 +347,7 @@ class DomainManager {
     }
     console.log(`[${this.serviceName}] Domain updated, removed from local store`);
     await this.dbService.deleteItem('domainslives', domainSessionId);
+    DomainManager.visitStarts.delete(this.stableKeyOf(domainSessionId));
   }
 }
 

@@ -77,6 +77,7 @@ export interface LLMData {
   url: string;
   page_title: string;
   domain_id: string;
+  domain_session_id?: string;
   turn_index: number; // 1-based index of the message in the conversation
 }
 
@@ -135,6 +136,7 @@ export interface SocialPostData {
   // Context
   page_url: string;
   domain_id: string;
+  domain_session_id?: string;
   feed_position?: number;
 
   // Ad / sponsored content flag

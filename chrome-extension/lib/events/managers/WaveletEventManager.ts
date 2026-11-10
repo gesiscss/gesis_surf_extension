@@ -52,9 +52,8 @@ export default class WaveletEventManager {
         };
       }
 
-      const domainId = await this.resolveDomainId(sender.tab);
-      await this.apiClient.sendLLMData({ ...data, domain_id: domainId });
-
+      const linkage = await this.resolveDomainLinkage(sender.tab);
+      await this.apiClient.sendLLMData({ ...data, domain_id: linkage.domainId, domain_session_id: linkage.hint });
       return { status: 'success', message: 'LLM wavelet processed' };
     } catch (error) {
       console.error(`[${this.serviceName}] Error handling LLM event:`, error);
@@ -89,8 +88,8 @@ export default class WaveletEventManager {
         };
       }
 
-      const domainId = await this.resolveDomainId(sender.tab);
-      const enrichedData = { ...data, domain_id: domainId };
+      const linkage = await this.resolveDomainLinkage(sender.tab);
+      const enrichedData = { ...data, domain_id: linkage.domainId, domain_session_id: linkage.hint };
       await this.apiClient.sendSocialData(messageType, enrichedData);
       return { status: 'success', message: `${messageType} wavelet processed` };
     } catch (error) {
@@ -103,12 +102,14 @@ export default class WaveletEventManager {
   }
 
   /**
-   * Resolves the domain ID for a given tab by checking the domain policy and generating a domain session if necessary.
-   * @param tab The tab information from which to resolve the domain ID.
-   * @returns A promise that resolves to the domain ID as a string, or an empty string if the domain is masked or denied.
+   * Resolves the domain linkage for a given tab: the backend domain UUID when already
+   * known, plus the visit-specific session hint the backend can match exactly when the
+   * domain has not been saved yet.
+   * @param tab The tab information from which to resolve the linkage.
+   * @returns The domain UUID (or empty) and the composite visit hint (or empty).
    */
-  private async resolveDomainId(tab?: Tabs.Tab): Promise<string> {
-    if (!tab?.id || !tab?.windowId || !tab?.url) return '';
+  private async resolveDomainLinkage(tab?: Tabs.Tab): Promise<{ domainId: string; hint: string }> {
+    if (!tab?.id || !tab?.windowId || !tab?.url) return { domainId: '', hint: '' };
     try {
       const maskUrl = await this.domainPolicyService.getMaskedUrl(tab.url);
       const domainSessionId = await this.domainManager.generateDomainSession(tab.windowId, tab.id, tab.url, maskUrl);
@@ -117,11 +118,18 @@ export default class WaveletEventManager {
         await this.domainManager.waitForDomainReady(domainSessionId, this.DOMAIN_READY_TIMEOUT_MS);
         stored = await this.dbService.getItem('domainslives', domainSessionId);
       }
-      if (!stored || stored instanceof Error) return '';
-      return String((stored as unknown as DomainResponseTypes).id);
+      if (!stored || stored instanceof Error) {
+        // No persisted domain yet: send the visit hint so the backend can link later.
+        return { domainId: '', hint: this.domainManager.wireSessionId(domainSessionId) };
+      }
+      const entry = stored as unknown as DomainResponseTypes;
+      return {
+        domainId: String(entry.id),
+        hint: entry.domain_session_id || this.domainManager.wireSessionId(domainSessionId),
+      };
     } catch {
-      console.log(`[${this.serviceName}] domain_id not available (masked/denied domain)`);
-      return '';
+      console.log(`[${this.serviceName}] domain linkage not available (masked/denied domain)`);
+      return { domainId: '', hint: '' };
     }
   }
 }

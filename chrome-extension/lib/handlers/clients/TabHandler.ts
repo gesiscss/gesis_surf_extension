@@ -236,7 +236,9 @@ class TabManager {
     );
     if (!responseDomain.ok) {
       console.error(`[${this.serviceName}] Failed to update domain for session ID: ${domainSessionId}`);
+      return;
     }
+    await this.dbService.deleteItem('domainslives', domainSessionId);
   }
 }
 

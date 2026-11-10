@@ -16,6 +16,7 @@ const domainData = (status: string): DomainDataTypes => ({
 });
 
 const mapping = { id: '42' } as unknown as TabMapping;
+const stableKey = 'global-session-tabId-5-domain-https://example.com';
 
 describe('DomainEventManager', () => {
   it('sends a pending domain only once when completion events overlap', async () => {
@@ -46,5 +47,40 @@ describe('DomainEventManager', () => {
 
     expect(sendDomain).toHaveBeenCalledTimes(1);
     expect(manager.activeDomainSessionId).toBe('domain-session');
+  });
+
+  it('absorbs a rapid reload of the same URL into the open visit', async () => {
+    const domainHandler = {
+      registerPendingDomain: vi.fn(),
+      cancelPendingDomain: vi.fn(),
+      updateDomain: vi.fn(),
+      sendDomain: vi.fn(async () => stableKey),
+      currentVisitStart: vi.fn(() => new Date().toISOString()),
+    } as unknown as DomainHandler;
+    const manager = new DomainEventManager(domainHandler);
+
+    await manager.handleDomainChange(stableKey, domainData('complete'), mapping);
+    // Simulate a reload while the visit is younger than the absorption window.
+    await manager.handleDomainChange(stableKey, domainData('loading'), mapping);
+
+    expect(domainHandler.updateDomain).not.toHaveBeenCalled();
+    expect(manager.activeDomainSessionId).toBe(stableKey);
+  });
+
+  it('starts a new visit when an old visit is reloaded', async () => {
+    const domainHandler = {
+      registerPendingDomain: vi.fn(),
+      cancelPendingDomain: vi.fn(),
+      updateDomain: vi.fn(),
+      sendDomain: vi.fn(async () => stableKey),
+      currentVisitStart: vi.fn(() => new Date(Date.now() - 60_000).toISOString()),
+    } as unknown as DomainHandler;
+    const manager = new DomainEventManager(domainHandler);
+
+    await manager.handleDomainChange(stableKey, domainData('complete'), mapping);
+    await manager.handleDomainChange(stableKey, domainData('loading'), mapping);
+
+    expect(domainHandler.updateDomain).toHaveBeenCalledWith(stableKey, 'PATCH');
+    expect(domainHandler.registerPendingDomain).toHaveBeenCalledWith(stableKey);
   });
 });

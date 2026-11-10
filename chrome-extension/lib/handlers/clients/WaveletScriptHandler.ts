@@ -34,6 +34,7 @@ export default class WaveletScriptHandler {
       url: data.url,
     };
     if (data.domain_id) payload['domain_id'] = data.domain_id;
+    if (data.domain_session_id) payload['domain_session_id'] = data.domain_session_id;
 
     const response = await apiRequestWithDevice(
       `${this.apiUrl}${endpoint}`,

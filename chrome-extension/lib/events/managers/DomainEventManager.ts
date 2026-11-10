@@ -11,6 +11,13 @@ import { tabs as browserTabs } from 'webextension-polyfill';
 const DOMAIN_STATE_KEY = 'domain-state';
 
 /**
+ * A reload of the same URL only becomes a new visit when the current visit is at
+ * least this old, mirroring the focus debounce. Rapid reloads (F5 smash, redirect
+ * chains, ad refresh loops) are absorbed into the open visit.
+ */
+const RELOAD_ABSORPTION_MS = 1000;
+
+/**
  * Manages domain-related events in the Chrome extension.
  * Handles domain changes, transitions, and session management
  * Integrates with TabEventManager to track active domains across tabs.
@@ -30,6 +37,7 @@ class DomainEventManager {
    * sending it (duplicate domain rows).
    */
   private readonly stateQueue = new KeyedSerialQueue<string>();
+  private readonly reloadAbsorptionMs = RELOAD_ABSORPTION_MS;
 
   constructor(private readonly domainManager: DomainHandler) {}
 
@@ -56,7 +64,17 @@ class DomainEventManager {
     console.log(`[${this.serviceName}] Handle Domain Change to ${newDomain}`);
 
     try {
-      if (this.shouldUpdateDomain(newDomain)) {
+      if (this.isReloadOfCurrentVisit(newDomain, tab)) {
+        if (this.isVisitOldEnoughToRemint(newDomain)) {
+          // A real reload of the same URL ends this visit; the reopened page mints
+          // a new visit so the journey records the interruption.
+          console.log(`[${this.serviceName}] Reload detected for ${newDomain}; closing visit for a new one`);
+          await this.closePreviousDomainSession();
+          await this.initializeNewDomainSession(newDomain!, tab, mapping);
+        } else {
+          console.log(`[${this.serviceName}] Rapid reload absorbed into current visit: ${newDomain}`);
+        }
+      } else if (this.shouldUpdateDomain(newDomain)) {
         await this.processDomainTransition(newDomain, tab, mapping);
       } else if (
         newDomain &&
@@ -74,6 +92,26 @@ class DomainEventManager {
     } catch (error) {
       this.handleDomainError(error, newDomain);
     }
+  }
+
+  /**
+   * A reload shows the same stable key while the tab is loading again. Initial loads
+   * and cross-URL navigation are not reloads of the current visit.
+   */
+  private isReloadOfCurrentVisit(newDomain: string | null, tab: DomainDataTypes): boolean {
+    return Boolean(newDomain) && newDomain === this.currentActiveDomainSessionId && tab.status === 'loading';
+  }
+
+  /**
+   * A reload only becomes a new visit when the current visit is older than the
+   * absorption window; rapid reloads (F5 smash, redirect chains) stay absorbed.
+   */
+  private isVisitOldEnoughToRemint(newDomain: string | null): boolean {
+    const visitStart = newDomain ? this.domainManager.currentVisitStart(newDomain) : undefined;
+    if (!visitStart) {
+      return true;
+    }
+    return Date.now() - new Date(visitStart).getTime() >= this.reloadAbsorptionMs;
   }
 
   /**
