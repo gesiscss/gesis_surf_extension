@@ -145,7 +145,7 @@ class TabManager {
    * @param tab The tab data to be updated.
    * @param info The type of event that triggered the payload.
    */
-  async updateTab(tabId: number, mapping: TabPayloadTypes, method: string, domainSessionId: string): Promise<Response> {
+  async updateTab(tabId: number, mapping: TabPayloadTypes, method: string, domainSessionId = ''): Promise<Response> {
     console.log(`[${this.serviceName}] Mapping Tab:`, mapping);
     try {
       const payload = JSON.parse(JSON.stringify(mapping));
@@ -169,7 +169,9 @@ class TabManager {
 
       console.log(`[${this.serviceName}] Domain Session ID:`, domainSessionId);
       console.log(`[${this.serviceName}] Control point after updating tab, before updating domain`);
-      await this.closeDomainForTab(domainSessionId, method);
+      if (domainSessionId) {
+        await this.closeDomainForTab(domainSessionId, method);
+      }
 
       if (mapping.tab_session_id === undefined) {
         throw new Error('Tab session ID is undefined');
@@ -180,6 +182,20 @@ class TabManager {
       console.error(`[${this.serviceName}] Failed to update tab:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Deletes the local mapping of a tab regardless of the request outcome.
+   * Called by TabEventManager after removal so a reused browser tab id
+   * can never attach to the dead tab's row.
+   * @param tabSessionId The tab session id whose mapping is deleted.
+   */
+  async deleteTabMapping(tabSessionId: string | undefined): Promise<void> {
+    if (tabSessionId === undefined) {
+      console.warn(`[${this.serviceName}] Cannot delete tab mapping: session id undefined`);
+      return;
+    }
+    await this.dbService.deleteItem('tabslives', tabSessionId);
   }
 
   /**

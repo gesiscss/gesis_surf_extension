@@ -461,15 +461,31 @@ class TabEventManager {
   private async handleExistingTabRemoval(tabId: number, mapping: TabPayloadTypes) {
     console.log(`[${this.serviceName}] Existing Tab Removal`, tabId);
 
-    const domainSessionId = this.domainEventManager.activeDomainSessionId;
+    try {
+      if (this.domainEventManager.activeDomainBelongsTo(tabId)) {
+        const domainSessionId = this.domainEventManager.activeDomainSessionId;
+        if (domainSessionId) {
+          console.log(`[${this.serviceName}] Active domain belongs to tab ${tabId}; closing it with the tab`);
+          await this.tabManager.updateTab(tabId, mapping, 'PATCH', domainSessionId);
+          await this.domainEventManager.handleDomainCleanup();
+          return;
+        }
+      } else {
+        console.log(
+          `[${this.serviceName}] Active domain belongs to another tab; ` + `closing tab ${tabId} without touching it`,
+        );
+      }
 
-    if (domainSessionId) {
-      await this.tabManager.updateTab(tabId, mapping, 'PATCH', domainSessionId);
-    } else {
-      console.warn(`[${this.serviceName}] No active domain session ID found for tab removal of tab ${tabId}`);
+      // The tab row must always get its closing time, with or without an active domain
+      // owned by this tab.
+      await this.tabManager.updateTab(tabId, mapping, 'PATCH', '');
+    } catch (error) {
+      console.error(`[${this.serviceName}] Failed to close tab ${tabId} in the backend:`, error);
+    } finally {
+      // The local mapping is cleaned even when the PATCH fails, so a reused browser
+      // tab id can never attach to this tab's dead row.
+      await this.tabManager.deleteTabMapping(mapping.tab_session_id);
     }
-
-    await this.domainEventManager.handleDomainCleanup();
   }
 
   private async handleNonExistingTabRemoval(tabId: number) {

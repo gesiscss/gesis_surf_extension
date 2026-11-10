@@ -87,6 +87,34 @@ class DomainEventManager {
   }
 
   /**
+   * Checks whether the current active domain session belongs to the given tab.
+   * The owning tab is embedded in the domain session id (`…-tabId-<N>-domain-…`),
+   * so removal of one tab can never close a domain owned by another tab.
+   * @param tabId The browser tab id.
+   * @returns True if the active domain belongs to that tab.
+   */
+  public activeDomainBelongsTo(tabId: number): boolean {
+    if (this.currentActiveDomainSessionId === null) {
+      return false;
+    }
+    return this.extractOwningTabId(this.currentActiveDomainSessionId) === tabId;
+  }
+
+  private extractOwningTabId(domainSessionId: string): number | null {
+    const marker = '-tabId-';
+    const markerIndex = domainSessionId.indexOf(marker);
+    if (markerIndex === -1) {
+      return null;
+    }
+    const digitsStart = markerIndex + marker.length;
+    const digitsEnd = domainSessionId.indexOf('-', digitsStart);
+    const digits =
+      digitsEnd === -1 ? domainSessionId.slice(digitsStart) : domainSessionId.slice(digitsStart, digitsEnd);
+    const parsed = Number.parseInt(digits, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  /**
    * Handles domain cleanup on tab closure or navigation away.
    * @returns void
    */
