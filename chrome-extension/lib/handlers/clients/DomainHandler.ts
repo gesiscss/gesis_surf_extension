@@ -62,6 +62,10 @@ class DomainManager {
       resolve = res;
       reject = rej;
     });
+    // Waiters race this promise with a timeout; when nobody is waiting a rejection
+    // would otherwise surface as an unhandled rejection. Errors still reach every
+    // actual waiter through waitForDomainReady.
+    promise.catch(() => undefined);
 
     return { promise, resolve, reject };
   }
@@ -263,32 +267,42 @@ class DomainManager {
 
       // Extract the domain session ID from the response
       console.log(`[${this.serviceName}] Domains in response:`, data.domains);
+      console.log(`[${this.serviceName}] Created domains in response:`, data.created_domains);
 
-      // Find the created domain in the response by domain_session_id and latest start_time (NEED TO CHECK)
-      if (!data.domains || data.domains.length === 0) {
-        console.error(`[${this.serviceName}] No domains found in response`);
+      // B5: match the exact requested visit against the domains this request created
+      // or recovered. Never pick the newest row from the tab's full history: a revisit
+      // of the same URL would silently link to the wrong visit.
+      if (!Array.isArray(data.created_domains) || data.created_domains.length === 0) {
+        console.error(`[${this.serviceName}] Response contains no created_domains for hint: ${domainSessionId}`);
+        this.failDomainCreation(stableSessionId, new Error('created_domains missing in tab response'));
         return undefined;
       }
 
-      const sortedDomains = data.domains.sort((a: DomainResponseTypes, b: DomainResponseTypes) => {
-        return new Date(b.start_time).getTime() - new Date(a.start_time).getTime();
-      });
+      const createdDomain = data.created_domains.find(
+        (domain: DomainResponseTypes) => domain.domain_session_id === domainSessionId,
+      );
 
-      const createdDomain = sortedDomains[0];
-
-      console.log(`[${this.serviceName}] Most recent domain:`, createdDomain);
-      console.log(`[${this.serviceName}] Created Domain:`, createdDomain);
-
-      if (createdDomain) {
-        // Store under the stable key: domainslives is keyed by domain_session_id and
-        // every consumer looks it up by the reconstructable stable key. The wire
-        // (composite) session id stays available in the entry's own field.
-        await this.dbService.setItem('domainslives', { ...createdDomain, domain_session_id: stableSessionId });
+      if (!createdDomain) {
+        console.error(
+          `[${this.serviceName}] created_domains does not contain the requested visit hint: ${domainSessionId}`,
+        );
+        this.failDomainCreation(
+          stableSessionId,
+          new Error('created_domains does not contain the requested visit hint'),
+        );
+        return undefined;
       }
+
+      console.log(`[${this.serviceName}] Exact created domain:`, createdDomain);
+
+      // Store under the stable key: domainslives is keyed by domain_session_id and
+      // every consumer looks it up by the reconstructable stable key. The wire
+      // (composite) session id stays available in the entry's own field.
+      await this.dbService.setItem('domainslives', { ...createdDomain, domain_session_id: stableSessionId });
 
       this.finishDomainCreation(stableSessionId);
 
-      return createdDomain?.domain_session_id || payloadDomain.domain_session_id;
+      return createdDomain.domain_session_id;
     } catch (error) {
       this.failDomainCreation(stableSessionId, error);
       console.error(`[${this.serviceName}] Error:`, error);
