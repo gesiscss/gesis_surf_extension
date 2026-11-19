@@ -231,6 +231,8 @@ The extension follows a modular architecture:
 4. `EventManager` starts `TabEventManager`, `WindowEventManager`, `DomainEventManager`, and `ContentEventManager`
 5. Content script captures **clicks**, **scrolls**, and **HTML snapshots** (with meta tags) and sends them via message passing to the background service worker
 6. Background worker writes events to **IndexedDB** via `DatabaseService` for local buffering
+
+The IndexedDB v5 upgrade repairs profiles missing the `selectors` store without clearing existing selector or visit records. It runs automatically when the extension opens the database. Test rollbacks to older extension builds in a separate profile: a build that opens IndexedDB at v4 or earlier cannot reopen a profile already upgraded to v5.
 7. Events are flushed to the backend API (`/api/clicks/`, `/api/scrolls/`, `/api/tab/tabs/`, `/api/domain/domains/`)
 8. `HeartbeatService` runs every 10 seconds to maintain extension liveness state
 9. `PrivateModeService` suspends data collection when the user activates privacy mode

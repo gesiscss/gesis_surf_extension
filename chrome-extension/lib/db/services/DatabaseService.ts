@@ -23,33 +23,20 @@ class DatabaseService {
 
   private initializeDB(): Promise<IDBPDatabase<DBGesisTypes>> {
     return openDB<DBGesisTypes>(DB_CONFIG.name, DB_CONFIG.version, {
-      upgrade(db, oldVersion, _newVersion, transaction) {
-        if (!db.objectStoreNames.contains('domainvisits')) {
-          db.createObjectStore('domainvisits', { keyPath: 'local_key' });
+      upgrade(db, _oldVersion, _newVersion, transaction) {
+        const stores = ['winlives', 'tabslives', 'hostslives', 'domainvisits', 'selectors', 'domainslives'] as const;
+        for (const store of stores) {
+          if (!db.objectStoreNames.contains(store)) {
+            db.createObjectStore(store, { keyPath: DB_CONFIG.stores[store] });
+          }
         }
-        if (!db.objectStoreNames.contains('winlives')) {
-          db.createObjectStore('winlives', { keyPath: 'window_session_id' });
-          db.createObjectStore('tabslives', { keyPath: 'tab_session_id' });
-          db.createObjectStore('domainslives', { keyPath: 'local_key' });
-          db.createObjectStore('hostslives', { keyPath: 'hostname' });
-          db.createObjectStore('selectors', { keyPath: 'provider' });
-        } else if (oldVersion < 2) {
-          db.deleteObjectStore('winlives');
-          db.createObjectStore('winlives', { keyPath: 'window_session_id' });
-          db.deleteObjectStore('tabslives');
-          db.createObjectStore('tabslives', { keyPath: 'tab_session_id' });
-          db.deleteObjectStore('domainslives');
-          db.createObjectStore('domainslives', { keyPath: 'local_key' });
-          db.deleteObjectStore('hostslives');
-          db.createObjectStore('hostslives', { keyPath: 'hostname' });
-          db.deleteObjectStore('selectors');
-          db.createObjectStore('selectors', { keyPath: 'provider' });
-        } else if (oldVersion < 4) {
-          // v3 keyed domainslives by domain_session_id, which the wire hint
+
+        const oldStore = transaction.objectStore('domainslives');
+        if (oldStore.keyPath !== DB_CONFIG.stores.domainslives) {
+          // Legacy schemas keyed domainslives by domain_session_id, which the wire hint
           // (key#visitStart) made unusable as a stable local key. Re-key to
           // an explicit local_key, preserving every existing record: they
           // hold backend UUIDs needed to close open visits.
-          const oldStore = transaction.objectStore('domainslives');
           void transaction.done.catch(error => {
             console.error('Domain identity migration transaction aborted', error);
           });
@@ -66,7 +53,7 @@ class DatabaseService {
                 return { ...record, local_key: localKey };
               });
               db.deleteObjectStore('domainslives');
-              const newStore = db.createObjectStore('domainslives', { keyPath: 'local_key' });
+              const newStore = db.createObjectStore('domainslives', { keyPath: DB_CONFIG.stores.domainslives });
               for (const record of migrated) {
                 await newStore.add(record);
               }
