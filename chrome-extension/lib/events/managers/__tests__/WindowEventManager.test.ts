@@ -87,7 +87,8 @@ const setup = async (openWindowIds: number[], focusedWindowId: number | null) =>
   const gained: number[] = [];
   manager.onFocusLost(windowId => void lost.push(windowId));
   manager.onFocusGained(windowId => void gained.push(windowId));
-  await manager.registerWindowListeners();
+  manager.registerWindowListeners(() => Promise.resolve(true));
+  await manager.initializeWindows();
   return { handler, lost, gained };
 };
 

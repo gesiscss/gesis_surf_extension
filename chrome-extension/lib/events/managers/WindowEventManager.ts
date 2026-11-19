@@ -26,10 +26,8 @@ type FocusLostHandler = (windowId: number | null) => Promise<void> | void;
 type FocusGainedHandler = (windowId: number) => Promise<void> | void;
 export default class WindowEventManager {
   private readonly serviceName = 'WindowEventManager';
-  private isInitializing = true;
   private currentActiveWindowId: number | null = null;
   private readonly windowDebounceTime = 1000;
-  private startupCompleted: boolean = false;
   private focusLossTimer: ReturnType<typeof setTimeout> | null = null;
   // Incremented on every focus event so a pending focus loss can detect it is outdated.
   private focusEventGeneration = 0;
@@ -100,25 +98,25 @@ export default class WindowEventManager {
     return result;
   }
 
-  /** Registers event listeners for window events.
-   * Ensures that the global session is initialized before handling events.
-   */
-  public async registerWindowListeners(): Promise<void> {
+  public registerWindowListeners(canCollect: () => Promise<boolean>): void {
     if (this.listenersRegistered) {
       return;
     }
 
     this.listenersRegistered = true;
-    windows.onCreated.addListener((win: Windows.Window) => void this.handleWindowCreation(win));
-    windows.onRemoved.addListener((winId: number) => void this.handleWindowRemoval(winId));
-    windows.onFocusChanged.addListener((newWindowId: number) => this.handleWindowFocusChange(newWindowId));
+    windows.onCreated.addListener(async win => {
+      if (await canCollect()) await this.handleWindowCreation(win);
+    });
+    windows.onRemoved.addListener(async winId => {
+      if (await canCollect()) await this.handleWindowRemoval(winId);
+    });
+    windows.onFocusChanged.addListener(async newWindowId => {
+      if (await canCollect()) this.handleWindowFocusChange(newWindowId);
+    });
+  }
 
-    try {
-      await this.enqueue(() => this.handleStartupWindow());
-      this.startupCompleted = true;
-    } finally {
-      this.isInitializing = false;
-    }
+  public initializeWindows(): Promise<void> {
+    return this.enqueue(() => this.handleStartupWindow());
   }
 
   /**

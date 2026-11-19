@@ -227,7 +227,7 @@ The extension follows a modular architecture:
 **Data Flow:**
 1. On startup/install, `AuthService` validates the stored token against `/api/user/me/`
 2. If authenticated, `HostService` syncs the domain blocklist/allowlist from `/api/host/hosts/`
-3. `GlobalSessionService` creates a hierarchical session (global → window → tab → domain) and posts it to `/api/session/`
+3. `GlobalSessionService` starts the global → window → tab → domain hierarchy by posting to `/api/globalsession/global-session/`. If only the background worker restarts, the extension restores collection under the existing global session instead of posting another one.
 4. `EventManager` starts `TabEventManager`, `WindowEventManager`, `DomainEventManager`, and `ContentEventManager`
 5. Content script captures **clicks**, **scrolls**, and **HTML snapshots** (with meta tags) and sends them via message passing to the background service worker
 6. Background worker writes events to **IndexedDB** via `DatabaseService` for local buffering

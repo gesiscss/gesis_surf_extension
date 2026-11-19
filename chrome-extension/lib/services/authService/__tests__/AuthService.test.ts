@@ -62,6 +62,7 @@ beforeEach(() => {
     retryListenerRegistered: false,
     validateToken: vi.fn().mockResolvedValue('valid'),
     initializeServices: vi.fn().mockResolvedValue(undefined),
+    eventManager: { registerListeners: vi.fn() },
     messageHandler: { handleMessage: mocks.handleMessage },
     privateModeService: { initialize: vi.fn().mockResolvedValue(undefined) },
   });
@@ -171,8 +172,15 @@ describe('service worker lifecycle', () => {
       dataCollectionService: { initialize: vi.fn().mockResolvedValue(undefined), shouldCollectData: vi.fn(() => true) },
       hostService: { checkAndSyncVersion: vi.fn().mockResolvedValue(undefined) },
       selectorService: { checkAndSyncVersion: vi.fn().mockResolvedValue(undefined) },
-      globalSessionService: { createGlobalSession: vi.fn().mockResolvedValue(undefined) },
-      eventManager: { startListeners: vi.fn().mockResolvedValue(undefined) },
+      validateToken: vi.fn().mockResolvedValue('valid'),
+      globalSessionService: {
+        createGlobalSession: vi.fn().mockResolvedValue(undefined),
+        getLatestActiveSession: vi.fn().mockResolvedValue({ global_session_id: 'existing-session' }),
+      },
+      eventManager: {
+        registerListeners: vi.fn(),
+        startListeners: vi.fn().mockResolvedValue(undefined),
+      },
       heartbeatService: {
         startHeartbeat: vi.fn().mockResolvedValue(undefined),
         startAlarmAll: vi.fn().mockResolvedValue(undefined),
@@ -207,16 +215,32 @@ describe('service worker lifecycle', () => {
     expect(s.eventManager.startListeners).toHaveBeenCalledOnce();
   });
 
-  it('a worker wake-up restores listeners and private mode without starting collection', () => {
+  it('does not start collection on a worker wake-up without a browser session', async () => {
     service.checkAuthentication = vi.fn().mockResolvedValue(true);
 
     service.start();
     service.startMessageListener();
+    await vi.waitFor(() => expect(mocks.sessionGet).toHaveBeenCalledOnce());
 
     expect(mocks.addListener).toHaveBeenCalledOnce();
     expect(service.privateModeService.initialize).toHaveBeenCalled();
     expect(service.checkAuthentication).not.toHaveBeenCalled();
     expect(service.initializeServices).not.toHaveBeenCalled();
+  });
+
+  it('waits for recovery on the first event and resumes without creating another session', async () => {
+    const s = realService();
+    mocks.sessionGet.mockResolvedValue({ collectionStartedThisBrowserSession: true });
+
+    s.start();
+    expect(s.eventManager.registerListeners).toHaveBeenCalledOnce();
+    const listener = mocks.addListener.mock.calls[0][0];
+    listener({ type: 'CLICK_EVENT', data: {} }, {}, vi.fn());
+
+    await vi.waitFor(() => expect(mocks.handleMessage).toHaveBeenCalledOnce());
+    expect(s.eventManager.startListeners).toHaveBeenCalledOnce();
+    expect(s.globalSessionService.createGlobalSession).not.toHaveBeenCalled();
+    expect(s.isCollectionActive()).toBe(true);
   });
 
   it('answers private mode even when collection is not active', async () => {
@@ -332,12 +356,12 @@ describe('reconnecting after a backend outage', () => {
     expect(mocks.readToken).not.toHaveBeenCalled();
   });
 
-  it('never starts a second global session in the same browser session', async () => {
+  it('retries recovery for an existing browser session when collection is inactive', async () => {
     mocks.sessionGet.mockResolvedValue({ collectionStartedThisBrowserSession: true });
 
     await service.retryStartup();
 
-    expect(service.initializeServices).not.toHaveBeenCalled();
+    expect(service.initializeServices).toHaveBeenCalledOnce();
     expect(mocks.alarmClear).toHaveBeenCalledWith('authRetry');
   });
 

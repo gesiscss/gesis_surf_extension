@@ -17,6 +17,7 @@ class EventManager {
   private windowEventManager: WindowEventManager;
   private focusLostUnsubscribe: (() => void) | null = null;
   private focusGainedUnsubscribe: (() => void) | null = null;
+  private listenersRegistered = false;
 
   constructor() {
     // Core Services
@@ -33,12 +34,9 @@ class EventManager {
     console.log('[EventManager] Services initilized successfully (listeners inactive)');
   }
 
-  /**
-   * Start event listeners
-   * @returns Promise<void>
-   */
-  public async startListeners() {
-    await this.windowEventManager.registerWindowListeners();
+  public registerListeners(canCollect: () => Promise<boolean>): void {
+    if (this.listenersRegistered) return;
+    this.listenersRegistered = true;
 
     this.focusLostUnsubscribe = this.windowEventManager.onFocusLost(windowId =>
       this.tabEventManager.handleActiveTabBlur(windowId),
@@ -48,8 +46,13 @@ class EventManager {
       this.tabEventManager.handleActiveTabFocus(windowId),
     );
 
-    this.tabEventManager.registerTabListeners();
-    console.log('[EventManager] Starting listeners');
+    this.windowEventManager.registerWindowListeners(canCollect);
+    this.tabEventManager.registerTabListeners(canCollect);
+  }
+
+  public async startListeners(): Promise<void> {
+    await this.windowEventManager.initializeWindows();
+    console.log('[EventManager] Collection ready');
   }
 
   /**

@@ -73,7 +73,7 @@ describe('TabEventManager', () => {
       generateDomainSession: vi.fn(async () => 'domain-session'),
     } as unknown as DomainHandler;
 
-    new TabEventManager(tabHandler, dbService, domainHandler).registerTabListeners();
+    new TabEventManager(tabHandler, dbService, domainHandler).registerTabListeners(() => Promise.resolve(true));
     const onUpdated = listeners.update as UpdateListener;
 
     const first = onUpdated(5, { status: 'complete' }, tab);
@@ -124,7 +124,7 @@ describe('TabEventManager', () => {
     manager['domainEventManager'].activeDomainBelongsTo = vi.fn(
       (tabId: number) => ownerTabId === tabId && ownerTabId !== null,
     );
-    manager.registerTabListeners();
+    manager.registerTabListeners(() => Promise.resolve(true));
     return { tabHandler, deleted, store, manager, onRemoved: listeners.removed as RemovalListener };
   };
 

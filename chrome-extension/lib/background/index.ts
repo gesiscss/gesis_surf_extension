@@ -89,9 +89,8 @@ runtime.onInstalled.addListener(async (details: Runtime.OnInstalledDetailsType) 
   await authService.checkAuthentication();
 });
 
-// Runs on every service-worker start, including idle wake-ups. Only restores
-// message handling and private mode; collection and the global session are
-// started by onStartup/onInstalled or a login, never by a plain wake-up.
+// Runs on every service-worker start. A wake-up resumes collection only if
+// this browser session already has a global session.
 authService.start();
 
 console.log('[background] Background script initialization complete');

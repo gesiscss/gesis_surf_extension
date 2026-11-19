@@ -47,6 +47,7 @@ export class AuthService {
   // its global session".
   private static readonly SESSION_STARTED_KEY = 'collectionStartedThisBrowserSession';
   private collectionActive = false;
+  private workerRecovery: Promise<void> | null = null;
   private initializationInFlight: Promise<void> | null = null;
   private messageListenerRegistered = false;
   private retryListenerRegistered = false;
@@ -75,14 +76,34 @@ export class AuthService {
 
   /**
    * Runs on every service-worker start, including idle wake-ups.
-   * Restores message handling and private mode only. Collection and the
-   * global session are started by checkAuthentication (browser start,
-   * install/update, or login), never by a plain wake-up.
+   * Register listeners synchronously so browser events can wake this worker.
+   * Collection stays gated until authentication and session recovery finish.
    */
   start(): void {
     this.startMessageListener();
     this.startRetryListener();
+    this.eventManager.registerListeners(() => this.canCollect());
+    this.workerRecovery ??= this.resumeBrowserSession().finally(() => {
+      this.workerRecovery = null;
+    });
     void this.privateModeService.initialize();
+  }
+
+  private async resumeBrowserSession(): Promise<void> {
+    try {
+      if (!this.collectionActive && (await this.hasStartedThisBrowserSession())) {
+        await this.checkAuthentication();
+      }
+    } catch (error) {
+      console.error('[AuthService] Could not recover the browser session:', error);
+      await this.scheduleRetry();
+    }
+  }
+
+  private async canCollect(): Promise<boolean> {
+    await this.workerRecovery;
+    await this.initializationInFlight?.catch(() => undefined);
+    return this.collectionActive;
   }
 
   /**
@@ -123,7 +144,8 @@ export class AuthService {
    */
   async retryStartup(): Promise<void> {
     try {
-      if (this.collectionActive || (await this.hasStartedThisBrowserSession())) {
+      await this.workerRecovery;
+      if (this.collectionActive) {
         await this.cancelRetry();
         return;
       }
@@ -206,14 +228,20 @@ export class AuthService {
         return;
       }
 
-      await this.globalSessionService.createGlobalSession();
+      if (await this.hasStartedThisBrowserSession()) {
+        if (!(await this.globalSessionService.getLatestActiveSession())) {
+          throw new Error('Existing browser session is missing or closed');
+        }
+      } else {
+        await this.globalSessionService.createGlobalSession();
+        await this.markStartedThisBrowserSession();
+      }
       await this.eventManager.startListeners();
 
       await Promise.all([this.heartbeatService.startHeartbeat(), this.privateModeService.initialize()]);
 
       await this.heartbeatService.startAlarmAll();
       this.collectionActive = true;
-      await this.markStartedThisBrowserSession();
       await this.cancelRetry();
 
       console.log('[AuthService] Services initialized successfully');
@@ -255,8 +283,7 @@ export class AuthService {
             if (type === 'PRIVATE_MODE') {
               await this.privateModeService.initialize();
             } else {
-              await this.initializationInFlight?.catch(() => undefined);
-              if (!this.collectionActive) {
+              if (!(await this.canCollect())) {
                 sendResponse({ status: 'error', message: 'Data collection is not active' });
                 return;
               }

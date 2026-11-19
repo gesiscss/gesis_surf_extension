@@ -37,11 +37,16 @@ class TabEventManager {
    * Initializes the event listeners for the tab events.
    * @returns void
    */
-  public registerTabListeners() {
-    // Register tab event listeners
-    tabs.onUpdated.addListener(this.handleTabUpdate);
-    tabs.onActivated.addListener(this.handleTabActivation);
-    tabs.onRemoved.addListener(this.handleTabRemoval);
+  public registerTabListeners(canCollect: () => Promise<boolean>): void {
+    tabs.onUpdated.addListener(async (...args) => {
+      if (await canCollect()) await this.handleTabUpdate(...args);
+    });
+    tabs.onActivated.addListener(async info => {
+      if (await canCollect()) await this.handleTabActivation(info);
+    });
+    tabs.onRemoved.addListener(async (...args) => {
+      if (await canCollect()) await this.handleTabRemoval(...args);
+    });
   }
 
   /**
