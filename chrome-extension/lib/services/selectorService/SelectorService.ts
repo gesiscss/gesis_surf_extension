@@ -32,13 +32,15 @@ export class SelectorService {
         console.error('[SelectorService] Fetch returned empty list — aborting sync.');
         return false;
       }
-      await this.syncSelectors(configs);
       try {
-        await this.writeToStorage(configs);
+        // A matching marker must not hide a failed publication once IndexedDB is repopulated.
+        if (local === remoteVersion) await storage.local.remove(SELECTOR_VERSION_KEY);
+        await this.syncSelectors(configs);
+        await this.writeToStorage(configs, remoteVersion);
       } catch (error) {
-        console.error('[SelectorService] writeToStorage failed — storage.local may be stale:', error);
+        console.error('[SelectorService] Could not sync and publish selectors:', error);
+        return false;
       }
-      await storage.local.set({ [SELECTOR_VERSION_KEY]: remoteVersion });
       return true;
     }
     return false;
@@ -94,7 +96,7 @@ export class SelectorService {
           { method: 'GET', logToElasticsearch: true, logger },
         );
 
-        if (!response.ok) {
+        if (response.status === 202 || !response.ok) {
           delay = Math.min(delay * 2, MAX_DELAY);
           continue;
         }
@@ -104,7 +106,7 @@ export class SelectorService {
         const status =
           typeof result === 'object' && result !== null ? (result as { status?: string }).status : undefined;
 
-        if (status === 'PENDING' || status === 'STARTED') {
+        if (status === 'PENDING' || status === 'STARTED' || status === 'Processing') {
           delay = Math.min(delay * 2, MAX_DELAY);
           continue;
         }
@@ -142,11 +144,11 @@ export class SelectorService {
     }
   }
 
-  private async writeToStorage(configs: SelectorConfig[]): Promise<void> {
+  private async writeToStorage(configs: SelectorConfig[], version: string): Promise<void> {
     const configMap: Record<string, SelectorConfig> = {};
     configs.forEach(c => {
       configMap[c.provider] = c;
     });
-    await storage.local.set({ [SELECTOR_STORAGE_KEY]: configMap });
+    await storage.local.set({ [SELECTOR_STORAGE_KEY]: configMap, [SELECTOR_VERSION_KEY]: version });
   }
 }

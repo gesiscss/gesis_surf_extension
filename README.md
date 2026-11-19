@@ -335,6 +335,8 @@ The extension communicates with the backend API for:
 | `/api/selectors/`          | Dynamic LLM-based CSS selector retrieval             |
 | `/api/selectors/task-result/` | Async selector task polling                       |
 
+Selector sync treats `202 Processing` as pending and retries within its polling budget. It publishes the selector map and version together so a failed publication can be retried on the next sync.
+
 ## 👥 Authors
 
 - **Mario Ramirez** - _Lead Research Software Engineer_ - [@geomario](https://github.com/geomario) [@MarioGesis](https://www.gesis.org/en/institute/about-us/staff/person/mario.ramirez)
