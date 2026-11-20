@@ -21,11 +21,7 @@ export class TikTokPlayedWavelet extends TikTokWavelet {
     super(config);
   }
 
-  // Override base initialize() — no MutationObserver, use play event instead
-  initialize(): void {
-    if (!this.isSite()) return;
-    console.log(`[${this.label}] Initializing`);
-
+  protected override startCapture(): void {
     // useCapture=true: 'play' does not bubble, so we must intercept at capture phase
     document.addEventListener(
       'play',

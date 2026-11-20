@@ -148,10 +148,7 @@ export class TwitchStreamWavelet extends BaseSocialWavelet {
   // Override: use URL change detection for SPA navigation
   protected processAddedNode(): void {}
 
-  initialize(): void {
-    if (!this.isSite()) return;
-    console.log(`[${this.label}] Initializing`);
-
+  protected override startCapture(): void {
     // Listen for SPA navigation (Twitch uses history API)
     let lastPath = window.location.pathname;
     const checkNavigation = () => {

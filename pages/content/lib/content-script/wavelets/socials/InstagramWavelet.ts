@@ -241,10 +241,8 @@ export class InstagramWavelet extends BaseSocialWavelet {
     }
   }
 
-  initialize(): void {
-    if (!this.isSite()) return;
-    console.log('[📸Instagram] Initializing');
-    super.initialize();
+  protected override startCapture(): void {
+    super.startCapture();
 
     // Instagram infinite scroll: rescan on scroll (debounced)
     let scrollTimer: ReturnType<typeof setTimeout>;

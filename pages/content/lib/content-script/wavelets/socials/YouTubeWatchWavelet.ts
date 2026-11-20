@@ -265,10 +265,7 @@ export class YouTubeWatchWavelet extends BaseSocialWavelet {
     }, 600);
   }
 
-  initialize(): void {
-    if (!this.isSite()) return;
-    console.log(`[${this.label}] Initializing`);
-
+  protected override startCapture(): void {
     window.addEventListener('yt-navigate-finish', () => this.extractCurrent());
 
     if (window.location.pathname.startsWith('/watch')) {

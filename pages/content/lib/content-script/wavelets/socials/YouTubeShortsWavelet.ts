@@ -113,11 +113,7 @@ export class YouTubeShortsWavelet extends BaseSocialWavelet {
     }, 400);
   }
 
-  // Override base initialize() — uses yt-navigate-finish instead of MutationObserver
-  initialize(): void {
-    if (!this.isSite()) return;
-    console.log(`[${this.label}] Initializing`);
-
+  protected override startCapture(): void {
     console.log('------------------------------------');
     if (this.selectorConfig) {
       console.log(`[${this.label}] selectorConfig.provider:`, this.selectorConfig.provider);

@@ -118,7 +118,8 @@ export abstract class BaseSocialWavelet {
   }
 
   /**
-   * Initializes the wavelet by checking if the current site matches and setting up the observer.
+   * Checks activation and the current site before starting capture.
+   * Subclasses customize startCapture rather than bypassing these checks.
    */
   initialize(): void {
     if (this.selectorConfig !== undefined && this.selectorConfig.is_active === false) {
@@ -127,6 +128,10 @@ export abstract class BaseSocialWavelet {
     }
     if (!this.isSite()) return;
     console.log(`[${this.label}] Initializing`);
+    this.startCapture();
+  }
+
+  protected startCapture(): void {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => this.setupObserver());
     } else {
