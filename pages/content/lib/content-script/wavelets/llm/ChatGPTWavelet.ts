@@ -24,6 +24,18 @@ export class ChatGPTWavelet extends BaseLLMWavelet {
     return hostname.includes('chatgpt.com') || hostname.includes('chat.openai.com');
   }
 
+  private readMessageAttribute(
+    element: HTMLElement,
+    key: 'role_attribute' | 'message_id_attribute',
+    fallback: string,
+  ): string | null {
+    for (const name of this.selectorConfig?.selectors[key] ?? []) {
+      const value = element.getAttribute(name);
+      if (value) return value;
+    }
+    return element.getAttribute(fallback);
+  }
+
   /**
    * Extracts structured LLMData from a ChatGPT message element.
    * @param element The DOM element representing a chat message.
@@ -31,8 +43,7 @@ export class ChatGPTWavelet extends BaseLLMWavelet {
    */
   extractMessage(element: HTMLElement): LLMData | null {
     try {
-      const roleAttr = this.sel(document.body, 'role_attribute', 'data-message-author-role');
-      const role = element.getAttribute(roleAttr);
+      const role = this.readMessageAttribute(element, 'role_attribute', 'data-message-author-role');
       if (role !== 'user' && role !== 'assistant') return null;
 
       const contentSel = this.sel(element, 'content', '.whitespace-pre-wrap');
@@ -40,9 +51,9 @@ export class ChatGPTWavelet extends BaseLLMWavelet {
         element.querySelector(contentSel)?.textContent?.trim() || element.textContent?.trim() || '';
       if (!messageContent) return null;
 
-      const idAttr = this.sel(element, 'message_id_attribute', 'data-message-id');
       const messageId =
-        element.getAttribute(idAttr) || `generated-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+        this.readMessageAttribute(element, 'message_id_attribute', 'data-message-id') ||
+        `generated-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
       const chatSessionId =
         window.location.pathname.split('/').pop() || `chat-${window.location.pathname.replace(/[^a-zA-Z0-9]/g, '-')}`;
@@ -99,15 +110,12 @@ export class ChatGPTWavelet extends BaseLLMWavelet {
    */
   protected processAddedNode(element: HTMLElement): void {
     const containerSel = this.sel(document.body, 'message_container', '[data-message-author-role]');
-    const roleAttr = this.sel(document.body, 'role_attribute', 'data-message-author-role');
     const contentSel = this.sel(element, 'content', '.whitespace-pre-wrap');
 
-    const found: HTMLElement[] = [];
-    if (element.hasAttribute(roleAttr)) found.push(element);
-    element.querySelectorAll<HTMLElement>(containerSel).forEach(el => found.push(el));
+    const found = [element, ...Array.from(element.querySelectorAll<HTMLElement>(containerSel))];
 
     found.forEach(el => {
-      const role = el.getAttribute(roleAttr);
+      const role = this.readMessageAttribute(el, 'role_attribute', 'data-message-author-role');
       if (role === 'user') {
         this.scheduleCapture(el);
       } else if (role === 'assistant') {

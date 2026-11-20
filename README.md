@@ -339,6 +339,8 @@ Selector sync treats `202 Processing` as pending and retries within its polling 
 
 Wavelets read their activation flags when the content script initializes. An explicit `is_active: false` skips capture setup; reload an already-open page after sync to apply a changed flag. Missing configs still use the built-in defaults.
 
+For ChatGPT, `role_attribute` and `message_id_attribute` take bare attribute names (for example, `data-message-id`), not CSS selectors. `message_container` and `content` still take CSS selectors.
+
 ## 👥 Authors
 
 - **Mario Ramirez** - _Lead Research Software Engineer_ - [@geomario](https://github.com/geomario) [@MarioGesis](https://www.gesis.org/en/institute/about-us/staff/person/mario.ramirez)
