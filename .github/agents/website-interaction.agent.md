@@ -1,6 +1,7 @@
 ---
-# Name: Website Interaction Triage
-# Description: Investigates whether GESIS Surf blocks website controls and proposes fixture-verified fixes.
+name: Website Interaction Triage
+description: Investigates whether GESIS Surf blocks website controls and proposes fixture-verified fixes.
+---
 
 # Instructions:
 ## Website interaction blocked when GESIS Surf is enabled
