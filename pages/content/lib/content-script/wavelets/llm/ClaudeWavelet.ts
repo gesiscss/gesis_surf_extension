@@ -48,8 +48,7 @@ export class ClaudeWavelet extends BaseLLMWavelet {
 
       if (!messageContent) return null;
 
-      // Claude has no stable data-message-id — generate from content hash
-      const messageId = `claude-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      const messageId = this.generateMessageId('claude');
 
       const chatSessionId =
         window.location.pathname.split('/').pop() || `chat-${window.location.pathname.replace(/[^a-zA-Z0-9]/g, '-')}`;

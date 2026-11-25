@@ -56,9 +56,7 @@ export class GeminiWavelet extends BaseLLMWavelet {
       const stableClosestSel = this.selectorConfig?.selectors['stable_id_closest']?.[0] ?? '.conversation-container';
       const container = element.closest(stableClosestSel);
       const containerId = container?.id || '';
-      const messageId = containerId
-        ? `${containerId}-${isUser ? 'user' : 'model'}`
-        : `gemini-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      const messageId = containerId ? `${containerId}-${isUser ? 'user' : 'model'}` : this.generateMessageId('gemini');
 
       const chatSessionId =
         window.location.pathname.split('/').pop() || `chat-${window.location.pathname.replace(/[^a-zA-Z0-9]/g, '-')}`;

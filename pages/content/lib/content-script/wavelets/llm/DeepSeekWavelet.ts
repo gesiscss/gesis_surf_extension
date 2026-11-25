@@ -62,9 +62,7 @@ export class DeepSeekWavelet extends BaseLLMWavelet {
       const chatSessionId =
         window.location.pathname.split('/').pop() || `chat-${window.location.pathname.replace(/[^a-zA-Z0-9]/g, '-')}`;
 
-      const messageId = itemKey
-        ? `${chatSessionId}-${itemKey}`
-        : `generated-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      const messageId = itemKey ? `${chatSessionId}-${itemKey}` : this.generateMessageId('generated');
 
       const containerSel = this.selectorConfig?.selectors['message_container']?.[0] ?? '.ds-message';
       const allMessages = Array.from(document.querySelectorAll<HTMLElement>(containerSel));
