@@ -12,11 +12,13 @@ const mocks = vi.hoisted(() => ({
   sessionSet: vi.fn(),
   readToken: vi.fn(),
   writeToken: vi.fn(),
+  apiRequestWithDevice: vi.fn(),
 }));
 
 vi.mock('webextension-polyfill', () => ({
   storage: { local: { get: mocks.get, remove: mocks.remove } },
   alarms: { create: mocks.alarmCreate, clear: mocks.alarmClear, onAlarm: { addListener: mocks.alarmAddListener } },
+  runtime: { getManifest: () => ({ version: '1.0.0' }) },
 }));
 vi.mock('@root/lib/events', () => ({ EventManager: vi.fn() }));
 vi.mock('@root/lib/messages', () => ({ MessageHandler: vi.fn() }));
@@ -26,7 +28,7 @@ vi.mock('../../privateModeService', () => ({ PrivateModeService: vi.fn() }));
 vi.mock('../../dataCollectionService', () => ({ DataCollectionService: vi.fn() }));
 vi.mock('../../hostService', () => ({ HostService: vi.fn() }));
 vi.mock('../../selectorService', () => ({ SelectorService: vi.fn() }));
-vi.mock('../../apiClientWithDevice', () => ({ apiRequestWithDevice: vi.fn() }));
+vi.mock('../../apiClientWithDevice', () => ({ apiRequestWithDevice: mocks.apiRequestWithDevice }));
 vi.mock('../../logger', () => ({ logger: {} }));
 vi.mock('@chrome-extension-boilerplate/shared/lib/storages/tokenStorage', () => ({
   readToken: mocks.readToken,
@@ -294,6 +296,59 @@ describe('reconnecting after a backend outage', () => {
 
     expect(mocks.writeToken).not.toHaveBeenCalled();
     expect(mocks.alarmCreate).toHaveBeenCalledWith('authRetry', { periodInMinutes: 1 });
+  });
+
+  describe('token validation and collection startup', () => {
+    beforeEach(() => {
+      service.validateToken = AuthService.prototype.validateToken;
+    });
+
+    it.each([
+      [401, 'invalid_token', true, false],
+      [403, 'unexpected_response', false, false],
+      [503, 'server_unavailable', false, true],
+    ] as const)('handles HTTP %i without starting collection', async (status, result, removesToken, retries) => {
+      mocks.apiRequestWithDevice.mockResolvedValue(new Response(null, { status }));
+
+      expect(await service.validateToken()).toBe(result);
+      await expect(service.checkAuthentication()).resolves.toBe(false);
+
+      expect(service.initializeServices).not.toHaveBeenCalled();
+      expect(mocks.writeToken).toHaveBeenCalledTimes(removesToken ? 1 : 0);
+      if (removesToken) expect(mocks.writeToken).toHaveBeenCalledWith(null);
+      expect(mocks.alarmCreate).toHaveBeenCalledTimes(retries ? 1 : 0);
+    });
+
+    it.each([
+      ['missing user ID', JSON.stringify({ waves: [] })],
+      ['invalid JSON', '{'],
+    ])('retains the token and does not start collection for %s', async (_label, body) => {
+      mocks.apiRequestWithDevice.mockResolvedValue(new Response(body, { status: 200 }));
+
+      await expect(service.checkAuthentication()).resolves.toBe(false);
+
+      expect(mocks.writeToken).not.toHaveBeenCalled();
+      expect(service.initializeServices).not.toHaveBeenCalled();
+    });
+
+    it('retries a network failure and starts collection after a valid response', async () => {
+      mocks.apiRequestWithDevice.mockRejectedValueOnce(new Error('Network failure')).mockResolvedValueOnce(
+        new Response(JSON.stringify({ user_id: 'user-42', extension: { extension_version: '1.0.0' } }), {
+          status: 200,
+        }),
+      );
+
+      await expect(service.checkAuthentication()).resolves.toBe(false);
+      expect(mocks.writeToken).not.toHaveBeenCalled();
+      expect(service.initializeServices).not.toHaveBeenCalled();
+      expect(mocks.alarmCreate).toHaveBeenCalledWith('authRetry', { periodInMinutes: 1 });
+
+      await service.retryStartup();
+
+      expect(service.initializeServices).toHaveBeenCalledOnce();
+      expect(service.isAuthenticated).toBe(true);
+      expect(mocks.alarmClear).toHaveBeenCalledWith('authRetry');
+    });
   });
 
   it('keeps the token and schedules a retry when the network is down', async () => {

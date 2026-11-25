@@ -127,6 +127,7 @@ describe('login window', () => {
   });
 
   it.each([
+    ['a forbidden response', () => mocks.apiRequest.mockResolvedValue({ ok: false, status: 403 })],
     ['a server error', () => mocks.apiRequest.mockResolvedValue({ ok: false, status: 503 })],
     ['a network error', () => mocks.apiRequest.mockRejectedValue(new TypeError('Failed to fetch'))],
   ])('keeps the session on %s', async (_label, arrange) => {
