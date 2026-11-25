@@ -81,6 +81,26 @@ describe('IndexedDB migration', () => {
     }
   });
 
+  it('upgrades a v5 profile without losing its active window mapping', async () => {
+    const legacy = await openDB(DB_CONFIG.name, 5, {
+      upgrade(db) {
+        db.createObjectStore('winlives', { keyPath: 'window_session_id' });
+        db.createObjectStore('domainslives', { keyPath: 'local_key' });
+      },
+    });
+    const window = { window_session_id: 'existing-window', id: 'window-uuid' };
+    await legacy.put('winlives', window);
+    legacy.close();
+
+    const db = await new DatabaseService()['db'];
+    try {
+      expect(await db.get('winlives', window.window_session_id)).toEqual(window);
+      expect(db.transaction('windowclosings').store.keyPath).toBe('id');
+    } finally {
+      db.close();
+    }
+  });
+
   it('upgrades version 3 without losing UUIDs or truncating bare fragments', async () => {
     const legacy = await openDB(DB_CONFIG.name, 3, {
       upgrade(db) {

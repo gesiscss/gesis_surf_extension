@@ -2,6 +2,7 @@
 export interface GlobalSessionTypes {
   id?: number;
   global_session_id: string;
+  user?: string;
   start_time: string;
   closing_time?: string;
 }

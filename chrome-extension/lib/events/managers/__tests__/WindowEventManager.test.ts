@@ -8,12 +8,18 @@ const browser = vi.hoisted(() => ({
     created: undefined as undefined | ((win: { id?: number }) => void),
     removed: undefined as undefined | ((windowId: number) => void),
     focusChanged: undefined as undefined | ((windowId: number) => void),
+    alarm: undefined as undefined | ((alarm: { name: string }) => void),
   },
 }));
 
 const toWindow = (id: number) => ({ id, top: 0, focused: browser.focusedWindowId === id, type: 'normal' });
 
 vi.mock('webextension-polyfill', () => ({
+  alarms: {
+    get: () => Promise.resolve(undefined),
+    create: () => undefined,
+    onAlarm: { addListener: (fn: (alarm: { name: string }) => void) => (browser.listeners.alarm = fn) },
+  },
   windows: {
     onCreated: { addListener: (fn: (win: { id?: number }) => void) => (browser.listeners.created = fn) },
     onRemoved: { addListener: (fn: (windowId: number) => void) => (browser.listeners.removed = fn) },
@@ -46,6 +52,7 @@ class FakeWindowHandler {
   rows: WindowRow[] = [];
   mappings = new Map<number, WindowRow>();
   patchGate: Promise<void> | null = null;
+  retryPendingClosures = vi.fn(async () => undefined);
 
   async hasWindowRecord(windowId: number): Promise<boolean> {
     return this.mappings.has(windowId);
@@ -78,7 +85,7 @@ class FakeWindowHandler {
   }
 }
 
-const setup = async (openWindowIds: number[], focusedWindowId: number | null) => {
+const setup = async (openWindowIds: number[], focusedWindowId: number | null, canCollect = true) => {
   browser.openWindowIds = openWindowIds;
   browser.focusedWindowId = focusedWindowId;
   const handler = new FakeWindowHandler();
@@ -87,7 +94,7 @@ const setup = async (openWindowIds: number[], focusedWindowId: number | null) =>
   const gained: number[] = [];
   manager.onFocusLost(windowId => void lost.push(windowId));
   manager.onFocusGained(windowId => void gained.push(windowId));
-  manager.registerWindowListeners(() => Promise.resolve(true));
+  manager.registerWindowListeners(() => Promise.resolve(canCollect));
   await manager.initializeWindows();
   return { handler, lost, gained };
 };
@@ -108,6 +115,19 @@ afterEach(() => {
 });
 
 describe('WindowEventManager focus periods', () => {
+  it('retries pending closes only for its alarm while collection is active', async () => {
+    const { handler } = await setup([1], 1);
+    browser.listeners.alarm!({ name: 'other' });
+    browser.listeners.alarm!({ name: 'windowCloseRetry' });
+    await settle();
+    expect(handler.retryPendingClosures).toHaveBeenCalledTimes(1);
+
+    const inactive = await setup([1], 1, false);
+    browser.listeners.alarm!({ name: 'windowCloseRetry' });
+    await settle();
+    expect(inactive.handler.retryPendingClosures).not.toHaveBeenCalled();
+  });
+
   it('closes the startup window on focus loss and opens a new row on return', async () => {
     const { handler, lost, gained } = await setup([1], 1);
 

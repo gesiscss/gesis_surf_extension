@@ -8,9 +8,11 @@ import GlobalSessionService from '@root/lib/services/globalSession/GlobalSession
 import { WindowDataTypes, WindowPayloadTypes } from '../types/windowTypes';
 import { apiUrl, InfoType } from '../shared';
 import { apiRequestWithDevice } from '../../services/apiClientWithDevice';
+import type { PendingWindowClose } from '../../db/interfaces/types';
 
 // Window events are processed one at a time, so a hanging request must not block the rest.
 const WINDOW_REQUEST_TIMEOUT_MS = 15000;
+const MAX_CLOSE_RETRIES_PER_ALARM = 5;
 
 /**
  * Manages browser window events.
@@ -21,6 +23,8 @@ class WindowManager {
   private dbService: DatabaseService;
   private globalSessionService: GlobalSessionService;
   private apiUrl: string;
+  private retryingClosures = false;
+  private retryOffset = 0;
 
   constructor() {
     this.dbService = new DatabaseService();
@@ -134,32 +138,19 @@ class WindowManager {
    */
   async updateWindow(window: number, info: InfoType, method: 'PUT' | 'PATCH'): Promise<void> {
     const window_session_id = await this.globalSessionService.getGlobalSessionId(window, 'window');
-    const itemOrError = await this.dbService.getItem('winlives', window_session_id);
-    console.log(`[${this.serviceName}] Item or Error:`, itemOrError);
+    const pending = await this.dbService.retireWindow(window_session_id, new Date().toISOString(), method);
+    await this.sendPendingClose(pending);
+  }
 
-    if (!itemOrError) {
-      throw new Error(`Payload not found for window session ID: ${window_session_id}`);
-    }
-
-    if (itemOrError instanceof Error) {
-      throw new Error(`Error: ${itemOrError.message}`);
-    }
-
-    const payload: WindowPayloadTypes = {
-      ...itemOrError,
-      closing_time: new Date().toISOString(),
-    };
-
-    console.log(`[${this.serviceName}] Window Payload to be updated:`, payload);
-
-    if (payload.id === undefined) {
-      throw new Error('Window ID is undefined');
-    }
-
+  private async sendPendingClose(pending: PendingWindowClose): Promise<void> {
     const response = await apiRequestWithDevice(
-      `${this.apiUrl}/window/windows/${payload.id}/`,
-      { method, body: JSON.stringify(payload), signal: AbortSignal.timeout(WINDOW_REQUEST_TIMEOUT_MS) },
-      { method },
+      `${this.apiUrl}/window/windows/${pending.id}/`,
+      {
+        method: pending.method,
+        body: JSON.stringify(pending.payload),
+        signal: AbortSignal.timeout(WINDOW_REQUEST_TIMEOUT_MS),
+      },
+      { method: pending.method },
     );
 
     if (!response.ok) {
@@ -167,10 +158,35 @@ class WindowManager {
       throw new Error(`Error: ${response.status} - ${errorText}`);
     }
 
-    const responseBody = await response.json();
-    console.log(`[${this.serviceName}] Window Response Updated :`, responseBody);
+    await this.dbService.deleteWindowClose(pending.id);
+  }
 
-    await this.dbService.deleteItem('winlives', window_session_id);
+  public async retryPendingClosures(): Promise<void> {
+    if (this.retryingClosures) return;
+    this.retryingClosures = true;
+    try {
+      const session = await this.globalSessionService.getFromLocalStorage();
+      if (!session?.user) {
+        console.warn(`[${this.serviceName}] Cannot retry window closes without the current session owner`);
+        return;
+      }
+      const records = await this.dbService.getAllItems('windowclosings');
+      if (records instanceof Error) throw records;
+      const owned = records.filter(record => record.payload.user === session.user);
+      if (owned.length === 0) return;
+      const start = this.retryOffset % owned.length;
+      const batch = [...owned.slice(start), ...owned.slice(0, start)].slice(0, MAX_CLOSE_RETRIES_PER_ALARM);
+      this.retryOffset = start + batch.length;
+      for (const pending of batch) {
+        try {
+          await this.sendPendingClose(pending);
+        } catch (error) {
+          console.error(`[${this.serviceName}] Failed to retry window close ${pending.id}:`, error);
+        }
+      }
+    } finally {
+      this.retryingClosures = false;
+    }
   }
 }
 

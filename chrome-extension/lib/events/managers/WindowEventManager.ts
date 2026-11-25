@@ -18,12 +18,13 @@
  * the backend system.
  */
 
-import { windows, Windows } from 'webextension-polyfill';
+import { alarms, windows, Windows } from 'webextension-polyfill';
 import { WindowHandler, WindowDataTypes } from '@root/lib/handlers';
 import { InfoTypeValues } from '@root/lib/handlers/shared';
 
 type FocusLostHandler = (windowId: number | null) => Promise<void> | void;
 type FocusGainedHandler = (windowId: number) => Promise<void> | void;
+const WINDOW_CLOSE_RETRY_ALARM = 'windowCloseRetry';
 export default class WindowEventManager {
   private readonly serviceName = 'WindowEventManager';
   private currentActiveWindowId: number | null = null;
@@ -104,6 +105,17 @@ export default class WindowEventManager {
     }
 
     this.listenersRegistered = true;
+    alarms.onAlarm.addListener(alarm => {
+      if (alarm.name === WINDOW_CLOSE_RETRY_ALARM) {
+        void (async () => {
+          try {
+            if (await canCollect()) await this.windowManager.retryPendingClosures();
+          } catch (error) {
+            console.error(`[${this.serviceName}] Error retrying window closes`, error);
+          }
+        })();
+      }
+    });
     windows.onCreated.addListener(async win => {
       if (await canCollect()) await this.handleWindowCreation(win);
     });
@@ -116,6 +128,15 @@ export default class WindowEventManager {
   }
 
   public initializeWindows(): Promise<void> {
+    void (async () => {
+      try {
+        if (!(await alarms.get(WINDOW_CLOSE_RETRY_ALARM))) {
+          await alarms.create(WINDOW_CLOSE_RETRY_ALARM, { periodInMinutes: 1 });
+        }
+      } catch (error) {
+        console.error(`[${this.serviceName}] Could not schedule window close retries`, error);
+      }
+    })();
     return this.enqueue(() => this.handleStartupWindow());
   }
 

@@ -20,6 +20,12 @@ export interface ItemTypes {
   tab_session_id?: string;
 }
 
+export interface PendingWindowClose {
+  id: string;
+  method: 'PUT' | 'PATCH';
+  payload: ItemTypes & { closing_time: string };
+}
+
 /**
  * Represent the domain entry in the browser with GESIS logic.
  * @interface DomainItemTypes
@@ -98,6 +104,10 @@ export interface DBGesisTypes extends DBSchema {
   winlives: {
     key: string;
     value: ItemTypes;
+  };
+  windowclosings: {
+    key: string;
+    value: PendingWindowClose;
   };
 
   /** Store for active tabs */

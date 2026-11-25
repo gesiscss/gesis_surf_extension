@@ -5,7 +5,7 @@
  */
 import { openDB } from 'idb';
 import type { IDBPDatabase, StoreNames as DatabaseStoreNames } from 'idb';
-import { DBGesisTypes, ItemTypes } from '../interfaces/types';
+import { DBGesisTypes, ItemTypes, PendingWindowClose } from '../interfaces/types';
 import { DB_CONFIG } from '../constants/dbConfig';
 import { stableKeyOf } from '../../utils/domainVisitIdentity';
 
@@ -24,7 +24,15 @@ class DatabaseService {
   private initializeDB(): Promise<IDBPDatabase<DBGesisTypes>> {
     return openDB<DBGesisTypes>(DB_CONFIG.name, DB_CONFIG.version, {
       upgrade(db, _oldVersion, _newVersion, transaction) {
-        const stores = ['winlives', 'tabslives', 'hostslives', 'domainvisits', 'selectors', 'domainslives'] as const;
+        const stores = [
+          'winlives',
+          'windowclosings',
+          'tabslives',
+          'hostslives',
+          'domainvisits',
+          'selectors',
+          'domainslives',
+        ] as const;
         for (const store of stores) {
           if (!db.objectStoreNames.contains(store)) {
             db.createObjectStore(store, { keyPath: DB_CONFIG.stores[store] });
@@ -65,6 +73,29 @@ class DatabaseService {
         }
       },
     });
+  }
+
+  async retireWindow(
+    windowSessionId: string,
+    closingTime: string,
+    method: 'PUT' | 'PATCH',
+  ): Promise<PendingWindowClose> {
+    const db = await this.db;
+    const tx = db.transaction(['winlives', 'windowclosings'], 'readwrite');
+    const active = tx.objectStore('winlives');
+    const item = await active.get(windowSessionId);
+    if (!item || item.id === undefined || item.id === null) {
+      await tx.done;
+      throw new Error(`Window mapping or backend ID missing for ${windowSessionId}`);
+    }
+    const pending = { id: String(item.id), method, payload: { ...item, closing_time: closingTime } };
+    await Promise.all([tx.objectStore('windowclosings').put(pending), active.delete(windowSessionId), tx.done]);
+    return pending;
+  }
+
+  async deleteWindowClose(id: string): Promise<void> {
+    const db = await this.db;
+    await db.delete('windowclosings', id);
   }
 
   /**
