@@ -57,7 +57,9 @@ function listenForCaptureRequest(): void {
   runtime.onMessage.addListener((message: { type: string }) => {
     if (message.type === 'REQUEST_HTML_CAPTURE') {
       console.log('📄[HTML] Received HTML capture request');
-      captureHTML();
+      captureHTML().catch((error: unknown) => {
+        console.error('📄[HTML] Error capturing HTML:', error);
+      });
     }
   });
   console.log('📄[HTML] Listening for HTML capture requests');
@@ -78,7 +80,9 @@ export function initializeHTMLCapture(): void {
       clearTimeout(hardCapTimer);
       clearTimeout(debounceTimer);
       observer.disconnect();
-      captureHTML();
+      captureHTML().catch((error: unknown) => {
+        console.error('📄[HTML] Error capturing HTML:', error);
+      });
     };
 
     const hardCapTimer = setTimeout(capture, HARD_CAP_MS);
