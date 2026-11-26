@@ -10,5 +10,12 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     restoreMocks: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['lcov'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/__tests__/**', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
+    },
   },
 });
