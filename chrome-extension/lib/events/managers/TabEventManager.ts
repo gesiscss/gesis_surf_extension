@@ -10,11 +10,18 @@ import { TabHandler, DomainHandler, DomainDataTypes, TabPayloadTypes } from '@ro
 import DomainEventManager from './DomainEventManager';
 import { DatabaseService, ItemTypes } from '@root/lib/db';
 import { DomainPolicyService } from '@root/lib/services/policyService';
+import { KeyedSerialQueue } from '@root/lib/utils/keyedSerialQueue';
 
 class TabEventManager {
   private readonly serviceName = 'TabEventManager';
   private domainEventManager: DomainEventManager;
   private domainPolicyService: DomainPolicyService;
+  /**
+   * Browser events for one tab (onUpdated, onActivated, onRemoved) often fire within
+   * milliseconds. Handling them one at a time per tab stops two events from both
+   * seeing "no tab mapping" and creating the same tab twice.
+   */
+  private readonly tabQueue = new KeyedSerialQueue<number>();
 
   constructor(
     private tabManager: TabHandler,
@@ -30,11 +37,16 @@ class TabEventManager {
    * Initializes the event listeners for the tab events.
    * @returns void
    */
-  public registerTabListeners() {
-    // Register tab event listeners
-    tabs.onUpdated.addListener(this.handleTabUpdate);
-    tabs.onActivated.addListener(this.handleTabActivation);
-    tabs.onRemoved.addListener(this.handleTabRemoval);
+  public registerTabListeners(canCollect: () => Promise<boolean>): void {
+    tabs.onUpdated.addListener(async (...args) => {
+      if (await canCollect()) await this.handleTabUpdate(...args);
+    });
+    tabs.onActivated.addListener(async info => {
+      if (await canCollect()) await this.handleTabActivation(info);
+    });
+    tabs.onRemoved.addListener(async (...args) => {
+      if (await canCollect()) await this.handleTabRemoval(...args);
+    });
   }
 
   /**
@@ -109,7 +121,6 @@ class TabEventManager {
 
     const removeInfo = this.createRemoveInfo(windowId);
     await this.handleTabRemoval(activeTab.id, removeInfo);
-    await this.domainEventManager.handleDomainCleanup();
   }
 
   /**
@@ -137,10 +148,8 @@ class TabEventManager {
       }
 
       await this.processActiveTabRemoval(windowId!);
-      await this.domainEventManager.handleDomainCleanup();
     } catch (error) {
       console.error(`[${this.serviceName}] Error handling active tab blur:`, error);
-      await this.domainEventManager.handleDomainCleanup();
     }
   }
 
@@ -162,7 +171,14 @@ class TabEventManager {
         return;
       }
 
-      await this.handleTabUpdate(tabId, { status: 'complete' }, await tabs.get(tabId));
+      const tab = await tabs.get(tabId);
+      await this.handleTabUpdate(tabId, { status: 'complete' }, tab);
+
+      // Only trigger HTML capture for re-activation (tab already loaded).
+      // Fresh page loads are handled by the content script's own load+1s capture (Path B).
+      if (tab.status === 'complete') {
+        await this.domainEventManager.requestHTMLCapture(tabId);
+      }
     } catch (error) {
       console.error(`[${this.serviceName}] Error processing tab activation`, error);
       this.handleTabError(error, 'activation');
@@ -205,17 +221,80 @@ class TabEventManager {
   }
 
   /**
+   * Registers the domain session early when the tab starts loading.
+   * This closes any previous domain and marks the new one as pending so that
+   * wavelets and content events that fire while the page is still loading can
+   * wait for the domain instead of getting an empty domain_id.
+   * @param tab The tab data.
+   * @returns void
+   */
+  private async processTabLoading(tab: Tabs.Tab): Promise<void> {
+    try {
+      if (typeof tab.windowId !== 'number') {
+        throw new Error('Tab window ID is not a number');
+      }
+      if (typeof tab.id !== 'number') {
+        throw new Error('Tab ID is not a number');
+      }
+      if (typeof tab.url !== 'string') {
+        throw new Error('Tab URL is not a string');
+      }
+
+      const domainSessionId = await this.generateMaskedDomainSessionId(tab.windowId, tab.id, tab.url);
+
+      // Try to reuse the persisted tab mapping if it already exists. For brand-new tabs
+      // the backend tab ID is not available yet, but we can still register the domain
+      // session early so that wavelets and content events that fire while the page is
+      // loading have a pending promise to wait on.
+      const tabSessionId = await this.tabManager.generateTabSession(tab, tab.windowId);
+      const mapping = await this.dbService.getItem('tabslives', tabSessionId);
+      const hasMapping = mapping !== null && !(mapping instanceof Error);
+
+      const tabMapping = {
+        ...(hasMapping ? mapping : {}),
+        id: hasMapping ? mapping.id.toString() : String(tab.id),
+        url: tab.url,
+        windowId: tab.windowId,
+        domainSessionId: domainSessionId,
+        index: tab.index,
+        highlighted: tab.highlighted,
+        active: tab.active,
+        pinned: tab.pinned,
+        incognito: tab.incognito,
+      };
+
+      const domainData: DomainDataTypes = {
+        id: tab.id,
+        favIconUrl: tab.favIconUrl || '',
+        url: tab.url,
+        title: tab.title || '',
+        lastAccessed: tab.lastAccessed || 0,
+        windowId: tab.windowId,
+        status: 'loading',
+      };
+
+      console.log(`[${this.serviceName}] Early domain registration for loading tab:`, domainSessionId);
+      await this.domainEventManager.handleDomainChange(domainSessionId, domainData, tabMapping);
+    } catch (error) {
+      this.handleTabError(error, 'loading', tab.id);
+    }
+  }
+
+  /**
    * Handles the tab update event to check if the tab is new or not.
    * @param tabId The id of the tab.
    * @param changeInfo The change information of the tab.
    * @param tab The tab data.
    * @returns void
    */
-  private handleTabUpdate = async (tabId: number, changeInfo: Tabs.OnUpdatedChangeInfoType, tab: Tabs.Tab) => {
-    if (this.shouldProcessTabUpdate(changeInfo)) {
-      await this.processTabUpdate(tab);
-    }
-  };
+  private handleTabUpdate = (tabId: number, changeInfo: Tabs.OnUpdatedChangeInfoType, tab: Tabs.Tab) =>
+    this.tabQueue.run(tabId, async () => {
+      if (changeInfo.status === 'loading') {
+        await this.processTabLoading(tab);
+      } else if (this.shouldProcessTabUpdate(changeInfo)) {
+        await this.processTabUpdate(tab);
+      }
+    });
 
   /**
    * Handles the existing tab updating the domain.
@@ -350,13 +429,17 @@ class TabEventManager {
    * @example
    * handleTabRemoval(tabId, removeInfo);
    */
-  private handleTabRemoval = async (tabId: number, removeInfo: Tabs.OnRemovedRemoveInfoType) => {
+  private handleTabRemoval = (tabId: number, removeInfo: Tabs.OnRemovedRemoveInfoType) =>
+    this.tabQueue.run(tabId, () => this.processTabRemoval(tabId, removeInfo));
+
+  private async processTabRemoval(tabId: number, removeInfo: Tabs.OnRemovedRemoveInfoType) {
     try {
       const tabSessionId = await this.tabManager.generateTabSession(tabId, removeInfo.windowId);
       console.log(`[${this.serviceName}] Tab Session ID on Removal:`, tabSessionId);
       const mapping = await this.dbService.getItem('tabslives', tabSessionId);
 
       if (mapping !== null && !(mapping instanceof Error)) {
+        await this.domainEventManager.restoreDomainState(tabSessionId);
         console.log(`[${this.serviceName}] Mapping BEFORE UPDATE:`, mapping);
         const payloadMapping: TabPayloadTypes = {
           closing_time: mapping.close_time,
@@ -376,20 +459,39 @@ class TabEventManager {
     } catch (error) {
       this.handleTabError(error, 'removal', tabId);
     }
-  };
+  }
 
   private async handleExistingTabRemoval(tabId: number, mapping: TabPayloadTypes) {
     console.log(`[${this.serviceName}] Existing Tab Removal`, tabId);
 
-    const domainSessionId = this.domainEventManager.activeDomainSessionId;
+    try {
+      if (this.domainEventManager.activeDomainBelongsTo(tabId)) {
+        const visit = this.domainEventManager.activeVisit;
+        if (visit) {
+          console.log(`[${this.serviceName}] Active domain belongs to tab ${tabId}; closing it with the tab`);
+          try {
+            await this.tabManager.updateTab(tabId, mapping, 'PATCH', '');
+          } finally {
+            await this.domainEventManager.handleDomainCleanup(visit);
+          }
+          return;
+        }
+      } else {
+        console.log(
+          `[${this.serviceName}] Active domain belongs to another tab; ` + `closing tab ${tabId} without touching it`,
+        );
+      }
 
-    if (domainSessionId) {
-      await this.tabManager.updateTab(tabId, mapping, 'PATCH', domainSessionId);
-    } else {
-      console.warn(`[${this.serviceName}] No active domain session ID found for tab removal of tab ${tabId}`);
+      // The tab row must always get its closing time, with or without an active domain
+      // owned by this tab.
+      await this.tabManager.updateTab(tabId, mapping, 'PATCH', '');
+    } catch (error) {
+      console.error(`[${this.serviceName}] Failed to close tab ${tabId} in the backend:`, error);
+    } finally {
+      // The local mapping is cleaned even when the PATCH fails, so a reused browser
+      // tab id can never attach to this tab's dead row.
+      await this.tabManager.deleteTabMapping(mapping.tab_session_id);
     }
-
-    await this.domainEventManager.handleDomainCleanup();
   }
 
   private async handleNonExistingTabRemoval(tabId: number) {

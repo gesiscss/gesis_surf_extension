@@ -1,6 +1,6 @@
 {
   "name": "GESIS Surf",
-  "version": "2.0.0",
+  "version": "2.5.3",
   "description": "GESIS Surf Chrome Extension",
   "scripts": {
     "clean": "rimraf ../../dist && rimraf .turbo",
@@ -29,11 +29,14 @@
     "webextension-polyfill": "^0.12.0"
   },
   "devDependencies": {
+    "fake-indexeddb": "^6.2.4",
     "@chrome-extension-boilerplate/dev-utils": "workspace:*",
     "@chrome-extension-boilerplate/hmr": "workspace:*",
     "@chrome-extension-boilerplate/shared": "workspace:*",
     "@chrome-extension-boilerplate/tsconfig": "workspace:*",
     "@laynezh/vite-plugin-lib-assets": "^0.5.21",
+    "vite": "^6.4.2",
+    "@types/node": "25.6.0",
     "@types/webextension-polyfill": "^0.12.1",
     "@types/ws": "^8.5.10",
     "@vitest/coverage-v8": "^3.2.6",

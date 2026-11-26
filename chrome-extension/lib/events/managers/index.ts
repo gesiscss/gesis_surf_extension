@@ -14,3 +14,6 @@ export { default as DomainEventManager } from './DomainEventManager';
 
 // Content Event Manager
 export { default as ContentEventManager } from './ContentEventManager';
+
+// Wavelet Manager
+export { default as WaveletEventManager } from './WaveletEventManager';

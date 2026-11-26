@@ -24,8 +24,15 @@ export default defineConfig({
     minify: isProduction,
     reportCompressedSize: isProduction,
     rollupOptions: {
+      input: {
+        popup: resolve(rootDir, 'index.html'),
+        login: resolve(rootDir, 'login.html'),
+      },
       external: ['chrome'],
     },
+  },
+  esbuild: {
+    drop: isProduction ? ['console', 'debugger'] : [],
   },
   define: {
     'process.env.NODE_ENV': isDev ? `"development"` : `"production"`,

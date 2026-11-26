@@ -4,10 +4,15 @@
  */
 
 import { DatabaseService } from '@root/lib/db';
-import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 import GlobalSessionService from '@root/lib/services/globalSession/GlobalSessionService';
 import { WindowDataTypes, WindowPayloadTypes } from '../types/windowTypes';
 import { apiUrl, InfoType } from '../shared';
+import { apiRequestWithDevice } from '../../services/apiClientWithDevice';
+import type { PendingWindowClose } from '../../db/interfaces/types';
+
+// Window events are processed one at a time, so a hanging request must not block the rest.
+const WINDOW_REQUEST_TIMEOUT_MS = 15000;
+const MAX_CLOSE_RETRIES_PER_ALARM = 5;
 
 /**
  * Manages browser window events.
@@ -18,6 +23,8 @@ class WindowManager {
   private dbService: DatabaseService;
   private globalSessionService: GlobalSessionService;
   private apiUrl: string;
+  private retryingClosures = false;
+  private retryOffset = 0;
 
   constructor() {
     this.dbService = new DatabaseService();
@@ -37,6 +44,17 @@ class WindowManager {
 
   public async globalSessionId(windowId: number): Promise<string> {
     return await this.globalSessionService.getGlobalSessionId(windowId, 'window');
+  }
+
+  /**
+   * Checks whether the window has an open record stored locally.
+   * @param windowId The browser window ID.
+   * @returns True if a record exists for the window in the current global session.
+   */
+  public async hasWindowRecord(windowId: number): Promise<boolean> {
+    const windowSessionId = await this.globalSessionId(windowId);
+    const item = await this.dbService.getItem('winlives', windowSessionId);
+    return Boolean(item) && !(item instanceof Error);
   }
 
   /**
@@ -77,38 +95,6 @@ class WindowManager {
   }
 
   /**
-   * Builds the request options for the fetch request.
-   * @param payload The payload to be sent to the server.
-   * @param method The method to be used in the fetch request.
-   * @returns The request options for the fetch request.
-   */
-  async buildRequestOptions(
-    payload: WindowPayloadTypes,
-    method: 'POST' | 'PUT' | 'PATCH',
-  ): Promise<RequestInit | undefined> {
-    try {
-      const token = await readToken();
-
-      if (!token) {
-        console.error(`[${this.serviceName}] Token is undefined`);
-        return undefined;
-      }
-
-      return {
-        method: method,
-        headers: {
-          Authorization: `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      };
-    } catch (error) {
-      console.error(`[${this.serviceName}] Error:`, error);
-      throw error;
-    }
-  }
-
-  /**
    * Sends the window data to the server.
    * @param window The window data to be sent.
    * @param info The type of event that triggered the payload.
@@ -121,13 +107,12 @@ class WindowManager {
   ): Promise<Response> {
     try {
       const payload = await this.buildPayload(window, info, startTime);
-      const requestOptions = await this.buildRequestOptions(payload, method);
 
-      if (!requestOptions) {
-        throw new Error('Failed to build request options');
-      }
-
-      const response = await fetch(`${this.apiUrl}/window/windows/`, requestOptions);
+      const response = await apiRequestWithDevice(
+        `${this.apiUrl}/window/windows/`,
+        { method, body: JSON.stringify(payload), signal: AbortSignal.timeout(WINDOW_REQUEST_TIMEOUT_MS) },
+        { method },
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -153,45 +138,55 @@ class WindowManager {
    */
   async updateWindow(window: number, info: InfoType, method: 'PUT' | 'PATCH'): Promise<void> {
     const window_session_id = await this.globalSessionService.getGlobalSessionId(window, 'window');
-    const itemOrError = await this.dbService.getItem('winlives', window_session_id);
-    console.log(`[${this.serviceName}] Item or Error:`, itemOrError);
+    const pending = await this.dbService.retireWindow(window_session_id, new Date().toISOString(), method);
+    await this.sendPendingClose(pending);
+  }
 
-    if (!itemOrError) {
-      throw new Error(`Payload not found for window session ID: ${window_session_id}`);
-    }
-
-    if (itemOrError instanceof Error) {
-      throw new Error(`Error: ${itemOrError.message}`);
-    }
-
-    const payload: WindowPayloadTypes = {
-      ...itemOrError,
-      closing_time: new Date().toISOString(),
-    };
-
-    console.log(`[${this.serviceName}] Window Payload to be updated:`, payload);
-
-    if (payload.id === undefined) {
-      throw new Error('Window ID is undefined');
-    }
-
-    const requestOptions = await this.buildRequestOptions(payload, method);
-
-    if (!requestOptions) {
-      throw new Error('Failed to build request options');
-    }
-
-    const response = await fetch(`${this.apiUrl}/window/windows/${payload.id}/`, requestOptions);
+  private async sendPendingClose(pending: PendingWindowClose): Promise<void> {
+    const response = await apiRequestWithDevice(
+      `${this.apiUrl}/window/windows/${pending.id}/`,
+      {
+        method: pending.method,
+        body: JSON.stringify(pending.payload),
+        signal: AbortSignal.timeout(WINDOW_REQUEST_TIMEOUT_MS),
+      },
+      { method: pending.method },
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Error: ${response.status} - ${errorText}`);
     }
 
-    const responseBody = await response.json();
-    console.log(`[${this.serviceName}] Window Response Updated :`, responseBody);
+    await this.dbService.deleteWindowClose(pending.id);
+  }
 
-    await this.dbService.deleteItem('winlives', window_session_id);
+  public async retryPendingClosures(): Promise<void> {
+    if (this.retryingClosures) return;
+    this.retryingClosures = true;
+    try {
+      const session = await this.globalSessionService.getFromLocalStorage();
+      if (!session?.user) {
+        console.warn(`[${this.serviceName}] Cannot retry window closes without the current session owner`);
+        return;
+      }
+      const records = await this.dbService.getAllItems('windowclosings');
+      if (records instanceof Error) throw records;
+      const owned = records.filter(record => record.payload.user === session.user);
+      if (owned.length === 0) return;
+      const start = this.retryOffset % owned.length;
+      const batch = [...owned.slice(start), ...owned.slice(0, start)].slice(0, MAX_CLOSE_RETRIES_PER_ALARM);
+      this.retryOffset = start + batch.length;
+      for (const pending of batch) {
+        try {
+          await this.sendPendingClose(pending);
+        } catch (error) {
+          console.error(`[${this.serviceName}] Failed to retry window close ${pending.id}:`, error);
+        }
+      }
+    } finally {
+      this.retryingClosures = false;
+    }
   }
 }
 

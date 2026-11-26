@@ -5,6 +5,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     restoreMocks: true,
+    passWithNoTests: true, // Don't fail when no test files exist (e.g., after cleanup)
     coverage: {
       provider: 'v8',
       reporter: ['lcov'],

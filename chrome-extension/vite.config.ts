@@ -43,4 +43,7 @@ export default defineConfig({
       external: ['chrome'],
     },
   },
+  esbuild: {
+    drop: isProduction ? ['console', 'debugger'] : [],
+  },
 });

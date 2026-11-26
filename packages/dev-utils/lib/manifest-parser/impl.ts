@@ -16,11 +16,18 @@ function convertToFirefoxCompatibleManifest(manifest: Manifest) {
 
   manifestCopy.background = {
     scripts: [manifest.background?.service_worker],
-    type: 'module',
   };
-  manifestCopy.content_security_policy = {
-    extension_pages: "script-src 'self'; object-src 'self'",
+
+  manifestCopy.browser_specific_settings = {
+    gecko: {
+      id: 'sebastian.stier@gesis.org',
+      data_collection_permissions: {
+        required: [],
+        optional: [],
+      },
+    },
   };
+
   if (manifest.options_page) {
     manifestCopy.options_ui = {
       page: manifest.options_page,
@@ -28,5 +35,10 @@ function convertToFirefoxCompatibleManifest(manifest: Manifest) {
     };
     delete manifestCopy.options_page;
   }
+
+  manifestCopy.content_security_policy = {
+    extension_pages: "script-src 'self'; object-src 'self'",
+  };
+
   return manifestCopy as Manifest;
 }

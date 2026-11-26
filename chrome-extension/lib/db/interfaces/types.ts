@@ -1,4 +1,6 @@
 import { type DBSchema } from 'idb';
+import type { SelectorConfig } from '@chrome-extension-boilerplate/shared/lib/types/contentScript/sharedContentScriptTypes';
+import type { DomainPayloadTypes } from '../../handlers/types/domainTypes';
 
 /**
  * Represent the window or tab item from google API calls
@@ -18,22 +20,37 @@ export interface ItemTypes {
   tab_session_id?: string;
 }
 
+export interface PendingWindowClose {
+  id: string;
+  method: 'PUT' | 'PATCH';
+  payload: ItemTypes & { closing_time: string };
+}
+
 /**
  * Represent the domain entry in the browser with GESIS logic.
  * @interface DomainItemTypes
  */
 export interface DomainItemTypes {
+  id: number;
+  local_key: string;
   domain_title: string;
-  snapshot_html: string;
-  domain_status: string;
+  snapshot_html?: string;
+  domain_status?: string;
   domain_fav_icon: string;
   domain_session_id: string;
   start_time: string;
   closing_time: string;
   domain_url: string;
   domain_last_accessed: string;
-  category_number: number;
-  criteria_classification: string;
+  category_number?: number;
+  criteria_classification?: string;
+}
+
+export interface DomainVisitIdentity {
+  local_key: string;
+  domain_session_id: string;
+  start_time: string;
+  payload?: DomainPayloadTypes;
 }
 
 /**
@@ -75,6 +92,8 @@ export interface HostItemTypes {
   hosts_version: string;
 }
 
+export type { SelectorConfig };
+
 /**
  * Database schema for the GESIS browser extension.
  * Extends IndexedDB schema with custom stores.
@@ -86,6 +105,10 @@ export interface DBGesisTypes extends DBSchema {
     key: string;
     value: ItemTypes;
   };
+  windowclosings: {
+    key: string;
+    value: PendingWindowClose;
+  };
 
   /** Store for active tabs */
   tabslives: {
@@ -95,8 +118,12 @@ export interface DBGesisTypes extends DBSchema {
 
   /** Store for domain entries */
   domainslives: {
-    key: number;
+    key: string;
     value: DomainItemTypes;
+  };
+  domainvisits: {
+    key: string;
+    value: DomainVisitIdentity;
   };
 
   /** Store for configuration settings */
@@ -115,5 +142,11 @@ export interface DBGesisTypes extends DBSchema {
   hostslives: {
     key: string;
     value: HostItemTypes;
+  };
+
+  /** Store for selector configurations */
+  selectors: {
+    key: string;
+    value: SelectorConfig;
   };
 }

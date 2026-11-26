@@ -16,7 +16,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthContextType, AuthProviderProps } from '@src/features/auth/auth.types';
-import { readToken } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
+import { readToken, tokenStorage } from '@chrome-extension-boilerplate/shared/lib/storages/tokenStorage';
 
 // Create the AuthContext
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -30,20 +30,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     let mounted = true;
+    let updateSequence = 0;
 
-    (async () => {
+    const updateAuthentication = async () => {
+      const currentUpdate = ++updateSequence;
       try {
         const token = await readToken();
-        if (mounted) {
+        if (mounted && currentUpdate === updateSequence) {
           setIsAuthenticated(Boolean(token));
         }
-      } catch {
-        if (mounted) setIsAuthenticated(false);
+      } catch (error) {
+        console.error('[AuthContext] Could not read the authentication token:', error);
+        if (mounted && currentUpdate === updateSequence) setIsAuthenticated(false);
       }
-    })();
+    };
+
+    const unsubscribe = tokenStorage.subscribe(() => {
+      void updateAuthentication();
+    });
+    void updateAuthentication();
 
     return () => {
       mounted = false;
+      unsubscribe();
     };
   }, []);
 

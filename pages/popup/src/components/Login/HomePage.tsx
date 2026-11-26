@@ -3,7 +3,7 @@ import { Box, Card, CardContent, Typography, CardMedia, Button } from '@mui/mate
 import { CustomSwitch } from '../styles/privacy/PrivateModeToggle.styles';
 import PrivacyTimer from './PrivacyTimer';
 import { togglePrivateMode, getPrivateModeStatus, getRemainingTime } from './PrivacyMode';
-import { runtime } from 'webextension-polyfill';
+import { runtime, tabs } from 'webextension-polyfill';
 
 const Home: React.FC = () => {
   console.log('[HomePage] Rendered HomePage component');
@@ -12,7 +12,7 @@ const Home: React.FC = () => {
   const [remainingTime, setRemainingTime] = React.useState<number | null>(null);
 
   const handleRedirect = () => {
-    chrome.tabs.create({ url: 'https://www.gesis.org/info/surf' });
+    tabs.create({ url: 'https://www.gesis.org/info/surf' });
   };
 
   useEffect(() => {
@@ -58,7 +58,7 @@ const Home: React.FC = () => {
     setPrivateMode(isEnabled);
 
     if (isEnabled) {
-      setRemainingTime(60);
+      setRemainingTime(15 * 60);
     } else {
       setRemainingTime(null);
     }
@@ -79,7 +79,7 @@ const Home: React.FC = () => {
         justifyContent: 'center',
         alignItems: 'center',
         width: '100%',
-        height: '100%',
+        minHeight: '100%',
         backgroundColor: privateMode ? '#E53935' : '#003C78',
         padding: 1,
         boxSizing: 'border-box',
@@ -129,7 +129,7 @@ const Home: React.FC = () => {
         </CardContent>
 
         {/* Toggle for Private Mode */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1, p: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1, p: 1 }}>
           <Typography variant="body2" sx={{ mr: 1 }} color="text.secondary">
             Privater Modus
           </Typography>
@@ -147,7 +147,7 @@ const Home: React.FC = () => {
         <PrivacyTimer isActive={privateMode} initialTime={remainingTime} onTimerEnd={() => setPrivateMode(false)} />
 
         {/* Button to redirect to GESIS Surf */}
-        <Box sx={{ p: 2 }}>
+        <Box sx={{ p: 1 }}>
           <Button
             variant="contained"
             fullWidth

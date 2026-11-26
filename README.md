@@ -102,6 +102,18 @@ To load the extension in Chrome:
 3. Click **Load unpacked**
 4. Select the `dist/` directory
 
+### Signing in
+
+When you open GESIS Surf without a valid sign-in, a separate login window opens. It stays open when you switch to your
+email or another window, so you can copy and paste your password. If you open the extension again while the login window
+is open, the existing window is brought forward without clearing the form. After a successful sign-in, the login window
+closes automatically (before data collection starts, so it is not recorded) and you can use the extension's toolbar
+popup as usual.
+
+The password is kept in the login form's memory and cleared after a successful sign-in. The authentication token is
+stored in the extension's existing browser-local storage and read by the background service and popup. Browser-local
+extension storage is not encrypted, so protect access to the browser profile and device.
+
 ## 💻 Development
 
 ### Start the Development Server
@@ -215,10 +227,12 @@ The extension follows a modular architecture:
 **Data Flow:**
 1. On startup/install, `AuthService` validates the stored token against `/api/user/me/`
 2. If authenticated, `HostService` syncs the domain blocklist/allowlist from `/api/host/hosts/`
-3. `GlobalSessionService` creates a hierarchical session (global → window → tab → domain) and posts it to `/api/session/`
+3. `GlobalSessionService` starts the global → window → tab → domain hierarchy by posting to `/api/globalsession/global-session/`. If only the background worker restarts, the extension restores collection under the existing global session instead of posting another one.
 4. `EventManager` starts `TabEventManager`, `WindowEventManager`, `DomainEventManager`, and `ContentEventManager`
 5. Content script captures **clicks**, **scrolls**, and **HTML snapshots** (with meta tags) and sends them via message passing to the background service worker
 6. Background worker writes events to **IndexedDB** via `DatabaseService` for local buffering
+
+The IndexedDB v5 upgrade repairs profiles missing the `selectors` store without clearing existing selector or visit records. Version 6 adds a separate queue for window-close updates: failed closes are retried while collection is active without reusing the old window mapping. Upgrades run automatically when the extension opens the database. Test rollbacks in a separate profile: builds that open an earlier database version cannot reopen a profile upgraded to v6.
 7. Events are flushed to the backend API (`/api/clicks/`, `/api/scrolls/`, `/api/tab/tabs/`, `/api/domain/domains/`)
 8. `HeartbeatService` runs every 10 seconds to maintain extension liveness state
 9. `PrivateModeService` suspends data collection when the user activates privacy mode
@@ -320,6 +334,12 @@ The extension communicates with the backend API for:
 | `/api/host/task-result/`   | Async host sync task polling                         |
 | `/api/selectors/`          | Dynamic LLM-based CSS selector retrieval             |
 | `/api/selectors/task-result/` | Async selector task polling                       |
+
+Selector sync treats `202 Processing` as pending and retries within its polling budget. It publishes the selector map and version together so a failed publication can be retried on the next sync.
+
+Wavelets read their activation flags when the content script initializes. An explicit `is_active: false` skips capture setup; reload an already-open page after sync to apply a changed flag. Missing configs still use the built-in defaults.
+
+For ChatGPT, `role_attribute` and `message_id_attribute` take bare attribute names (for example, `data-message-id`), not CSS selectors. `message_container` and `content` still take CSS selectors.
 
 ## 👥 Authors
 

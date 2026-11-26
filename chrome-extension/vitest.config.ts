@@ -18,6 +18,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     restoreMocks: true,
+    setupFiles: ['./vitest.setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['lcov'],

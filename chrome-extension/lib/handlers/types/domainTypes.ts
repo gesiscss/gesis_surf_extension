@@ -25,6 +25,7 @@ export interface DomainPayloadTypes extends BasePayloadTypes {
   domain_session_id?: string;
   domain_title: string;
   domain_url: string;
+  criteria_classification?: string;
 }
 
 // Raw domain data from the browser tab

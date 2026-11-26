@@ -8,9 +8,10 @@ function init() {
     throw new Error('Can not find #app-container');
   }
   const root = ReactDOM.createRoot(appContainer);
+  const isLoginWindow = document.body.dataset.loginWindow === 'true';
   root.render(
     <React.StrictMode>
-      <Popup />
+      <Popup isLoginWindow={isLoginWindow} />
     </React.StrictMode>,
   );
 }

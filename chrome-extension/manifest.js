@@ -29,7 +29,6 @@ const manifest = Object.assign(
     // options_page: 'options/index.html',
     background: {
       service_worker: 'background.iife.js',
-      type: 'module',
     },
     action: {
       default_popup: 'popup/index.html',
@@ -51,7 +50,7 @@ const manifest = Object.assign(
     // devtools_page: 'devtools/index.html',
     web_accessible_resources: [
       {
-        resources: ['*.js', '*.css', '*.svg', 'icon-128.png', 'icon-34.png'],
+        resources: ['content/index.iife.js', 'content/logo.svg', 'content.css', 'icon128.png', 'icon32.png'],
         matches: ['*://*/*'],
       },
     ],

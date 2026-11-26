@@ -2,12 +2,13 @@
  * @fileoverview Data collection service for managing data storage and transmission
  * @implements {DataCollectionService}
  */
-import { storage } from 'webextension-polyfill';
 import { API_CONFIG } from '@chrome-extension-boilerplate/hmr/lib/constant';
 import { DatabaseService } from '@root/lib/db';
+import { apiRequestWithDevice } from '../apiClientWithDevice';
+import { logger } from '../logger';
 
 class DataCollectionService {
-  private dbService: DatabaseService;
+  private readonly dbService: DatabaseService;
   private isDataCollectionActive: boolean = false;
 
   constructor() {
@@ -37,21 +38,11 @@ class DataCollectionService {
    */
   private async checkDataCollectionFlag(): Promise<boolean> {
     try {
-      const storageData = await storage.local.get('token');
-      const token = storageData.token;
-
-      if (!token) {
-        console.log('[DataCollectionService] Token not found in storage, disabling data collection.');
-        return false;
-      }
-
-      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await apiRequestWithDevice(
+        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_ME}`,
+        { method: 'GET' },
+        { method: 'GET', logToElasticsearch: true, logger },
+      );
 
       if (!response.ok) {
         console.warn('[DataCollectionService] Invalid token, disabling data collection.');
