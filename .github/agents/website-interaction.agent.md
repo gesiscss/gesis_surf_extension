@@ -17,7 +17,7 @@ description: Investigates whether GESIS Surf blocks website controls and propose
 
 ## Task for Copilot
 
-Investigate the extension revision on `feature/v2.5-wavelets` and propose the
+Investigate the extension revision on `dev` and propose the
 smallest evidence-backed repair. Use only local synthetic fixtures; do not
 access live websites, staging, production, or backend services.
 
@@ -74,5 +74,5 @@ access live websites, staging, production, or backend services.
   fixture only when needed to test the repair.
 - Do not use personal browser profiles, real accounts, credentials, or shared
   data. Do not modify the backend or deployment configuration.
-- If a PR is requested, use `feature/v2.5-wavelets` as its base. Do not merge,
+- If a PR is requested, use `dev` as its base. Do not merge,
   deploy, or publish a release.
