@@ -1,0 +1,4 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["./shorts-entry.ts", "./chatgpt-entry.ts", "./runtime-stub.ts"]
+}

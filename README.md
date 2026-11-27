@@ -144,6 +144,49 @@ pnpm run dev:firefox
 - `pnpm run prettier` - Format code with Prettier
 - `pnpm run docs` - Generate TypeDoc documentation
 
+### Wavelet fixture baseline
+
+The Wavelet fixture probes run the actual YouTube Shorts and ChatGPT extractors in Playwright Chromium against synthetic,
+network-intercepted pages. Only extension messaging is replaced with an in-page recorder. It does not install the
+extension, contact YouTube or the backend, use accounts, or certify staging delivery or live-site health.
+The production extractor and normal extension build are unchanged.
+
+Use Node.js 22 and install the browser once after `pnpm install --frozen-lockfile`:
+
+```bash
+pnpm --filter @chrome-extension-boilerplate/content-script exec playwright install chromium
+pnpm --filter @chrome-extension-boilerplate/content-script run probe:shorts:test
+pnpm --filter @chrome-extension-boilerplate/content-script run probe:shorts
+pnpm --filter @chrome-extension-boilerplate/content-script run probe:chatgpt
+```
+
+The probe builds its test-only browser bundle in memory. Each scenario gets a clean browser context and advances the
+browser clock through capture/retry timers. The checked-in synthetic selector snapshot is
+[`pages/content/wavelet-health/selectors.json`](pages/content/wavelet-health/selectors.json), not a staging DB export.
+
+| Scenario | Expected unchanged-baseline result |
+| --- | --- |
+| Direct landing with full numeric counts | `passed`: correct identity, title, channel, counts and URLs |
+| Navigation and repeated navigation event | `passed`: second video's metadata, real zero counts, no duplicate |
+| Changed overlay element | `extraction_failure`: no capture after the retry window |
+| `46k likes` | `value_mismatch`: captured likes are zero despite a nonzero label |
+
+`pages/content/wavelet-health/report.json` records named expected/observed assertions, selector digest/version,
+source SHA, dirty-working-tree flag, browser version and per-scenario outcomes. It is generated and Git-ignored.
+**Exit 0 means the detector reproduced this exact baseline, not that extraction is healthy.** The report keeps
+`baselineMatched` separate from `extractionHealthy`. Unexpected values, missing/duplicate scenarios, browser errors
+and build errors fail the run; runtime errors take precedence over an expected missing capture.
+A future intentional extractor fix requires reviewing these baseline expectations, not silently accepting a new outcome.
+
+The ChatGPT probe tests existing messages, configured role attributes, and streaming using synthetic fixtures. It
+writes `pages/content/wavelet-health/report-chatgpt.json` with the same baseline and health distinction.
+
+The read-only [`wavelet-health` workflow](.github/workflows/wavelet-health.yml) runs on PRs into
+`dev` or `monitor/wavelet-health`, and can be dispatched manually. It publishes a job summary and retains
+the JSON reports for seven days.
+It has no daily schedule, repair agent, DB writes, deployments or live-site probes. Fixture checks validate the
+detector and extractor against fixed cases; a later live probe is needed to discover new website changes.
+
 ## 📁 Project Structure
 
 ```

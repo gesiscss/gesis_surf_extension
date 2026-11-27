@@ -1,0 +1,19 @@
+{
+  "base": {
+    "family": "llm",
+    "provider": "chatgpt",
+    "version": "fixture-1",
+    "hostname_patterns": ["chatgpt.com"],
+    "selectors": {
+      "role_attribute": ["data-message-author-role"],
+      "content": [".whitespace-pre-wrap"],
+      "message_id_attribute": ["data-message-id"],
+      "message_container": ["[data-message-author-role]"]
+    },
+    "is_active": true
+  },
+  "alternateRole": {
+    "role_attribute": ["data-message-role"],
+    "message_container": ["[data-message-role]"]
+  }
+}

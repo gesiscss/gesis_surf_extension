@@ -17,7 +17,10 @@
     "prettier": "prettier . --write",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit && tsc --project wavelet-health/tsconfig.json",
+    "probe:shorts": "node wavelet-health/probe-shorts.mjs",
+    "probe:chatgpt": "node wavelet-health/probe-chatgpt.mjs",
+    "probe:shorts:test": "vitest run wavelet-health/report.test.mjs"
   },
   "dependencies": {
     "@chrome-extension-boilerplate/shared": "workspace:*",
@@ -28,10 +31,11 @@
   "devDependencies": {
     "@chrome-extension-boilerplate/hmr": "workspace:*",
     "@chrome-extension-boilerplate/tsconfig": "workspace:*",
-    "vite": "^6.4.2",
     "@types/webextension-polyfill": "^0.10.0",
     "@vitest/coverage-v8": "^3.2.6",
     "jsdom": "^24.0.0",
+    "playwright": "1.65.1",
+    "vite": "^6.4.2",
     "vitest": "^3.2.6"
   }
 }

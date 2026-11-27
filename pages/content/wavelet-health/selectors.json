@@ -1,0 +1,14 @@
+{
+  "family": "social",
+  "provider": "youtube_shorts",
+  "version": "fixture-1",
+  "hostname_patterns": ["^www\\.youtube\\.com$"],
+  "selectors": {
+    "reel_overlay": ["ytd-reel-player-overlay-renderer"],
+    "channel_link": ["a[href^='/@']"],
+    "video_title": ["yt-shorts-video-title-view-model h2"],
+    "like_button": ["like-button-view-model button[aria-label]"],
+    "comment_button": ["button[aria-label*='comment' i]"]
+  },
+  "is_active": true
+}

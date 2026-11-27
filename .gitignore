@@ -57,3 +57,7 @@ packages/hmr/build
 
 # Coverage reports
 coverage/
+
+# Synthetic Wavelet probe output
+pages/content/wavelet-health/report.json
+pages/content/wavelet-health/report-chatgpt.json

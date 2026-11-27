@@ -1,0 +1,56 @@
+name: Wavelet fixture baseline
+
+on:
+  pull_request:
+    branches: [dev, monitor/wavelet-health]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wavelet-fixtures-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  fixture-baselines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 9.1.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - run: pnpm install --frozen-lockfile
+      - name: Check report classification and baseline gates
+        run: pnpm --filter @chrome-extension-boilerplate/content-script run probe:shorts:test
+      - name: Type-check content scripts and probe harness
+        run: pnpm --filter @chrome-extension-boilerplate/content-script run type-check
+      - name: Install Chromium
+        run: pnpm --filter @chrome-extension-boilerplate/content-script exec playwright install --with-deps chromium
+      - name: Run unchanged Shorts baseline
+        run: pnpm --filter @chrome-extension-boilerplate/content-script run probe:shorts
+      - name: Run ChatGPT baseline
+        if: ${{ success() || failure() }}
+        run: pnpm --filter @chrome-extension-boilerplate/content-script run probe:chatgpt
+      - name: Upload Shorts report (including failures)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: shorts-fixture-baseline
+          path: pages/content/wavelet-health/report.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload ChatGPT report (including failures)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: chatgpt-fixture-baseline
+          path: pages/content/wavelet-health/report-chatgpt.json
+          if-no-files-found: error
+          retention-days: 7
