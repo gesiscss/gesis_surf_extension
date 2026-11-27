@@ -182,7 +182,7 @@ The ChatGPT probe tests existing messages, configured role attributes, and strea
 writes `pages/content/wavelet-health/report-chatgpt.json` with the same baseline and health distinction.
 
 The read-only [`wavelet-health` workflow](.github/workflows/wavelet-health.yml) runs on PRs into
-`dev` or `monitor/wavelet-health`, and can be dispatched manually. It publishes a job summary and retains
+`dev` or `feature/wavelet-monitor`, and can be dispatched manually. It publishes a job summary and retains
 the JSON reports for seven days.
 It has no daily schedule, repair agent, DB writes, deployments or live-site probes. Fixture checks validate the
 detector and extractor against fixed cases; a later live probe is needed to discover new website changes.

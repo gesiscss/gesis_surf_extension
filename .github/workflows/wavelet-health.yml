@@ -2,7 +2,7 @@ name: Wavelet fixture baseline
 
 on:
   pull_request:
-    branches: [dev, monitor/wavelet-health]
+    branches: [dev, feature/wavelet-monitor]
   workflow_dispatch:
 
 permissions:
